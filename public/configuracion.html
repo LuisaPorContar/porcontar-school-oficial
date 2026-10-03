@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configurar Claude — PorContar Academia</title>
+<link rel="icon" type="image/svg+xml" href="marca/burbuja.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* marca */
+  --pc-blue:#2b4fe8;
+  --pc-blue-bright:#4668ff;
+  --pc-blue-deep:#1b33a8;
+  --pc-blue-tint:#eaeeff;
+  --pc-yellow:#fff401;
+
+  --claude:#e8622d;
+
+  /* neutros */
+  --ink:#11162a;
+  --ink-2:#5b6479;
+  --ink-3:#8d95a8;
+  --paper:#f4f7fc;
+  --card:#ffffff;
+  --line:#e4e9f3;
+
+  /* superficies oscuras */
+  --night:#0b1120;
+  --night-2:#111827;
+  --night-line:rgba(255,255,255,.08);
+  --on-night:#f1f5f9;
+  --on-night-soft:#b6c1d2;
+
+  --radius:14px;
+  --pill:999px;
+  --shadow:0 20px 50px -34px rgba(17,22,42,.35);
+  --display:'Poppins','Segoe UI',system-ui,sans-serif;
+  --body:'Hanken Grotesk','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-size:15.5px;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--display);letter-spacing:-.02em;margin:0}
+a{color:var(--pc-blue);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1.5px}
+a:hover{color:var(--pc-blue-deep)}
+:focus-visible{outline:3px solid var(--pc-blue-bright);outline-offset:2px;border-radius:8px}
+.u-claude{color:var(--claude);font-weight:600}
+
+/* ---------- layout ---------- */
+.shell{display:flex;min-height:100vh}
+/* Menú claro: dentro del muro ya hay una barra oscura, no compiten */
+.side{
+  width:236px;flex:0 0 236px;background:var(--card);color:var(--ink-2);
+  border-right:1px solid var(--line);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:0 0 32px;z-index:60;
+}
+.side::-webkit-scrollbar{width:6px}
+.side::-webkit-scrollbar-thumb{background:#dbe2f0;border-radius:6px}
+.brand{
+  display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
+  margin:0 16px;padding:20px 0 14px;border-bottom:1px solid var(--line);
+}
+.brand img{width:88px;height:auto;display:block}
+.brand b{
+  display:inline-block;padding:4px 11px;border-radius:var(--pill);
+  background:var(--pc-blue-tint);font-family:var(--display);font-size:10px;font-weight:600;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--pc-blue-deep);
+}
+.brand span{display:none}
+.side h4{
+  margin:18px 0 6px;padding:0 20px;font-family:var(--display);font-size:10.5px;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);
+}
+.side a.nav{
+  cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:1px 10px;padding:8px 12px;border-radius:10px;
+  color:var(--ink-2);font-size:13.5px;border:0;text-decoration:none;
+}
+.side a.nav:hover{background:var(--paper);color:var(--ink)}
+.side a.nav.on{background:var(--pc-blue-tint);color:var(--pc-blue-deep);font-weight:600;box-shadow:inset 3px 0 0 var(--pc-blue)}
+.pill{font-size:11px;font-weight:600;padding:1px 8px;border-radius:var(--pill);background:var(--paper);color:var(--ink-3)}
+.pill.alerta{background:var(--pc-yellow);color:var(--ink)}
+
+#abrirMenu{
+  display:none;position:fixed;left:14px;bottom:16px;z-index:80;
+  font-family:var(--display);font-size:14px;font-weight:600;cursor:pointer;
+  background:var(--pc-blue);color:#fff;border:0;border-radius:var(--pill);
+  padding:11px 20px;box-shadow:0 12px 26px -12px rgba(43,79,232,.55);
+}
+#velo{display:none;position:fixed;inset:0;background:rgba(11,17,32,.55);z-index:55}
+body.menu #velo{display:block}
+
+.main{flex:1;min-width:0;padding:0 0 70px}
+.wrap{max-width:900px;margin:0 auto;padding:0 32px}
+
+/* ---------- portada ---------- */
+.hero{background:var(--card);border-bottom:1px solid var(--line);padding:44px 0 34px}
+.deco{display:none}
+.hero h1{margin:0 0 14px;font-size:33px;line-height:1.14;font-weight:700}
+.hero h1 br{display:none}
+.hero h1 .bloque{display:inline;font-size:inherit;padding:0}
+.hero h1 .am{background:linear-gradient(transparent 82%,var(--pc-yellow) 82%)}
+.hero h1 .bl:before{content:' '}
+.hero p{margin:0;max-width:64ch;color:var(--ink-2);font-size:16px}
+.hero-cta{
+  display:inline-flex;align-items:center;gap:8px;margin-top:20px;padding:11px 20px;
+  border-radius:var(--pill);background:var(--pc-blue);color:#fff;text-decoration:none;
+  font-family:var(--display);font-size:14px;font-weight:600;
+  box-shadow:0 12px 26px -12px rgba(43,79,232,.55);
+}
+.hero-cta:hover{background:var(--pc-blue-deep);color:#fff}
+
+/* ---------- barra de progreso y filtros ---------- */
+.barra{
+  position:sticky;top:0;z-index:20;background:rgba(244,247,252,.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);padding:11px 0;margin-bottom:26px;
+}
+.barra .wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+button.filtro{
+  font-family:var(--display);font-size:13px;font-weight:600;border:1px solid var(--line);
+  background:#fff;color:var(--ink-2);border-radius:var(--pill);padding:6px 14px;cursor:pointer;
+}
+button.filtro:hover{border-color:var(--pc-blue);color:var(--pc-blue)}
+button.filtro[aria-pressed="true"]{background:var(--pc-blue);color:#fff;border-color:var(--pc-blue)}
+
+/* ---------- secciones ---------- */
+section{margin:0 0 42px;scroll-margin-top:78px}
+.cab{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:8px;
+     display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.cab h2{font-size:23px;font-weight:700}
+.cab .quien{font-size:12.5px;color:var(--ink-3);font-weight:600}
+.intro{margin:0 0 16px;color:var(--ink-2);max-width:68ch}
+
+.item{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+.item.oculto{display:none}
+.fila{display:flex;align-items:flex-start;gap:14px;padding:15px 18px;cursor:pointer}
+.fila:hover{background:#fafbff}
+.fila .txt{flex:1;min-width:0}
+.fila h3{margin:0 0 3px;font-size:15.5px;font-weight:600;line-height:1.35}
+.fila p{margin:0;font-size:13.8px;color:var(--ink-2)}
+.marca{
+  display:inline-block;font-family:var(--body);font-size:11px;font-weight:700;padding:2px 9px;
+  border-radius:var(--pill);margin-left:8px;vertical-align:1px;white-space:nowrap;
+}
+.m-activar{background:var(--pc-blue-tint);color:var(--pc-blue-deep)}
+.m-desactivar{background:#eef1f7;color:var(--ink-2)}
+.m-decidir{background:var(--pc-yellow);color:var(--ink)}
+.m-info{background:#f1f4f9;color:var(--ink-3)}
+
+.sw{flex:0 0 auto;display:flex;align-items:center;gap:9px;padding-top:2px}
+.sw small{font-size:11.5px;color:var(--ink-3);width:56px;text-align:right;font-weight:600}
+.toggle{
+  width:42px;height:24px;border-radius:var(--pill);background:#ccd4e6;border:0;
+  position:relative;cursor:pointer;flex:0 0 42px;transition:background .18s;
+}
+.toggle::after{
+  content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 2px rgba(17,22,42,.3);transition:transform .18s;
+}
+.toggle[aria-checked="true"]{background:var(--pc-blue)}
+.toggle[aria-checked="true"]::after{transform:translateX(18px)}
+.toggle[disabled]{opacity:.4;cursor:not-allowed}
+/* Estos no se prenden ni se apagan: se agregan a mano. Sin switch y sin etiqueta:
+   la tarjeta queda solo con la explicación. */
+.item[data-rec="info"] .toggle{display:none}
+.marca.m-info{display:none}
+
+.detalle{display:none;padding:0 18px 18px;border-top:1px solid var(--line)}
+.item.abierto .detalle{display:block}
+.detalle h5{
+  margin:15px 0 5px;font-family:var(--display);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.09em;color:var(--ink-3);
+}
+.detalle p{margin:0 0 8px;font-size:14.5px;color:var(--ink-2);max-width:70ch}
+.detalle .criterio{border-left:3px solid var(--pc-blue);padding:2px 0 2px 14px;background:none}
+.detalle .criterio p{margin:0;color:var(--ink)}
+.fuente{margin-top:12px;font-size:12.5px;color:var(--ink-3);display:flex;gap:7px;align-items:baseline;flex-wrap:wrap}
+.aviso{
+  border-left:3px solid var(--pc-yellow);background:#fffdf0;padding:10px 14px;
+  border-radius:0 8px 8px 0;font-size:14px;margin:10px 0;color:var(--ink);
+}
+.sinverificar{
+  border-left:3px solid var(--line);background:var(--paper);padding:10px 14px;
+  border-radius:0 8px 8px 0;font-size:13.6px;color:var(--ink-2);margin:10px 0;
+}
+
+/* ---------- plan ---------- */
+.plan{background:var(--night);color:var(--on-night-soft);border-radius:18px;padding:26px 28px;margin-top:14px}
+.plan h2{margin:0 0 4px;color:#fff;font-size:21px;font-weight:700}
+.plan p.sub{margin:0 0 16px;color:var(--on-night-soft);opacity:.8;font-size:14px}
+.plan ol{margin:0;padding-left:20px}
+.plan li{margin-bottom:9px;font-size:14.5px}
+.plan li b{color:#fff}
+.plan li::marker{color:var(--pc-yellow)}
+.plan .vacio{color:var(--on-night-soft);opacity:.8}
+
+footer{max-width:900px;margin:0 auto;padding:28px 32px 0;color:var(--ink-3);font-size:13px;border-top:1px solid var(--line)}
+
+@media(max-width:860px){
+  .side{position:fixed;top:0;left:0;height:100vh;transform:translateX(-100%);transition:transform .22s ease}
+  body.menu .side{transform:translateX(0);box-shadow:0 0 40px rgba(11,17,32,.4)}
+  #abrirMenu{display:block;left:auto;right:14px;bottom:14px}   /* a la derecha: no tapa los filtros */
+  .main{padding-bottom:96px}
+  .wrap{padding:0 20px}
+  .hero h1{font-size:27px}
+  .sw small{display:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<button id="abrirMenu" aria-expanded="false">Secciones</button>
+<div id="velo"></div>
+<div class="shell">
+<nav class="side" id="side">
+  <div class="brand">
+    <img src="marca/porcontar-tinta.png" alt="PorContar" width="480" height="302">
+    <b>Configurar Claude</b>
+  </div>
+  <div id="nav"></div>
+</nav>
+
+<main class="main">
+  <div class="hero">
+    <div class="deco rayas"></div>
+    <div class="deco cuarto"></div>
+    <div class="wrap">
+      <h1><span class="bloque am">Qué dejar activo</span> <span class="bloque bl">en tu organización de <span class="u-claude">Claude</span></span></h1>
+      <a class="hero-cta" href="https://claude.ai/admin-settings/organization" target="_blank" rel="noopener">
+        Abrir la configuración en Claude →
+      </a>
+    </div>
+  </div>
+
+
+  <div class="barra">
+    <div class="wrap">
+      <button class="filtro" data-f="todo" aria-pressed="true">Todo</button>
+      <button class="filtro" data-f="activar" aria-pressed="false">Encender</button>
+      <button class="filtro" data-f="desactivar" aria-pressed="false">Apagar</button>
+      <button class="filtro" data-f="decidir" aria-pressed="false">Por decidir</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="contenido"></div>
+
+  <div class="wrap">
+    <div class="plan" id="plan"></div>
+  </div>
+
+  <footer>
+    <p>Cada tarjeta enlaza el artículo de Anthropic donde está documentado.</p>
+  </footer>
+</main>
+</div>
+
+<script>
+const S = [];
+
+S.push({
+id:'org', nombre:'Organización y acceso', quien:'Propietario o Propietario Principal',
+intro:'Es la puerta de entrada. Aquí se decide quién puede unirse a la organización, con qué correo, y qué instrucciones recibe Claude en todas las conversaciones.',
+items:[
+ {titulo:'Instrucciones de la organización', rec:'activar', resumen:'Tres mil caracteres que Claude lee en cada conversación de la organización.',
+  que:'Son instrucciones que Claude sigue en cada conversación de toda la organización. Cuando una instrucción personal de un miembro contradice una de la organización, Claude favorece la de la organización. El máximo es de 3000 caracteres y los cambios tardan hasta una hora en aplicarse en todos los productos. Para borrarlas, se vacía el campo y se guarda. Anthropic recomienda mantenerlas cortas porque se incluyen en cada mensaje que envía cualquier persona del equipo.',
+  criterio:'La mayoría lo deja con una regla suelta de formato y ahí se queda. Ese campo es el lugar para lo que no quieres repetir nunca, como el idioma en que escribe el equipo, el paso de revisión obligatorio antes de publicar o las promesas que nunca se pueden hacer. Escríbelo corto y revísalo cada trimestre.',
+  fuente:{t:'Establecer instrucciones de organización', u:'https://support.claude.com/es/articles/14546867-establecer-instrucciones-de-organizacion'}},
+
+ {titulo:'Dominios de correo permitidos', rec:'activar', resumen:'Uno verificado y otro en estado pendiente.',
+  que:'El dominio del propietario aparece en la lista automáticamente. Los administradores pueden agregar dominios adicionales, verificarlos y activarlos como Detectable. La documentación advierte que los dominios de correo personal, como Gmail, y los dominios .edu no se pueden agregar a la lista permitida.',
+  aviso:'Si el dominio que tienes pendiente es un .edu o una variante por país como .edu.co, revisa esto antes de insistir. La documentación menciona los .edu como no permitidos, aunque no dice de forma explícita si esa regla cubre las variantes por país. Antes de invertir más tiempo en el registro TXT, vale confirmarlo con soporte.',
+  criterio:'Un dominio en Pendiente no protege nada y confunde a quien lea la consola después de ti. O lo verificas esta semana o lo retiras y trabajas con esa contraparte por invitación individual.',
+  fuente:{t:'Buscar y unirse a una organización de Team o Enterprise', u:'https://support.claude.com/es/articles/13566435-buscar-y-unirse-a-una-organizacion-de-team-o-enterprise'}},
+
+ {titulo:'Detectable', rec:'decidir', resumen:'Hace que la organización aparezca sola cuando alguien se registra con ese dominio.',
+  que:'Cuando alguien se registra en Claude con un correo de trabajo que coincide con una organización detectable, ve la opción de unirse durante el flujo de registro. Puede unirse o seguir con una cuenta personal. Si varias organizaciones comparten el mismo dominio y todas son detectables, la persona las ve todas y elige.',
+  criterio:'Sin asientos libres, Detectable es una llave abierta hacia una fila de solicitudes que no puedes atender. Enciéndelo cuando haya asientos comprados y un criterio claro de quién entra.',
+  fuente:{t:'Buscar y unirse a una organización de Team o Enterprise', u:'https://support.claude.com/es/articles/13566435-buscar-y-unirse-a-una-organizacion-de-team-o-enterprise'}},
+
+ {titulo:'Verificación de dominio por registro TXT', rec:'info', resumen:'El paso técnico que falta para el dominio del colegio.',
+  que:'La pantalla de configuración muestra un registro TXT que empieza con anthropic-domain-verification-. En tu proveedor de DNS se agrega un registro TXT con Host o Nombre en @, que es la raíz del dominio, y el valor pegado exacto. Se suma a los registros TXT existentes, no los reemplaza. El valor distingue mayúsculas de minúsculas y hay que copiarlo completo. Guárdalo antes de salir de la pantalla: una vez que el dominio queda en Pendiente, la consola no vuelve a mostrarlo y hay que eliminar y volver a agregar el dominio para generar uno nuevo.',
+  criterio:'Aquí es donde se atascan casi todos los dominios que quedan en Pendiente. Si nadie guardó ese valor TXT, la salida es eliminar el dominio y empezar de nuevo con el DNS abierto en otra pestaña.',
+  fuente:{t:'Configurar inicio de sesión único (SSO)', u:'https://support.claude.com/es/articles/13132885-configurar-inicio-de-sesion-unico-sso'}},
+
+ {titulo:'Inicio de sesión único (SSO)', rec:'decidir', resumen:'Permite entrar con las credenciales corporativas del dominio verificado.',
+  que:'Permite que las cuentas con correos de dominio verificado inicien sesión mediante SSO. Anthropic usa WorkOS como proveedor para la verificación de dominio y la configuración de SSO. Al activarlo, los usuarios existentes son forzados a cerrar sesión e iniciar sesión de nuevo. El descubrimiento de organizaciones deja de aplicar: el aprovisionamiento pasa a manejarse desde el proveedor de identidad.',
+  criterio:'En un equipo pequeño no vale la fricción. SSO empieza a pagar cuando entra y sale gente seguido o cuando un cliente corporativo lo exige por contrato.',
+  fuente:{t:'Configurar inicio de sesión único (SSO)', u:'https://support.claude.com/es/articles/13132885-configurar-inicio-de-sesion-unico-sso'}},
+
+ {titulo:'Aprovisionamiento justo a tiempo (JIT)', rec:'desactivar', resumen:'Crea las cuentas solas en el primer inicio de sesión. Requiere SSO.',
+  que:'Los miembros asignados a la aplicación de Anthropic en tu proveedor de identidad tienen cuentas creadas automáticamente la primera vez que inician sesión. En planes con varios tipos de asiento, los usuarios se asignan al tipo disponible más alto en ese primer ingreso, y los administradores pueden reasignarlos después. Solo funciona con SSO habilitado.',
+  criterio:'Sin SSO no es una opción real, y sin asientos libres se convierte en una máquina de comprar licencias sin que nadie lo apruebe.',
+  fuente:{t:'Gestionar miembros en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13133750-gestionar-miembros-en-planes-team-y-enterprise'}},
+
+ {titulo:'Enlace de invitación', rec:'desactivar', resumen:'Un enlace abierto para que cualquiera con dominio permitido entre solo.',
+  que:'Comparte un enlace para que las personas con un dominio de correo permitido se unan, y quien entra por ahí se aprueba automáticamente. Los nuevos miembros se asignan al nivel de asiento disponible más bajo, con un asiento estándar por defecto si no hay ninguno. Deshabilitar el enlace invalida de inmediato todos los enlaces existentes, y regenerarlo también invalida el anterior.',
+  criterio:'Es el ajuste que más rápido vacía el presupuesto sin que nadie decida nada. Déjalo apagado mientras el equipo sea pequeño y las licencias estén al tope.',
+  fuente:{t:'Gestionar miembros en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13133750-gestionar-miembros-en-planes-team-y-enterprise'}},
+
+ {titulo:'Invitaciones de miembros', rec:'decidir', resumen:'Deja que cualquiera del equipo invite gente sin pasar por un administrador.',
+  que:'Cualquier miembro accede al flujo de invitación desde el selector de cuenta en Claude. Lo que pasa después depende de tu configuración de aprobación: con aprobación individual la solicitud llega a un administrador y la invitación solo se envía cuando la apruebas; con aprobación automática se envía de inmediato. Las invitaciones enviadas por miembros siguen las mismas restricciones de dominio que cualquier otra vía de entrada.',
+  criterio:'Encendido tiene sentido justamente cuando la aprobación está en manual, porque la persona propone y un administrador confirma. Si algún día pasas a aprobación automática, apágalo el mismo día.',
+  fuente:{t:'Gestionar miembros en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13133750-gestionar-miembros-en-planes-team-y-enterprise'}},
+
+ {titulo:'Aprobación de nuevos miembros: requerir aprobación del administrador', rec:'activar', resumen:'Es lo que produce la cola de solicitudes pendientes.',
+  que:'Con este modo el administrador revisa y aprueba cada solicitud de forma individual, y nadie entra hasta que apruebes. La facturación empieza cuando se aprueba la solicitud, y si en ese momento no hay asientos disponibles se compra un asiento nuevo. La alternativa, aprobar automáticamente, agrega a los usuarios al nivel de asiento disponible. Este modo también aplica a las invitaciones que envían los miembros existentes.',
+  aviso:'Si la organización está sin asientos libres, cada aprobación compra una licencia nueva. Multiplica la cola pendiente por el precio del asiento antes de empezar a aprobar.',
+  criterio:'Déjalo en manual, pero atiende la cola rápido. Las solicitudes sin responder terminan en gente que se creó una cuenta personal y trabaja por fuera de la organización, que es justo lo que este ajuste quiere evitar.',
+  fuente:{t:'Buscar y unirse a una organización de Team o Enterprise', u:'https://support.claude.com/es/articles/13566435-buscar-y-unirse-a-una-organizacion-de-team-o-enterprise'}},
+
+ {titulo:'Restringir la creación de organizaciones', rec:'activar', resumen:'Impide que alguien con tu dominio arme su propia organización aparte.',
+  que:'Evita que se creen nuevas organizaciones bajo tus dominios verificados, incluidas las cuentas personales. Los propietarios ven este control una vez que los dominios de la organización están verificados.',
+  criterio:'Enciéndelo. Es la diferencia entre que el trabajo viva en un solo lugar administrable o que se disperse en cuentas sueltas que nadie puede auditar ni exportar.',
+  fuente:{t:'Consideraciones antes de habilitar SSO y aprovisionamiento JIT/SCIM', u:'https://support.claude.com/es/articles/10276682-consideraciones-importantes-antes-de-habilitar-el-inicio-de-sesion-unico-sso-y-el-aprovisionamiento-jit-scim'}},
+
+ {titulo:'Fusionar organizaciones', rec:'desactivar', resumen:'Une varias organizaciones bajo una principal que centraliza identidad.',
+  que:'Invita organizaciones a unirse a tu organización principal para centralizar SSO y cumplimiento. La organización que inicia la propuesta debe tener dominios verificados, todos los miembros de la invitada deben usar esos dominios, un administrador de la invitada debe aprobar la fusión y esa organización no puede pertenecer ya a otra principal. Las organizaciones principales solo administran identidad y acceso: la facturación y el seguimiento de uso siguen siendo de cada organización.',
+  criterio:'Es para cuando manejes dos o más organizaciones separadas y quieras una sola identidad para todas. En un equipo pequeño no aplica.',
+  fuente:{t:'Consideraciones antes de habilitar SSO y aprovisionamiento JIT/SCIM', u:'https://support.claude.com/es/articles/10276682-consideraciones-importantes-antes-de-habilitar-el-inicio-de-sesion-unico-sso-y-el-aprovisionamiento-jit-scim'}},
+
+ {titulo:'ID de organización y eliminar organización', rec:'info', resumen:'Un identificador único que vas a necesitar.',
+  que:'El identificador de la organización es el que piden algunas configuraciones avanzadas y el soporte de Anthropic. Para eliminar la organización primero hay que cancelar la suscripción.',
+  criterio:'Guarda ese identificador donde lo encuentres rápido. Cuando escribas a soporte te lo van a pedir en el primer correo.',
+  fuente:null}
+]});
+
+S.push({
+id:'facturacion', nombre:'Facturación', quien:'Propietario con acceso de facturación',
+intro:'Plan, licencias compradas, fecha de la próxima factura, método de pago y el historial de facturas.',
+items:[
+ {titulo:'Licencias y asientos', rec:'info', resumen:'Compradas, libres, miembros y asientos sin asignar.',
+  que:'Las invitaciones pendientes ocupan tus asientos disponibles de inmediato: un nuevo miembro no necesita aceptar la invitación para ocupar un asiento. Al eliminar a alguien del equipo, el asiento queda libre para reasignarlo, y si más adelante lo agregas con el mismo correo se mantiene el historial de su cuenta.',
+  criterio:'Si tienes más miembros que licencias, alguien va a aparecer sin asiento asignado y esa persona no tiene acceso hasta que se lo des. Antes de comprar licencias nuevas, revisa si alguno de los asientos actuales está en manos de alguien que ya no abre Claude.',
+  fuente:{t:'Gestionar miembros en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13133750-gestionar-miembros-en-planes-team-y-enterprise'}},
+
+ {titulo:'Créditos de uso', rec:'activar', resumen:'Vencen un año después de la fecha de compra.',
+  que:'Los créditos de uso permiten que el equipo siga trabajando cuando alcanza el límite del plan. Se facturan a tarifas estándar de API. Los créditos comprados vencen un año después de la fecha de compra, la fecha de vencimiento no se puede extender y las compras no son reembolsables.',
+  criterio:'Si ya compraste créditos y el panel de uso muestra cero gastado, ese saldo está parado con reloj corriendo. Mira en Uso quién está topando límites y activa los créditos para esas personas antes de que caduque.',
+  fuente:{t:'Gestionar créditos de uso para planes Team y Enterprise', u:'https://support.claude.com/es/articles/12005970-gestionar-creditos-de-uso-para-planes-team-y-enterprise-basados-en-asientos'}},
+
+ {titulo:'Recarga automática', rec:'desactivar', resumen:'Compra créditos sola cuando el saldo baja del umbral que fijes.',
+  que:'Compra automáticamente más créditos de uso cuando el saldo se acerca a cero. Se configura eligiendo el saldo que dispara la compra y la cantidad a recargar. El límite de gasto mensual sigue aplicando por encima de esto.',
+  criterio:'Si el saldo está intacto no hay nada que recargar. Enciéndela el día que el consumo sea real y predecible, no antes.',
+  fuente:{t:'Gestionar créditos de uso para planes Team y Enterprise', u:'https://support.claude.com/es/articles/12005970-gestionar-creditos-de-uso-para-planes-team-y-enterprise-basados-en-asientos'}}
+]});
+
+S.push({
+id:'uso', nombre:'Uso', quien:'Propietario o Propietario Principal',
+intro:'Aquí se controla cuánto puede gastar el equipo por encima de lo que incluye el plan, y quién puede pedir más.',
+items:[
+ {titulo:'Límite de gasto mensual', rec:'activar', resumen:'Un techo para todo el gasto adicional de la organización.',
+  que:'Los propietarios pueden establecer un límite de gasto mensual que aplica al uso adicional de toda la organización, y también fijar límites por nivel de asiento o por miembro individual. Cuando un usuario alcanza su límite, sus créditos se pausan automáticamente hasta el fin del mes y debe esperar a que se restablezcan los límites incluidos. La sección de límites por usuario trae una columna de gasto del mes hasta la fecha.',
+  criterio:'Mantén el techo global, pero baja el detalle a nivel persona. Un límite único para toda la organización no te dice nada hasta que alguien se lo gasta entero en una tarde.',
+  fuente:{t:'Gestionar créditos de uso para planes Team y Enterprise', u:'https://support.claude.com/es/articles/12005970-gestionar-creditos-de-uso-para-planes-team-y-enterprise-basados-en-asientos'}},
+
+ {titulo:'Activar créditos de uso para los miembros', rec:'decidir', resumen:'Deja que la gente siga trabajando pasado su límite incluido.',
+  que:'Un propietario habilita los créditos de uso desde Configuración de la organización y luego los activa para toda la organización o para usuarios específicos. Una vez habilitados, cuando alguien alcanza su límite de uso y elige continuar, su consumo se rastrea y se factura según el tipo de plan.',
+  criterio:'Actívalo persona por persona, empezando por quien produce entregables de cliente. No lo abras a toda la organización de una vez: la factura llega antes que el aprendizaje.',
+  fuente:{t:'Gestionar créditos de uso para planes Team y Enterprise', u:'https://support.claude.com/es/articles/12005970-gestionar-creditos-de-uso-para-planes-team-y-enterprise-basados-en-asientos'}},
+
+ {titulo:'Solicitudes de créditos de uso', rec:'activar', resumen:'El equipo te pide más cupo desde la propia interfaz.',
+  que:'Los miembros ven un enlace para solicitar créditos de uso al alcanzar su límite incluido. Al usarlo envían una solicitud a los administradores para que los pasen a un asiento superior o les habiliten créditos en su cuenta. En Claude Code, los miembros sin acceso de facturación envían la solicitud desde la línea de comandos.',
+  criterio:'Enciéndelo. Es una señal gratis de quién está trabajando de verdad con Claude, que es exactamente el dato que necesitas para decidir dónde poner las próximas licencias.',
+  fuente:{t:'Gestionar costos de manera efectiva (Claude Code)', u:'https://code.claude.com/docs/es/costs'}},
+
+ {titulo:'Límites de gasto por servicio', rec:'info', resumen:'Revisión de código y Claude Tag suelen aparecer en Ilimitado.',
+  que:'La tabla de servicios muestra el gasto del mes hasta la fecha y el límite de cada servicio automatizado. En Claude Tag, el gasto por canal se revisa y se limita desde la página de Uso.',
+  criterio:'Ilimitado en un servicio que responde solo dentro de Slack es la combinación con la que uno se lleva sorpresas. Ponle techo antes de activar Claude Tag, no después.',
+  fuente:null}
+]});
+
+S.push({
+id:'miembros', nombre:'Miembros', quien:'Administrador o superior',
+intro:'La lista de personas, sus roles y sus tipos de asiento. Es donde se resuelven las solicitudes en cola y los asientos sin asignar.',
+items:[
+ {titulo:'Agregar miembro', rec:'info', resumen:'Correo del dominio permitido, tipo de asiento, rol y permisos.',
+  que:'Se navega a Configuración de la organización y Miembros, se hace clic en Agregar miembro y se ingresa el correo, que debe usar uno de los dominios permitidos. Se elige el tipo de asiento y se establecen el rol y los permisos. Los asientos estándar dan funciones básicas y límites de uso normales; los asientos premium dan límites más altos y acceso a Claude Code.',
+  criterio:'Antes de agregar a nadie más, decide qué perfil merece asiento premium. Normalmente es quien toca Claude Code o construye agentes para clientes.',
+  fuente:{t:'Gestión de miembros y puestos en Team y Enterprise', u:'https://support.claude.com/es/articles/9778024-gestion-de-miembros-y-puestos-en-los-planes-team-y-enterprise-sin-sso-habilitado'}},
+
+ {titulo:'Invitaciones pendientes', rec:'info', resumen:'Ocupan asiento desde el momento en que se envían.',
+  que:'La invitación por correo expira después de 21 días, y si la persona no la usa hay que volver a invitarla. Desde la pestaña Pendiente se puede reenviar la invitación o revocarla. Las invitaciones pendientes ocupan asientos disponibles de inmediato.',
+  criterio:'Revísala antes de comprar nada. Si hay invitaciones viejas sin aceptar, cada una está reteniendo un asiento que podrías darle a alguien de la cola.',
+  fuente:{t:'Gestionar miembros en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13133750-gestionar-miembros-en-planes-team-y-enterprise'}},
+
+ {titulo:'Eliminar un miembro', rec:'info', resumen:'Libera el asiento y conserva el historial si la persona vuelve.',
+  que:'Se elimina desde el menú a la derecha del miembro. La persona sale de la organización y el asiento que ocupaba queda disponible para otro usuario. Si más adelante se agrega de nuevo con el mismo correo, se mantiene el historial de su cuenta.',
+  criterio:'Esta es tu fuente de asientos gratis. Antes de comprar licencias nuevas, mira quién de las actuales no abre Claude hace un mes.',
+  fuente:{t:'Gestión de miembros y puestos en Team y Enterprise', u:'https://support.claude.com/es/articles/9778024-gestion-de-miembros-y-puestos-en-los-planes-team-y-enterprise-sin-sso-habilitado'}}
+]});
+S.push({
+id:'privacidad', nombre:'Datos y privacidad', quien:'Propietario o Propietario Principal',
+intro:'Qué puede salir de la organización y qué se queda adentro. Cuando un ajuste aparece como Establecido por el administrador significa que alguien ya lo definió a propósito.',
+items:[
+ {titulo:'Exportar datos de la organización', rec:'info', resumen:'Descarga el contenido de la organización.',
+  que:'La consola permite exportar los datos de la organización desde la sección de configuración de privacidad.',
+  criterio:'Hazlo una vez al trimestre y guarda el archivo fuera de Claude. Es tu respaldo si algún día hay que migrar de plan o de organización.',
+  fuente:null},
+
+ {titulo:'Calificar conversaciones', rec:'decidir', resumen:'Los pulgares arriba y abajo que envían comentarios a Anthropic.',
+  que:'Como Propietario Principal o Propietario puedes gestionar la capacidad de los miembros de enviar comentarios a Anthropic mediante pulgar arriba o pulgar abajo, habilitándola o deshabilitándola para toda la organización.',
+  criterio:'Si el equipo trabaja con material de clientes que no debería salir ni siquiera en un reporte de calidad, apágalo. Si lo que se busca es que Claude mejore en esos casos de uso, déjalo encendido y explícale al equipo qué implica.',
+  fuente:{t:'Gestión de configuraciones de comentarios de usuarios', u:'https://support.anthropic.com/es/articles/10504844-gestion-de-configuraciones-de-comentarios-de-usuarios-en-claude-for-work-planes-team-y-enterprise'}},
+
+ {titulo:'Compartir chats dentro de la organización', rec:'activar', resumen:'Los enlaces de chat funcionan solo entre miembros de la organización.',
+  que:'En Team y Enterprise los enlaces a chats solo funcionan para miembros de la misma organización. Al compartir, solo el resultado final y la conversación quedan visibles para quien la abre: los datos de las llamadas de herramientas subyacentes permanecen privados, de modo que la información de archivos y herramientas conectadas no se expone en la instantánea.',
+  criterio:'Es la forma más barata de que el equipo aprenda de los prompts de los demás. Enciéndelo y usa los chats compartidos como material de formación interna.',
+  fuente:{t:'Compartir y dejar de compartir chats', u:'https://support.claude.com/es/articles/10593882-compartir-y-dejar-de-compartir-chats'}},
+
+ {titulo:'Compartir conversaciones que usan conectores', rec:'activar', resumen:'Se comparte la respuesta, no los datos que trajo el conector.',
+  que:'Permite que las personas compartan chats que usan conectores con otros en la organización. Los destinatarios ven la respuesta de Claude, pero no los datos del conector.',
+  criterio:'El corte que hace Claude aquí es sensato: se comparte el razonamiento, no la base de datos. Déjalo encendido.',
+  fuente:{t:'Compartir y dejar de compartir chats', u:'https://support.claude.com/es/articles/10593882-compartir-y-dejar-de-compartir-chats'}},
+
+ {titulo:'Compartir chats externamente', rec:'decidir', resumen:'Invitar por correo a alguien de fuera a ver un chat.',
+  que:'Permite que las personas invitadas inviten a alguien fuera de la organización a un chat por correo. El destinatario inicia sesión con la dirección invitada y obtiene una copia de solo lectura.',
+  criterio:'Es útil para mostrarle a un cliente cómo se llegó a un entregable. También es la puerta por la que sale material que no debía salir. Si lo enciendes, que sea con una regla escrita en las instrucciones de la organización sobre cuándo se puede usar.',
+  fuente:{t:'Compartir y dejar de compartir chats', u:'https://support.claude.com/es/articles/10593882-compartir-y-dejar-de-compartir-chats'}},
+
+ {titulo:'Metadatos de ubicación', rec:'decidir', resumen:'Ciudad y región aproximadas para mejorar las respuestas.',
+  que:'Permite que Claude use metadatos de ubicación aproximada, a nivel de ciudad o región, para mejorar la experiencia de producto de los miembros del equipo.',
+  criterio:'Si el equipo trabaja en varios países, ahorra tener que aclarar la ubicación en cada consulta. Es dato de las personas, no de la empresa, así que decídelo con la misma regla que uses para cualquier otro dato personal.',
+  fuente:null},
+
+ {titulo:'Compartir sesiones en la nube', rec:'activar', resumen:'Lo que corre en la nube queda en la cuenta de Claude; lo local, en el computador de cada quien.',
+  que:'En las sesiones en la nube, las sesiones y los archivos se guardan en la cuenta de Claude del miembro. En las sesiones locales, el historial se guarda en el computador del usuario: esos datos no están sujetos a las políticas estándar de retención de Anthropic y los administradores no pueden gestionarlos ni exportarlos de forma centralizada.',
+  criterio:'Enciéndelo. Suena al revés, pero es lo más seguro: lo que vive en la nube se puede administrar, auditar y exportar; lo que queda en un portátil, no. Compartir dentro de la organización no expone los datos de los conectores, solo la respuesta.',
+  fuente:{t:'Usar Claude Cowork en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13455879-usar-claude-cowork-en-planes-team-y-enterprise'}},
+
+ {titulo:'Proyectos públicos', rec:'desactivar', resumen:'Cualquiera de la organización ve e inicia chats en esos proyectos.',
+  que:'Todos los usuarios de la organización pueden ver e iniciar chats en los proyectos marcados como públicos. Existe un procedimiento documentado para desactivar los proyectos públicos a nivel de organización.',
+  criterio:'Déjalo apagado. Público aquí significa que cualquiera de la organización ve e inicia chats en ese proyecto, y los de cliente no deberían estarlo. Si quieres uno abierto de marca o formación, abre ese proyecto en particular, no la opción general.',
+  fuente:{t:'Gestionar la visibilidad y el intercambio de proyectos', u:'https://support.claude.com/es/articles/9519189-gestionar-la-visibilidad-y-el-intercambio-de-proyectos'}}
+]});
+
+S.push({
+id:'capacidades', nombre:'Capacidades', quien:'Propietario o Propietario Principal',
+intro:'Lo que Claude puede hacer además de escribir: buscar en internet, ejecutar código, crear archivos, recordar y mostrar contenido visual. De aquí depende que funcionen las skills que ya tienes cargadas.',
+items:[
+ {titulo:'Búsqueda web', rec:'activar', resumen:'Sin esto, Claude trabaja solo con lo que sabe hasta su fecha de corte.',
+  que:'Un Propietario o Propietario Principal debe habilitar primero la búsqueda web para todo el espacio de trabajo. Una vez habilitada a nivel de organización, cada miembro puede activarla en su propia configuración. Cuando está encendida, Claude también puede buscar y mostrar imágenes en la conversación: no hay que habilitar nada aparte porque los resultados de imágenes son parte de la búsqueda web y vienen de Bing.',
+  criterio:'Para cualquier equipo que trabaje con información de mercado o actualidad esto no se discute. Encendido.',
+  fuente:{t:'Habilitar y usar búsqueda web', u:'https://support.claude.com/es/articles/10684626-habilitar-y-usar-busqueda-web'}},
+
+ {titulo:'Contenido interactivo', rec:'activar', resumen:'Mapas, imágenes y clima dentro de la respuesta.',
+  que:'Permite que Claude muestre mapas, imágenes y otro contenido visual usando servicios de terceros. En planes Team estas funciones vienen habilitadas de forma predeterminada. Los mensajes de los usuarios no se envían a Google ni a Bing: Claude transforma las consultas en solicitudes de búsqueda genéricas. Google sí recibe la dirección IP de los usuarios y, si dieron consentimiento, sus datos de ubicación. Las entradas interactivas no involucran servicios de terceros.',
+  criterio:'El detalle que importa aquí es que la consulta original no viaja completa a Google ni a Bing. Con eso claro, no hay razón para apagarlo.',
+  fuente:{t:'Contenido visual e interactivo para planes Team y Enterprise', u:'https://support.claude.com/es/articles/13663666-contenido-visual-e-interactivo-para-planes-team-y-enterprise'}},
+
+ {titulo:'Pregunta a tu organización', rec:'decidir', resumen:'Un proyecto que busca en todas las fuentes conectadas de la organización.',
+  que:'La búsqueda empresarial agrega un proyecto preconfigurado que aparece en la barra lateral de cada miembro y que busca en las fuentes de datos conectadas de la organización para dar respuestas citadas. Viene habilitado por defecto en Team y Enterprise, pero el Propietario debe completar la configuración inicial antes de que otros miembros puedan usarlo, y es quien controla qué aplicaciones quedan conectadas al proyecto. Cada usuario debe autenticarse por su cuenta en esas aplicaciones antes de usarlas.',
+  criterio:'Suele estar encendido pero sin configurar, que es lo mismo que apagado con ruido visual. Dedícale veinte minutos. Con Drive y el correo conectados deja de existir la pregunta de dónde quedó tal documento.',
+  fuente:{t:'Usar búsqueda empresarial', u:'https://support.claude.com/es/articles/12489464-usar-busqueda-empresarial'}},
+
+ {titulo:'Conectores de artefactos', rec:'decidir', resumen:'Artefactos que leen y escriben en herramientas externas.',
+  que:'Los artefactos pueden conectarse a servicios externos mediante MCP, lo que permite aplicaciones interactivas que leen y escriben en herramientas como Asana, Google Calendar o Slack, incluidos servidores MCP personalizados. Cuando un artefacto necesita acceder a una herramienta, se pide aprobación en la primera interacción. Cada usuario debe autenticar los servidores por separado, incluso con artefactos compartidos. Los administradores pueden habilitar o deshabilitar el acceso MCP de artefactos a nivel de organización, pero no pueden administrar qué servidores MCP específicos usan los artefactos.',
+  aviso:'Esa última parte es la que hay que sopesar: puedes abrir o cerrar la puerta, pero no elegir por dónde entran una vez abierta.',
+  criterio:'Enciéndelo si vas a construir tableros vivos para clientes. Si no tienes ese caso todavía, no abras una puerta que no puedes acotar.',
+  fuente:{t:'Qué son los artefactos y cómo los uso', u:'https://support.claude.com/es/articles/9487310-que-son-los-artefactos-y-como-los-uso'}},
+
+ {titulo:'Visualizaciones integradas', rec:'activar', resumen:'Gráficos y diagramas dentro de la conversación.',
+  que:'Permite que Claude genere visualizaciones interactivas, gráficos y diagramas directamente en la conversación para los miembros de la organización.',
+  criterio:'Encendido. Explicarle un embudo o una estructura de campaña a un cliente con un diagrama en pantalla ahorra media reunión.',
+  fuente:null},
+
+ {titulo:'Ejecución de código en la nube y creación de archivos', rec:'activar', resumen:'Requisito de las skills, los documentos y los artefactos.',
+  que:'Permite que Claude ejecute código en un servidor y cree o edite documentos, hojas de cálculo, presentaciones, PDF y reportes. Es necesario para las skills. En planes Team viene habilitada por defecto a nivel de organización, con la salida de red activada solo a gestores de paquetes. También es requisito para los artefactos.',
+  criterio:'Es la base de casi todo lo que un equipo hace con Claude. Si esto se apaga, se caen todas las habilidades de la organización de un golpe.',
+  fuente:{t:'Crear y editar archivos con Claude', u:'https://support.claude.com/es/articles/12111783-crear-y-editar-archivos-con-claude'}},
+
+ {titulo:'Permitir salida de red', rec:'activar', resumen:'Tres modos, y el valor por defecto en Team es el intermedio.',
+  que:'Hay tres modos. Con la salida de red desactivada, Claude opera solo con paquetes preinstalados y sin acceso a internet, lo que da la máxima seguridad. Con acceso solo a gestores de paquetes, que es el predeterminado, Claude puede llegar a npm, PyPI, GitHub y similares para instalar lo que necesite. El tercer modo agrega los dominios que tú especifiques. Estos controles no aplican a la búsqueda web, a web fetch ni a los conectores MCP: web fetch corre por los servidores de Anthropic y se limita a las URL del mensaje del usuario o de los resultados de búsqueda.',
+  criterio:'Quédate en gestores de paquetes. Es el equilibrio que Anthropic ya eligió para Team y hace falta un caso muy concreto para abrirlo más.',
+  fuente:{t:'Crear y editar archivos con Claude', u:'https://support.claude.com/es/articles/12111783-crear-y-editar-archivos-con-claude'}},
+
+ {titulo:'Memoria del equipo', rec:'activar', resumen:'Cada persona tiene su propia memoria, privada.',
+  que:'Cada miembro puede tener un Claude que recuerda el contexto de sus conversaciones anteriores. La memoria es privada para cada persona: los administradores controlan la disponibilidad general pero no pueden consultar ni editar los recuerdos individuales. El miembro la activa desde su configuración, la puede pausar sin borrar lo guardado, o restablecerla, lo que elimina de forma permanente todos los recuerdos incluidos los de proyectos.',
+  criterio:'Enciéndela y explícale al equipo la diferencia entre pausar y restablecer, porque el segundo botón no tiene vuelta atrás.',
+  fuente:{t:'Usa la búsqueda de chat y la memoria de Claude', u:'https://support.claude.com/es/articles/11817273-usa-la-busqueda-de-chat-y-la-memoria-de-claude-para-construir-sobre-contexto-anterior'}},
+
+ {titulo:'Temas sensibles en la memoria', rec:'desactivar', resumen:'Deja que Claude guarde salud, creencias y similares si el miembro lo autoriza.',
+  que:'Permite que cada miembro decida si Claude puede guardar detalles sobre temas sensibles, como afecciones de salud o creencias religiosas. La activación no es retroactiva y la interfaz avisa cuando incorpora información sensible. Si el miembro rechaza el aviso o desactiva la opción después, Claude elimina lo sensible ya guardado. Cierta información nunca se guarda aunque se pida: números de identificación gubernamental, antecedentes penales, números de cuentas financieras y estado migratorio.',
+  criterio:'En una cuenta de trabajo no hay razón para que Claude recuerde la salud de nadie. Déjalo apagado a nivel organización y que quien lo necesite lo pida.',
+  fuente:{t:'Usa la búsqueda de chat y la memoria de Claude', u:'https://support.claude.com/es/articles/11817273-usa-la-busqueda-de-chat-y-la-memoria-de-claude-para-construir-sobre-contexto-anterior'}}
+]});
+
+S.push({
+id:'nube', nombre:'Entornos en la nube', quien:'Propietario o Propietario Principal',
+intro:'Dónde corren las sesiones de Claude Code, Claude Tag y Claude Security. Se crean desde esta misma pantalla.',
+items:[
+ {titulo:'Entornos autoalojados', rec:'info', resumen:'Infraestructura propia para ejecutar sesiones de Claude Code.',
+  que:'Permite que la organización implemente y use infraestructura de runners autoalojados para las sesiones de Claude Code.',
+  nodoc:'No encontré un artículo de soporte publicado que detalle esta opción. Lo anterior es lo que declara la propia consola.',
+  criterio:'No es un interruptor: los entornos se crean desde esa pantalla. Es un tema de equipo de infraestructura, así que déjalo sin crear hasta que un cliente exija que el cómputo no salga de su nube.',
+  fuente:null},
+
+ {titulo:'Entornos alojados por Anthropic', rec:'info', resumen:'Los ejecuta Anthropic por ti.',
+  que:'Los entornos alojados por Anthropic ejecutan sesiones de Claude Code y son los que usan también Claude Tag y Claude Security. La configuración de cada producto se hace en su propia sección.',
+  nodoc:'La documentación pública que encontré describe las sesiones en la nube de Claude Code, pero no el flujo de creación de entornos desde esta pantalla. Confirma los pasos en la consola antes de seguir una guía.',
+  criterio:'Tampoco es un interruptor: se crea un entorno cuando hace falta. Solo lo necesitas si vas a activar Claude Tag o a correr Claude Code desde la web. Si no, se deja vacío.',
+  fuente:{t:'Continuar sesiones con Remote Control (Claude Code)', u:'https://code.claude.com/docs/es/remote-control'}}
+]});
+S.push({
+id:'code', nombre:'Claude Code', quien:'Propietario o Propietario Principal',
+intro:'Programar con Claude desde la terminal, el editor, el escritorio, la web o el móvil. Aunque no seas equipo de desarrollo, aquí viven controles que afectan a Claude Tag y a Cowork. Al final está la conexión con GitHub, que es de donde salen los repositorios.',
+items:[
+ {titulo:'Configuración administrada', rec:'info', resumen:'Reglas de organización que el usuario no puede sobrescribir.',
+  que:'Define permisos, directorios permitidos y otras políticas para toda la organización. Anula la configuración de usuarios y de proyectos, y se aplica a Claude Code en la línea de comandos, el editor y la aplicación de escritorio. Existen dos vías: la configuración administrada por endpoint, que se despliega con tu herramienta de MDM y queda protegida a nivel de sistema operativo, y la administrada por servidor, que se define en la consola. La de endpoint no llega a las sesiones en la nube, así que quien use Claude Code en la web también necesita la de servidor.',
+  criterio:'En la consola no es un interruptor: se abre con el botón Administrar y adentro se definen los permisos. En un equipo pequeño, la de servidor desde la consola es suficiente. La de MDM es para cuando haya máquinas corporativas administradas, no antes.',
+  fuente:{t:'Configuración administrada por servidor', u:'https://code.claude.com/docs/es/server-managed-settings'}},
+
+ {titulo:'Escritorio, web y móvil', rec:'activar', resumen:'Las tres superficies donde el equipo puede programar.',
+  que:'Cada superficie tiene su propio interruptor para permitir que la organización programe con Claude en la aplicación de escritorio, en la web o en la aplicación móvil. El acceso móvil sigue actualmente la configuración web.',
+  criterio:'Déjalas encendidas. El costo lo controlas por límites de gasto, no cerrando puertas de entrada.',
+  fuente:null},
+
+ {titulo:'Control remoto', rec:'activar', resumen:'Continuar en el teléfono una sesión que corre en el computador. Solo junto con dispositivos de confianza.',
+  que:'Permite continuar sesiones locales de Claude Code desde la web o la aplicación móvil. Las sesiones se ejecutan en la máquina del usuario con acceso completo a su sistema de archivos local, sus herramientas y la configuración del proyecto. Viene deshabilitado de forma predeterminada hasta que un administrador lo habilita.',
+  aviso:'La frase clave es acceso completo al sistema de archivos local. Quien controle esa sesión desde un teléfono controla el computador de esa persona.',
+  criterio:'Enciéndelo, pero nunca solo: va de la mano con Requerir dispositivos de confianza, que ya está encendido más abajo. Con los dos activos, seguir una sesión desde el teléfono exige un dispositivo verificado y un inicio de sesión reciente.',
+  fuente:{t:'Continuar sesiones locales con Remote Control', u:'https://code.claude.com/docs/es/remote-control'}},
+
+ {titulo:'Requerir dispositivos de confianza', rec:'activar', resumen:'Cada dispositivo nuevo se verifica antes de poder conectarse.',
+  que:'Es una configuración de toda la organización que exige que los miembros verifiquen su dispositivo antes de ver o controlar sesiones de control remoto desde la web, la aplicación móvil o el escritorio. Aplica sin importar si el control remoto está activo en Claude Code, en Cowork o en ambos. Interactuar con una sesión requiere un dispositivo inscrito y un inicio de sesión reciente: si el último login tiene más de 18 horas, hay que volver a autenticarse con Face ID, Touch ID, Windows Hello o una clave de acceso. La inscripción ocurre como parte del inicio de sesión, no hay un comando aparte.',
+  criterio:'Enciéndelo. Vincula el acceso a un dispositivo conocido en vez de a una sesión abierta que quedó viva en un navegador prestado.',
+  fuente:{t:'Dispositivos de confianza en Remote Control', u:'https://code.claude.com/docs/es/remote-control'}},
+
+ {titulo:'Entorno predeterminado', rec:'info', resumen:'El entorno que sale preseleccionado al abrir una sesión web.',
+  que:'Es el entorno preseleccionado cuando los miembros inician una nueva sesión web de Claude Code. Solo los entornos compartidos con la organización pueden ser el predeterminado. En la consola es una lista desplegable, no un interruptor, y puede quedar en Sin predeterminado.',
+  nodoc:'Sin artículo de soporte publicado localizado. Lo descrito es lo que declara la consola.',
+  criterio:'Déjalo en Sin predeterminado mientras no tengas entornos creados. Cuando exista uno del equipo, ponlo aquí para que nadie tenga que elegir.',
+  fuente:null},
+
+ {titulo:'Uso compartido en la nube', rec:'info', resumen:'Se administra desde Datos y privacidad.',
+  que:'La consola indica que la configuración de uso compartido en la nube se trasladó a la sección de Datos y privacidad, y deja un botón para ir allá.',
+  criterio:'No lo busques aquí: es el ajuste de compartir sesiones en la nube que está en Datos y privacidad, el que conviene dejar encendido.',
+  fuente:null},
+
+ {titulo:'Configuración rápida de sesiones en la nube', rec:'desactivar', resumen:'Iniciar sesiones en la nube con las credenciales locales de GitHub.',
+  que:'Permite que el equipo inicie sesiones en la nube usando sus credenciales locales de GitHub. Está marcado como vista previa y viene apagado.',
+  nodoc:'Sin artículo de soporte publicado localizado. Lo descrito es lo que declara la consola.',
+  criterio:'Déjalo apagado mientras GitHub no esté conectado a la organización. Cuando lo esté, el acceso a repositorios debería decidirse en la conexión, no con las credenciales sueltas de cada quien.',
+  fuente:null},
+
+ {titulo:'Rutinas', rec:'decidir', resumen:'Apagarlas también apaga Claude Tag y las tareas programadas de Cowork.',
+  que:'Permite que el equipo cree rutinas programadas y activadas por webhook que ejecutan Claude Code de forma autónoma en la nube. Al desactivar esta opción también se desactivan Claude Tag y las tareas programadas para Cowork en la nube.',
+  nodoc:'La dependencia entre Rutinas, Claude Tag y las tareas de Cowork está declarada en la consola. No encontré un artículo de soporte que la desarrolle.',
+  criterio:'Ojo con este: es un interruptor que apaga tres cosas. Si algún día Claude Tag deja de responder en Slack sin explicación, este es el primer lugar donde mirar.',
+  fuente:{t:'Rutinas de Claude Code', u:'https://code.claude.com/docs/en/routines'}},
+
+ {titulo:'Canales', rec:'desactivar', resumen:'Mensajes entrantes de servidores MCP dentro de una sesión.',
+  que:'Permite que el equipo reciba mensajes entrantes de servidores MCP en sesiones de Claude Code. Los usuarios conectan servidores de canales mediante un indicador al iniciar la sesión y eligen en cuáles confiar. Los eventos pueden venir de plataformas de mensajería o herramientas de monitoreo. En planes Team y Enterprise, el administrador de la organización debe habilitar los canales en la configuración administrada.',
+  criterio:'Es una función para equipos que operan incidentes en vivo. Fuera de ese escenario, sobra.',
+  fuente:{t:'Canales en Claude Code', u:'https://code.claude.com/docs/es/channels'}},
+
+ {titulo:'Artifacts', rec:'info', resumen:'Su configuración se movió a una página propia.',
+  que:'La consola indica que la configuración de artefactos se movió a su propia página y deja un botón para administrarla.',
+  criterio:'Los ajustes de artefactos están en su sección de esta misma guía: crear y publicar encendido, y el uso compartido externo apagado.',
+  fuente:null},
+
+ {titulo:'Flujos de trabajo dinámicos', rec:'activar', resumen:'Viene encendido por defecto en Claude Code.',
+  que:'Permite que el equipo ejecute flujos de trabajo dinámicos en Claude Code. En la consola aparece como interruptor y viene encendido de forma predeterminada.',
+  nodoc:'Sin artículo de soporte publicado localizado. Lo descrito es lo que declara la consola.',
+  criterio:'Déjalo como viene. Es una capacidad de Claude Code, no una puerta de acceso a datos, y el gasto ya lo controlas con los límites.',
+  fuente:null},
+
+ {titulo:'Revisión de código', rec:'info', resumen:'Claude revisa los pull requests de tus repositorios.',
+  que:'Una vez que un administrador habilita la revisión de código para la organización, las revisiones se activan al abrir un pull request, en cada push, o cuando se piden manualmente, según lo que se configure por repositorio. Comentar una mención de revisión en un pull request inicia el proceso. Varios agentes analizan el diff en paralelo en la infraestructura de Anthropic y un paso de verificación filtra falsos positivos. El comportamiento se ajusta agregando un archivo de instrucciones al repositorio.',
+  criterio:'En la consola no es un interruptor: se entra por el botón Configurar y se define repositorio por repositorio. Solo tiene sentido después de conectar GitHub; cuando lo hagas, empieza por uno y mira si los comentarios sirven antes de extenderlo.',
+  fuente:{t:'Revisión de código', u:'https://code.claude.com/docs/es/code-review'}},
+
+ {titulo:'Modo rápido', rec:'desactivar', resumen:'Respuestas más veloces a una tarifa más alta de créditos.',
+  que:'Ofrece salida significativamente más rápida con la misma calidad del modelo. Se cobra a una tarifa más alta de los créditos de uso y requiere que los créditos estén activados.',
+  nodoc:'Está en vista previa y no encontré artículo de soporte publicado. Lo descrito es lo que declara la consola.',
+  criterio:'Pagar más por velocidad tiene sentido cuando alguien está esperando del otro lado. Para trabajo de fondo, no.',
+  fuente:null},
+
+ {titulo:'Analíticas de Claude Code', rec:'activar', resumen:'Tasas de aceptación, código generado y actividad del equipo.',
+  que:'Muestra cómo trabaja el equipo con Claude Code, incluyendo tasas de aceptación y código generado. Existe además una API de analíticas para planes Enterprise que expone métricas de conversaciones, proyectos, archivos, artefactos, skills y conectores, con datos agregados por día.',
+  criterio:'Si hay que defender el gasto de licencias frente a socios o dirección, estos números son el argumento. Enciéndelo desde el principio para tener histórico.',
+  fuente:{t:'API de Analytics de Claude Enterprise', u:'https://support.claude.com/es/articles/13694757-comienza-con-la-api-de-analytics-de-claude-enterprise'}},
+
+ /* ---- GitHub: de aquí salen los repositorios ---- */
+ {titulo:'Conectar GitHub', rec:'info', resumen:'Requiere ser propietario en GitHub y administrador en Claude.',
+  que:'Conectar GitHub es lo que le da a Claude acceso a los repositorios: es lo que habilita la revisión de pull requests, que Claude lea código cuando lo etiquetan en Slack y que el marketplace de plugins se sincronice con un repositorio. La pantalla tiene un solo botón, Conectar Claude a GitHub, y muestra las cuentas disponibles. La conexión la hace quien sea propietario de la cuenta de GitHub y además administrador del espacio de Claude; si no eres tú, ahí mismo hay un mensaje listo para copiar y enviárselo a esa persona. El permiso se otorga instalando la aplicación de GitHub de Claude, y es GitHub quien pregunta a qué repositorios puede acceder: ese alcance se cambia y se revoca después desde GitHub, no desde Claude. Desde la misma zona se conectan instancias de GitHub Enterprise y, aparte, GitLab, que hoy solo sirve para sincronizar el marketplace de plugins.',
+  aviso:'La consola puede mostrar un crédito promocional que se libera al conectar GitHub y que tiene fecha de vencimiento.',
+  criterio:'Si no vas a usar Claude Code ni Claude Tag, no conectes GitHub solo por el crédito: abrir acceso a repositorios es una decisión de seguridad, no una promoción. Cuando lo conectes, elige repositorios uno por uno en vez de Todos, empezando por uno donde no viva código de clientes. Y recuerda que Claude Tag actúa con una identidad compartida de la organización: si un canal de Slack tiene acceso al repositorio, alguien que no lo tiene por su cuenta puede pedirle a Claude que lo lea.',
+  fuente:{t:'Revisión de código', u:'https://code.claude.com/docs/es/code-review'}},
+
+ {titulo:'Analíticas de GitHub', rec:'desactivar', resumen:'Seguimiento de pull requests y revisiones.',
+  que:'Hace seguimiento a las pull requests y a las revisiones de código para mostrar cambios en la productividad del equipo. Está en beta y viene apagado. Es distinto de las Analíticas de Claude Code, que miden el uso de la herramienta y sí conviene tener encendidas.',
+  criterio:'Medir productividad por pull requests en un equipo que no es de desarrollo no dice nada útil, y medirla en uno que sí lo es suele salir mal. Déjalo apagado; para justificar licencias usa las analíticas de Claude Code.',
+  fuente:null}
+]});
+
+S.push({
+id:'chrome', nombre:'Claude in Chrome', quien:'Propietario, más capacidad por rol en Enterprise',
+intro:'La extensión que deja a Claude leer páginas, hacer clic y llenar formularios en el navegador. Es la sección con más superficie de riesgo de toda la consola.',
+items:[
+ {titulo:'Habilitar para tu equipo', rec:'decidir', resumen:'Dos controles la gobiernan: este interruptor y una capacidad por rol.',
+  que:'Claude in Chrome tiene su propio permiso, separado del de Cowork, y no hereda el acceso de Cowork de un usuario. Dos configuraciones lo controlan: un interruptor a nivel de organización y una capacidad por rol que se otorga o se retiene, esta última aplicable a organizaciones Enterprise con roles personalizados. El tráfico de chat de la extensión pasa por los mismos puntos de conexión de Claude que ya usas, así que los controles de red que tengas ahí también aplican.',
+  criterio:'Si lo enciendes, hazlo como piloto con dos personas y con lista de permitidos, no para todo el equipo de golpe.',
+  fuente:{t:'Controles de administrador de Claude en Chrome', u:'https://support.claude.com/es/articles/13065128-controles-de-administrador-de-claude-en-chrome'}},
+
+
+
+ {titulo:'Gestores de contraseñas', rec:'desactivar', resumen:'1Password llena credenciales sin que Claude las vea.',
+  que:'La integración con 1Password permite a usuarios de macOS completar tareas que requieren iniciar sesión: 1Password rellena la credencial directamente en la página, de modo que Claude nunca ve la contraseña ni el código de un solo uso, y cada solicitud se aprueba con biometría. La integración está desactivada de forma predeterminada para la organización.',
+  criterio:'Viene apagada por algo. Enciéndela solo si ya hay 1Password desplegado en el equipo y la lista de permitidos ajustada.',
+  fuente:{t:'Controles de administrador de Claude en Chrome', u:'https://support.claude.com/es/articles/13065128-controles-de-administrador-de-claude-en-chrome'}},
+
+ {titulo:'Permisos del sitio: predeterminado para todos los sitios', rec:'info', resumen:'El valor abierto viene por defecto y conviene cerrarlo.',
+  que:'En la consola es un desplegable, no un interruptor, y define dónde funciona la extensión de forma predeterminada. Con el valor Permitir todos los sitios, Claude funciona en todas partes menos en los sitios que agregues a la lista de bloqueados. La recomendación de la documentación es la contraria: empezar con una lista de permitidos más restrictiva, limitando Claude a sitios específicos y confiables, y expandir el acceso con el tiempo a medida que te sientes cómodo con el comportamiento de la extensión. Estos permisos se aplican también al navegador integrado de la aplicación de escritorio, de Claude Code y de Cowork.',
+  aviso:'Dejarlo en Permitir todos los sitios es exactamente lo contrario de lo que recomienda Anthropic para empezar.',
+  criterio:'En la consola no es un interruptor: se entra por el botón Administrar permisos del sitio, y esos permisos son los mismos del navegador integrado de Claude Code y de Cowork. Empieza con lista de permitidos: mete ahí los cinco o seis sitios donde el equipo realmente necesita que Claude actúe y abre desde ese punto.',
+  fuente:{t:'Controles de administrador de Claude en Chrome', u:'https://support.claude.com/es/articles/13065128-controles-de-administrador-de-claude-en-chrome'}},
+
+ {titulo:'Sitios bloqueados', rec:'info', resumen:'Sitios donde Claude nunca actúa, pase lo que pase.',
+  que:'Es una tabla de dominios que se llena con el botón Agregar sitios web: son los sitios donde Claude nunca actúa, sin importar otras configuraciones. Se suma a las categorías que Claude ya bloquea por defecto, que incluyen servicios financieros, banca, plataformas de inversión, intercambios de criptomonedas, contenido para adultos y contenido pirateado.',
+  criterio:'Si el valor por defecto está en Permitir todos los sitios, esta lista es lo único que te protege: llénala antes que nada. Agrega la banca, la pasarela de pagos, la nómina y las plataformas donde se mueve dinero de clientes. Las categorías por defecto cubren banca general, pero un proveedor local puede no estar clasificado.',
+  fuente:{t:'Controles de administrador de Claude en Chrome', u:'https://support.claude.com/es/articles/13065128-controles-de-administrador-de-claude-en-chrome'}},
+]});
+
+S.push({
+id:'tag', nombre:'Claude Tag', quien:'Solo Propietario o Propietario Principal',
+intro:'Mencionar a @Claude en un canal de Slack y que responda usando las herramientas que le conectes.',
+items:[
+ {titulo:'Habilitar Claude Tag para tu organización', rec:'decidir', resumen:'Configuración única a nivel de organización.',
+  que:'Permite que la organización etiquete a Claude y le delegue tareas en aplicaciones externas. Es una configuración de organización que solo puede ejecutar un Propietario o Propietario Principal, no el rol de Administrador. El orden que indica Anthropic es vincular el espacio de Slack, dar acceso a las herramientas y repositorios que Claude vaya a necesitar, definir un límite de gasto mensual y probar en un canal privado antes de abrirlo. Después de eso los usuarios no configuran nada: cualquiera en un canal donde esté activo puede mencionarlo.',
+  aviso:'El trabajo que Claude hace en un canal se factura a la organización, no a la persona que lo mencionó.',
+  criterio:'Pon el límite de gasto antes de encenderlo, no después. Y arranca en un canal privado con dos personas.',
+  fuente:{t:'Claude Code en Slack', u:'https://code.claude.com/docs/es/slack'}},
+
+ {titulo:'Permitir mensajes directos', rec:'activar', resumen:'Los DM se descuentan de la cuenta de cada persona.',
+  que:'Los miembros pueden enviarle mensajes privados a Claude. El uso de esos mensajes directos se descuenta de sus propios límites de Claude, no del uso de Claude Tag de la organización.',
+  criterio:'Encendido. Es la única parte de Claude Tag que no te cuesta plata a nivel organización y sirve para que la gente pruebe sin ruido.',
+  fuente:{t:'Comienza con Claude en Slack', u:'https://support.claude.com/es/articles/11506255-comienza-con-claude-en-slack'}},
+
+ {titulo:'Uso incluido', rec:'info', resumen:'El crédito de Claude Tag, con fecha de vencimiento.',
+  que:'La consola muestra el crédito incluido para Claude Tag y el día en que vence. En algunos casos queda condicionado a conectar GitHub, y la propia pantalla deja el botón para hacerlo.',
+  nodoc:'Sin artículo de soporte publicado localizado. Lo descrito es lo que declara la consola.',
+  criterio:'Mira la fecha antes que el monto. Un crédito que vence sin haber montado el primer canal es plata que se pierde, y conectar GitHub solo para liberarlo abre acceso a repositorios: decide eso por separado.',
+  fuente:null},
+
+ {titulo:'Límites de gasto del canal', rec:'info', resumen:'Se revisan y se fijan en la página de Uso.',
+  que:'Desde aquí se revisa el gasto por canal y se establecen límites mensuales, pero la configuración vive en la página de Uso. En la consola es un botón Administrar, no un interruptor.',
+  criterio:'Pon el límite antes de abrir el primer canal. El trabajo que Claude hace al ser etiquetado se factura a la organización, no a quien lo mencionó.',
+  fuente:{t:'Claude Code en Slack', u:'https://code.claude.com/docs/es/slack'}},
+
+ {titulo:'Análisis de uso de Claude Tag', rec:'info', resumen:'Tendencias de gasto, canales principales y proyecciones.',
+  que:'Abre el panel de Analytics con las tendencias de gasto, los canales que más consumen y las proyecciones mensuales. Es un botón Ver.',
+  criterio:'Es la pantalla que te dice si un canal se volvió caro antes de que llegue la factura. Míralo semanal el primer mes.',
+  fuente:null},
+
+ {titulo:'Dónde funciona Claude Tag', rec:'info', resumen:'Las aplicaciones conectadas, hoy Slack.',
+  que:'Lista las aplicaciones donde la organización puede etiquetar a Claude, con el estado de cada conexión y cuántos espacios de trabajo hay conectados. Se agregan con el botón Conectar.',
+  criterio:'Conecta un solo espacio de trabajo y pruébalo ahí. Cada aplicación nueva multiplica los lugares donde Claude puede actuar con la identidad de la organización.',
+  fuente:{t:'Comienza con Claude en Slack', u:'https://support.claude.com/es/articles/11506255-comienza-con-claude-en-slack'}},
+
+ {titulo:'Acceso de miembros', rec:'info', resumen:'Quién puede etiquetar a Claude dentro del espacio de Slack.',
+  que:'Define qué personas del espacio de trabajo pueden usar Claude Tag. La consola muestra el estado actual, que puede ser abierto para cualquier persona del espacio de trabajo, y se ajusta con el botón Administrar.',
+  aviso:'Abierto para cualquier persona significa exactamente eso: cualquiera en ese Slack puede etiquetar a Claude y gastar del presupuesto de la organización.',
+  criterio:'Mientras estés probando, restríngelo a las personas del equipo que lo estén montando. Se abre después, cuando ya haya límites de gasto y un canal piloto que funcione.',
+  fuente:null},
+
+ {titulo:'Activar Claude Tag en el alcance', rec:'activar', resumen:'Si Claude responde cuando lo etiquetan en los canales conectados.',
+  que:'Dentro del acceso predeterminado de cada aplicación hay un interruptor que indica si Claude responde cuando se le etiqueta en los canales de los espacios de trabajo conectados. Lo que definas en el acceso predeterminado se hereda en todos los espacios y canales.',
+  criterio:'Si ya encendiste Claude Tag para la organización, este va encendido: es el que hace que responda. Lo que hay que cuidar no es este interruptor, sino qué conectores y repositorios cuelgan de ese alcance.',
+  fuente:{t:'Claude Code en Slack', u:'https://code.claude.com/docs/es/slack'}},
+
+ {titulo:'Acceso de Claude Tag en Slack', rec:'decidir', resumen:'Conectores, repositorios, plugins e instrucciones que hereda cada canal.',
+  que:'El acceso predeterminado de Slack define a qué puede llegar Claude en todos los espacios y canales donde los miembros lo etiqueten. Se compone de conectores, repositorios, plugins e instrucciones personalizadas que se incluyen en el prompt del sistema para ese alcance. Los paquetes de acceso permiten adjuntar un conjunto de estos elementos de una sola vez.',
+  aviso:'Claude Tag opera como una identidad compartida de la organización y no con las credenciales personales de cada quien. Eso significa que alguien sin acceso directo a un repositorio puede pedirle a Claude que lo lea, si el acceso del canal lo permite.',
+  criterio:'Esa última frase es la que hay que entender antes de conectar nada. Configura el acceso pensando en el canal más abierto donde vayas a usarlo, no en el más cerrado.',
+  fuente:{t:'Claude Code en Slack', u:'https://code.claude.com/docs/es/slack'}},
+
+ {titulo:'Instrucciones personalizadas por alcance', rec:'activar', resumen:'Reglas propias para lo que Claude hace dentro de Slack.',
+  que:'Permite incluir instrucciones específicas en el prompt del sistema de Claude para ese alcance, de modo que su comportamiento en Slack pueda diferir del que tiene en la aplicación.',
+  criterio:'Aprovecha para fijar ahí el tono corto de Slack. Lo que sirve en un documento no sirve en un canal donde la gente lee de pasada.',
+  fuente:null},
+
+ {titulo:'Paquetes de acceso', rec:'info', resumen:'Agrupan conectores, repositorios, plugins e instrucciones.',
+  que:'Los paquetes de acceso agrupan conectores, repositorios, plugins e instrucciones para adjuntarlos a un alcance de una sola vez. En la consola cada paquete muestra cuántas reglas, repositorios y plugins lleva, y se asigna por tipo de canal: canales solo con miembros, canales con invitados y canales con Slack Connect, cada uno con su propio paquete o ninguno.',
+  nodoc:'No encontré un artículo de soporte publicado que documente los paquetes de acceso. Lo anterior viene de la consola.',
+  criterio:'Ponle nombre a cualquier Paquete de acceso sin título antes de que existan cuatro y nadie sepa cuál hace qué. Y mira bien los tipos de canal: los de invitados y los de Slack Connect incluyen gente de fuera de la organización, así que ahí lo correcto casi siempre es Ninguno.',
+  fuente:null},
+
+ {titulo:'Actividad', rec:'info', resumen:'Trabajo programado y memoria de Claude.',
+  que:'La sección de actividad permite revisar el trabajo programado y la memoria de Claude para hacer seguimiento de lo que hace.',
+  nodoc:'Sin artículo de soporte publicado localizado.',
+  criterio:'Cuando enciendas Claude Tag, esta pantalla es la bitácora. Míralas todos los días la primera semana.',
+  fuente:null},
+
+ {titulo:'Acceso federado a la nube', rec:'desactivar', resumen:'Gateways, roles de nube y servidores de autorización.',
+  que:'Claude se conecta a gateways, roles de nube y servidores de autorización con tokens emitidos para la organización, sin almacenar claves. Cada elemento se conecta y luego se agrega a un paquete de acceso para que Claude pueda usarlo.',
+  nodoc:'Sin artículo de soporte publicado localizado. Lo descrito es lo que declara la consola.',
+  criterio:'Territorio de infraestructura corporativa. No lo toques hasta que un cliente pida integrarse a su nube con sus reglas.',
+  fuente:null}
+]});
+
+S.push({
+id:'cowork', nombre:'Cowork', quien:'Propietario o Propietario Principal',
+intro:'El escritorio donde Claude trabaja con archivos, aplicaciones y navegador. Está disponible de forma general y viene habilitado por defecto.',
+items:[
+ {titulo:'Habilitar Cowork para la organización', rec:'activar', resumen:'El interruptor es de todos o ninguno.',
+  que:'Cowork está habilitado de forma predeterminada, pero los propietarios pueden deshabilitarlo. El interruptor aplica a toda la organización: todos los miembros tienen acceso o ninguno. En planes Enterprise los administradores que necesiten control por equipo pueden usar grupos y roles personalizados. La configuración de salida de red que definiste en Capacidades se aplica al crear cada nueva sesión, y si cambias el modo de red mientras una conversación está activa, esos cambios no afectan esa sesión: hay que iniciar una nueva.',
+  criterio:'Déjalo encendido. Es donde se hace el trabajo pesado de archivos y entregables.',
+  fuente:{t:'Usar Claude Cowork en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13455879-usar-claude-cowork-en-planes-team-y-enterprise'}},
+
+ {titulo:'Ejecutar Cowork en la nube', rec:'activar', resumen:'Las tareas siguen corriendo con el portátil cerrado.',
+  que:'Permite que los miembros ejecuten tareas en la infraestructura de Anthropic en lugar de sus propias máquinas, de modo que el trabajo continúa entre escritorio, web y móvil, y las tareas programadas corren aunque el computador esté cerrado y ningún dispositivo esté en línea. En las sesiones en la nube, las sesiones y los archivos se guardan en la cuenta de Claude del miembro.',
+  aviso:'En las sesiones locales, Cowork guarda el historial en el computador del usuario. Esos datos no están sujetos a las políticas estándar de retención de Anthropic y los administradores no pueden gestionarlos ni exportarlos de forma centralizada.',
+  criterio:'Enciéndelo justamente por ese aviso. Lo que corre en la nube queda en la cuenta y es administrable, lo local no.',
+  fuente:{t:'Usar Claude Cowork en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13455879-usar-claude-cowork-en-planes-team-y-enterprise'}},
+
+ {titulo:'Tareas programadas en la nube', rec:'info', resumen:'Dependen de Rutinas, y se administran desde Claude Code.',
+  que:'Las tareas programadas de Cowork usan Rutinas para ejecutarse en la nube. La consola no las enciende aquí: manda a la configuración de Claude Code, donde vive el interruptor de Rutinas.',
+  criterio:'Si un día dejan de correr, revisa Rutinas en Claude Code antes que nada: ese interruptor apaga estas tareas y también Claude Tag.',
+  fuente:{t:'Rutinas de Claude Code', u:'https://code.claude.com/docs/en/routines'}},
+
+ {titulo:'Habilitar Dispatch', rec:'decidir', resumen:'Cowork sigue trabajando en tu computador mientras no estás.',
+  que:'Permite que los miembros mantengan Cowork ejecutándose en su computador para trabajar en tareas en segundo plano. Pueden enviar instrucciones desde cualquier dispositivo con sesión iniciada, y Cowork puede acceder a archivos, aplicaciones y sitios web en esa máquina sin supervisión directa.',
+  aviso:'Sin supervisión directa es la parte que hay que leer dos veces.',
+  criterio:'Si lo enciendes, que sea con dispositivos de confianza activo. Es la misma exposición que el control remoto de Claude Code.',
+  fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
+
+ {titulo:'Navegador integrado', rec:'activar', resumen:'Claude abre páginas y llena formularios dentro de Cowork.',
+  que:'Permite que Claude use un navegador integrado dentro de Cowork para abrir sitios web, leer páginas y completar formularios. Si se desactiva, el panel del navegador y las herramientas de navegador desaparecen de Cowork, sin afectar a Claude in Chrome ni al navegador de Claude Code.',
+  criterio:'Encendido, pero recuerda que los permisos de sitio que definas en Claude in Chrome también gobiernan este navegador.',
+  fuente:null},
+
+ {titulo:'Permisos del sitio del navegador integrado', rec:'info', resumen:'Son los mismos de Claude in Chrome.',
+  que:'Controla en qué sitios puede actuar Claude dentro del navegador integrado. La consola aclara que se comparten con Claude in Chrome, y se ajustan con el botón Administrar permisos del sitio.',
+  criterio:'No es una lista aparte: lo que definas en Chrome vale aquí. Por eso, dejar Chrome en Permitir todos los sitios también abre el navegador de Cowork.',
+  fuente:{t:'Controles de administrador de Claude en Chrome', u:'https://support.claude.com/es/articles/13065128-controles-de-administrador-de-claude-en-chrome'}},
+
+ {titulo:'Artifacts desde Cowork', rec:'info', resumen:'Su configuración vive en la página de artefactos.',
+  que:'La consola indica que la configuración de artefactos se movió a su propia página y deja el botón para administrarla.',
+  criterio:'Los ajustes están en la sección Artefactos de esta guía: crear y publicar encendido, uso compartido externo apagado.',
+  fuente:null},
+
+ {titulo:'Permitir el modo Aprobación automática', rec:'decidir', resumen:'Claude avanza solo y se detiene ante lo que parece riesgoso.',
+  que:'Cuando está habilitado, los usuarios pueden permitir que Claude apruebe acciones por su cuenta en lugar de aprobar cada una, incluido el uso de herramientas, la edición de archivos y la navegación. Claude revisa cada acción por seguridad y hace una pausa ante cualquier cosa que parezca insegura. Está disponible de forma predeterminada, y si el administrador lo desactiva, el modo no aparece en el selector de los usuarios.',
+  criterio:'Es el punto medio razonable: sin él, la gente aprueba cincuenta veces por tarea y termina aprobando sin leer. Aun así es una relajación de control, no una protección, así que decídelo según con qué material trabaje el equipo. Con archivos de clientes, aprobación por acción.',
+  fuente:{t:'Comienza con Claude Cowork', u:'https://support.claude.com/es/articles/13345190-comienza-con-claude-cowork'}},
+
+ {titulo:'Permitir el modo Omitir todas las aprobaciones', rec:'desactivar', resumen:'Claude actúa sin preguntar y nada verifica sus acciones.',
+  que:'Cuando está habilitado, los usuarios pueden permitir que Claude actúe sin pedir aprobación, incluyendo uso de herramientas, edición de archivos y navegación. La documentación advierte que esto puede poner en riesgo los datos de la organización y que solo debe usarse cuando se confía por completo en cada acción, conector, archivo y aplicación involucrados.',
+  criterio:'Apagado. No hay tarea que justifique quitarle el freno de mano a un agente que toca archivos de clientes.',
+  fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
+
+ {titulo:'Permitir siempre para herramientas de conector', rec:'desactivar', resumen:'Aumenta el riesgo de inyección de prompt.',
+  que:'Permite que los miembros elijan Permitir siempre al aprobar herramientas de conector. Solo aplica a herramientas que pueden realizar cambios; las de solo lectura no se ven afectadas. La documentación advierte de forma explícita que esto aumenta el riesgo de inyección de prompt, porque el contenido de las aplicaciones conectadas podría hacer que Claude realice acciones no deseadas sin aprobación por uso.',
+  criterio:'Apagado. Una instrucción escondida en un correo o en un documento de cliente no debería poder escribir en el CRM sin que alguien lo vea.',
+  fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
+
+ {titulo:'Control remoto de Cowork', rec:'decidir', resumen:'Controlar Cowork desde claude.ai o el móvil. Solo junto con dispositivos de confianza.',
+  que:'Permite que el equipo controle Cowork en sus computadoras desde claude.ai o la aplicación móvil. Esas sesiones pueden acceder a archivos, herramientas y aplicaciones en la computadora del usuario. Es un interruptor distinto al de Claude Code, pero Requerir dispositivos de confianza es uno solo: aplica sin importar cuál de los dos controles remotos esté activo.',
+  aviso:'Acceder a archivos, herramientas y aplicaciones de la computadora es exactamente lo que suena. Sin dispositivos de confianza, basta una sesión abierta en un navegador ajeno.',
+  criterio:'Enciéndelo junto con Requerir dispositivos de confianza, nunca solo. Si hoy tienes el control remoto encendido y los dispositivos de confianza apagados, ese es el primer ajuste que hay que cambiar.',
+  fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
+
+ {titulo:'Monitoreo con OpenTelemetry', rec:'decidir', resumen:'Enviar eventos a tus herramientas de observabilidad.',
+  que:'Los propietarios pueden transmitir eventos de Cowork a herramientas de seguridad y observabilidad mediante OpenTelemetry, lo que da visibilidad sobre llamadas de herramientas, acceso a archivos y decisiones de aprobación humana. Cowork reutiliza el esquema de eventos de Claude Code a través del Claude Agent SDK. En la consola se llenan cuatro campos: punto de conexión OTLP, protocolo, encabezados y atributos de recurso. La documentación aclara que no reemplaza el registro de auditoría para fines de cumplimiento.',
+  criterio:'Solo si hay dónde recibir esos eventos. Si no, es configurar un tubo que desemboca en el vacío.',
+  fuente:{t:'Usar Claude Cowork en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13455879-usar-claude-cowork-en-planes-team-y-enterprise'}}
+]});
+
+S.push({
+id:'artefactos', nombre:'Artefactos', quien:'Propietario o Propietario Principal',
+intro:'Las páginas interactivas que Claude publica desde una conversación, y que se pueden compartir dentro o fuera de la organización.',
+items:[
+ {titulo:'Crear y publicar artefactos', rec:'activar', resumen:'Requiere ejecución de código y creación de archivos activas.',
+  que:'Permite que los miembros creen y publiquen artefactos desde Claude Code y Cowork en una página compartible alojada por Anthropic. Desactivarlo también impide compartir artefactos de chat y de Cowork con la organización, aunque los enlaces ya compartidos siguen funcionando. Anthropic dejó de admitir artefactos sin la ejecución de código y creación de archivos habilitada.',
+  criterio:'Encendido. Es la forma más rápida de entregar algo que la otra persona puede tocar en vez de un PDF.',
+  fuente:{t:'Publicar y compartir artefactos', u:'https://support.claude.com/es/articles/9547008-publicar-y-compartir-artefactos'}},
+
+ {titulo:'Uso compartido externo', rec:'desactivar', resumen:'Enlaces públicos que cualquiera puede abrir sin iniciar sesión.',
+  que:'Permite que los miembros publiquen artefactos que cualquier persona fuera de la organización pueda ver. El compartir público viene desactivado de forma predeterminada en Team y Enterprise, así que los miembros solo pueden compartir dentro de la organización hasta que un administrador lo active. Desactivarlo después hace que los enlaces públicos existentes dejen de funcionar sin cambiar la audiencia de cada artefacto, y el acceso se reanuda si lo vuelves a habilitar.',
+  aviso:'Cuando compartes un artefacto, quien lo ve también obtiene acceso a los archivos adjuntos y a los archivos de la conversación que lo creó. Piénsalo dos veces si esa conversación tenía documentos de cliente.',
+  criterio:'Déjalo apagado. Quien abre el artefacto también accede a los archivos de la conversación que lo creó. Si necesitas publicar uno concreto, enciéndelo ese día y vuelve a apagarlo.',
+  fuente:{t:'Compartir la salida de la sesión como artefactos', u:'https://code.claude.com/docs/es/artifacts'}},
+
+ {titulo:'Presencia en artefactos', rec:'activar', resumen:'Ver quién más tiene abierto el mismo artefacto.',
+  que:'Permite que los miembros vean quién más en la organización tiene un artefacto abierto, junto con la actividad en vivo. Si se desactiva, aplica de inmediato a las páginas nuevas y en un plazo de una hora a las pestañas ya abiertas.',
+  criterio:'Encendido. En trabajo a cuatro manos, saber que la otra persona está viendo lo mismo evita edición cruzada.',
+  fuente:null},
+
+ {titulo:'Retención de artefactos publicados', rec:'info', resumen:'Los que estén compartidos con la organización o publicados.',
+  que:'La tabla lista los artefactos compartidos con la organización o públicamente, ordenados por actualización más reciente. Eliminar un artefacto lo borra de forma permanente junto con todas sus versiones. Los periodos de retención antes de la eliminación automática se establecen en la configuración de datos y privacidad, con plazos separados para artefactos privados y compartidos.',
+  criterio:'Revisa esta lista cada cierre de mes y baja lo que ya no representa la oferta vigente. Un artefacto viejo circulando es una promesa desactualizada con enlace propio.',
+  fuente:{t:'Compartir la salida de la sesión como artefactos', u:'https://code.claude.com/docs/es/artifacts'}}
+]});
+
+S.push({
+id:'design', nombre:'Claude Design', quien:'Administrador de Team o Enterprise',
+intro:'Diseños, prototipos y presentaciones sobre un lienzo. Está en beta y se enciende desde Capacidades, bajo Anthropic Labs.',
+items:[
+ {titulo:'Habilitar Claude Design', rec:'activar', resumen:'Se activa desde Configuración de la organización y Capacidades.',
+  que:'Los administradores de planes Team y Enterprise lo habilitan para toda la organización desde Capacidades, con el control ubicado bajo Anthropic Labs, y en Enterprise se puede acotar con roles personalizados. La documentación es explícita en una cosa: activar Claude Design sin un sistema de diseño configurado significa que el equipo obtendrá resultados funcionales pero genéricos.',
+  criterio:'Enciéndelo, pero el mismo día bloquea dos horas para cargar la marca. Si ya tienes habilidades con la paleta y las tipografías definidas, ese es el insumo.',
+  fuente:{t:'Guía de administración de Claude Design', u:'https://support.claude.com/es/articles/14604406-guia-de-administracion-de-claude-design-para-planes-team-y-enterprise'}},
+
+ {titulo:'Permitir enlaces públicos', rec:'desactivar', resumen:'Diseños y archivos de proyecto visibles fuera de la organización.',
+  que:'Permite que Claude cree enlaces públicos a diseños y archivos de proyecto, y los use para exportaciones de socios.',
+  criterio:'Mientras el sistema de diseño esté a medio configurar, lo último que quieres es que salgan piezas fuera de marca con enlace público.',
+  fuente:null}
+]});
+
+S.push({
+id:'office', nombre:'Office Agents', quien:'Propietario o Propietario Principal',
+intro:'Claude trabajando dentro de Excel, PowerPoint, Word y Outlook.',
+items:[
+ {titulo:'Permitir que Claude funcione en todas las aplicaciones', rec:'activar', resumen:'Contexto compartido entre Excel y PowerPoint.',
+  que:'Los miembros pueden permitir que Claude comparta contexto entre aplicaciones como Excel y PowerPoint.',
+  nodoc:'No encontré un artículo de soporte publicado sobre esta pantalla en particular. Lo anterior es lo que declara la consola.',
+  criterio:'Encendido. Pasar de un modelo en hoja de cálculo a las láminas sin volver a explicar el contexto ahorra horas al mes.',
+  fuente:null},
+
+ {titulo:'Monitoreo con OpenTelemetry', rec:'info', resumen:'Tres campos para enviar eventos a tu colector.',
+  que:'Los agentes de Office admiten eventos de OpenTelemetry para monitoreo y observabilidad. En la consola no es un interruptor: son tres campos que se llenan, punto de conexión OTLP, protocolo y encabezados. Cowork tiene su propio bloque equivalente, con un cuarto campo para atributos de recurso.',
+  criterio:'Déjalos vacíos mientras no exista un colector donde recibir los eventos. Configurarlos sin destino es un tubo que desemboca en el vacío.',
+  fuente:null}
+]});
+
+S.push({
+id:'science', nombre:'Claude Science', quien:'Propietario o Propietario Principal',
+intro:'Entorno de trabajo para científicos e investigadores, en beta. Los cambios llegan a la aplicación de cada miembro en pocos minutos, y si una aplicación no logra conectarse durante 72 horas pausa los conectores personalizados y la memoria hasta que vuelva a conectarse. Aplica a quienes tengan la versión 0.1.41 o posterior. Mientras el primer interruptor esté apagado, todo lo demás aparece como No disponible.',
+items:[
+ {titulo:'Habilitar Claude Science para tu organización', rec:'desactivar', resumen:'Manda sobre toda la sección: apagado, el resto queda No disponible.',
+  que:'Permite que los miembros usen Claude Science, el entorno de trabajo con IA para científicos e investigadores. La consola deja aquí los enlaces a la documentación, a la descarga de la aplicación y al panel de uso.',
+  nodoc:'La mayor parte de esta sección no tiene artículo de soporte publicado que yo haya podido localizar. Lo descrito viene de la consola. Al ser una herramienta en beta, algunos controles administrativos todavía están incompletos.',
+  criterio:'Salvo que el equipo haga investigación científica de verdad, esto no aplica. Déjalo apagado: así toda la sección queda cerrada de una vez.',
+  fuente:null},
+
+ {titulo:'Conectores destacados', rec:'info', resumen:'Solo aparece en la incorporación lo que habilites.',
+  que:'Se elige qué conectores destacados pueden usar los miembros. La incorporación de miembros solo muestra los que habilites, y se puede abrir cada uno para ver sus detalles.',
+  criterio:'La lógica es la misma que en el resto de la consola: lo que no habilitas no existe para quien entra nuevo.',
+  fuente:null},
+
+ {titulo:'Permitir conectores personalizados', rec:'desactivar', resumen:'Anula el bloqueo de conectores personalizados de la organización.',
+  que:'Permite que los miembros agreguen conectores personalizados dentro de Claude Science. La consola advierte que esto anula el bloqueo predeterminado de conectores personalizados de la organización. Cada conector personalizado queda disponible solo para el miembro que lo agregó.',
+  aviso:'Anular un bloqueo que pusiste en otra sección es justo el tipo de excepción que después nadie recuerda que existe.',
+  criterio:'Déjalo apagado. Si alguien necesita un conector propio, que pase por la revisión de un propietario como cualquier otro.',
+  fuente:null},
+
+ {titulo:'Habilidades destacadas', rec:'info', resumen:'Igual que los conectores: solo se ve lo habilitado.',
+  que:'Se elige qué habilidades destacadas pueden usar los miembros. La incorporación solo muestra las que habilites.',
+  criterio:'Habilita las dos o tres que el equipo de verdad vaya a usar. Una lista larga en la incorporación no ayuda a nadie.',
+  fuente:null},
+
+ {titulo:'Permitir habilidades personalizadas', rec:'decidir', resumen:'También quedan disponibles en claude.ai para quien las creó.',
+  que:'Permite que los miembros agreguen habilidades personalizadas en Claude Science. La consola advierte que esto anula cualquier otra restricción que tengas sobre agregar habilidades personalizadas, y que esas habilidades también quedan disponibles en claude.ai para el miembro que las creó.',
+  criterio:'Si en el resto de la organización las habilidades pasan por revisión, aquí no deberían entrar por la puerta de atrás. Enciéndelo solo para un equipo que ya sepa lo que sube.',
+  fuente:null},
+
+ {titulo:'Acceder al trabajo guardado antes en la computadora', rec:'decidir', resumen:'Proyectos y sesiones de un plan personal anterior.',
+  que:'Los miembros pueden acceder a proyectos, sesiones y artefactos de Claude Science guardados antes en su computadora, por ejemplo de un plan personal previo a entrar a la organización. A partir de ese momento ese trabajo sigue la configuración de la organización, y lo que la organización tenga desactivado no se transfiere. Las claves de API, las credenciales y los inicios de sesión de conectores nunca se transfieren.',
+  criterio:'Útil cuando alguien llega con trabajo previo y molesto si tienes reglas estrictas de qué material puede vivir en la cuenta corporativa. Decídelo con la misma regla que usas para los archivos personales.',
+  fuente:null},
+
+ {titulo:'Administrar lista de permitidos de red', rec:'activar', resumen:'O la controlas tú, o cada miembro controla la suya.',
+  que:'Administra la lista de dominios a los que Claude puede acceder cuando ejecuta código en nombre de los miembros en Claude Science. Si se desactiva, cada miembro administra su propia lista.',
+  criterio:'Si algún día enciendes Claude Science, este va encendido. Dejar que cada quien defina a qué dominios sale el código es lo contrario de una política.',
+  fuente:null},
+
+ {titulo:'Espejo de paquetes de la organización', rec:'info', resumen:'Dos URL: canal de Conda e índice de PyPI.',
+  que:'Dirige las instalaciones de paquetes de conda y Python a través del espejo de la organización en lugar de los registros públicos, y aplica sin importar si administras la lista de permitidos de red. Se llenan dos campos: la URL del canal de Conda y la del índice de PyPI. Los miembros inician sesión en el espejo por su cuenta, una vez por cada host, y esos datos no se guardan en la consola. El host del espejo siempre está permitido y las direcciones de intranet también funcionan. Para probar una dirección se abre Claude Science dentro de la red, en Configuración, Red, Espejo de paquetes, Configurar, y se usa Verificar.',
+  criterio:'Solo aplica si la organización ya tiene un espejo de paquetes montado. Si no sabes si existe, no existe.',
+  fuente:null},
+
+ {titulo:'Permitir que los miembros conecten hosts SSH', rec:'desactivar', resumen:'Cómputo en máquinas remotas propias.',
+  que:'Los miembros pueden ejecutar cómputo de Claude Science en sus propias máquinas remotas a través de SSH.',
+  criterio:'Apagado. Cada máquina remota que alguien conecta por su cuenta es infraestructura que nadie inventarió.',
+  fuente:null},
+
+ {titulo:'Permitir que los miembros se conecten a Modal', rec:'desactivar', resumen:'Cómputo en el espacio de trabajo de Modal.',
+  que:'Los miembros pueden ejecutar el procesamiento de Claude Science en el espacio de trabajo de Modal de la organización.',
+  criterio:'Apagado mientras no exista ese espacio de trabajo y alguien responsable de lo que se gasta ahí.',
+  fuente:null},
+
+ {titulo:'Proveedores de extremos de modelos científicos', rec:'decidir', resumen:'Se muestran en la pestaña Cómputo.',
+  que:'Los miembros pueden conectarse a los proveedores que aparecen en la pestaña Cómputo de Claude Science, como NVIDIA BioNeMo NIM.',
+  criterio:'Solo tiene sentido en un equipo que corra modelos científicos. Para todo lo demás, es ruido en la interfaz.',
+  fuente:null},
+
+ {titulo:'Activar la memoria para tu equipo en Claude Science', rec:'activar', resumen:'Los recuerdos se guardan en la computadora de cada miembro.',
+  que:'El Claude de cada miembro puede recordar el contexto de sus propias sesiones anteriores. Los recuerdos se almacenan en la computadora de ese miembro y permanecen privados para él.',
+  criterio:'Es memoria local y privada, así que no expone nada de la organización. Si enciendes Claude Science, enciéndela también; sin ella cada sesión empieza de cero.',
+  fuente:null}
+]});
+S.push({
+id:'plugins', nombre:'Plugins', quien:'Propietario de la organización',
+intro:'Paquetes que agrupan habilidades, conectores y subagentes, tanto los del marketplace oficial como los que arme la organización.',
+items:[
+ {titulo:'Qué son los plugins y cómo se agregan', rec:'info', resumen:'Paquetes que agrupan habilidades, conectores y subagentes.',
+  que:'Un plugin es un paquete que reúne varias cosas a la vez: habilidades, conectores y subagentes que se instalan juntos. Piénsalo como una caja de herramientas ya armada para un trabajo, por ejemplo todo lo necesario para producir una campaña. La pantalla administra marketplaces, que son las colecciones de plugins que el equipo puede explorar e instalar: viene uno oficial de Anthropic y socios, y puedes conectar el tuyo desde un repositorio de GitHub. El único botón es Agregar plugins.',
+  criterio:'Lo que gana la organización: que nadie tenga que armar su propio kit. En vez de que cada persona instale por su lado lo que cree que necesita, el equipo abre un plugin y ya tiene el conjunto completo, igual para todos. Si ya tienes habilidades propias, conectarlas como marketplace desde Git es lo que las convierte en un activo versionado y no en archivos sueltos.',
+  fuente:{t:'Administrar complementos para tu organización', u:'https://support.claude.com/es/articles/13837433-administrar-complementos-para-tu-organizacion'}}
+]});
+
+S.push({
+id:'conectores', nombre:'Conectores', quien:'Propietario o Propietario Principal',
+intro:'Las herramientas externas a las que Claude puede llegar, desde correo y calendario hasta diseño y repositorios.',
+items:[
+ {titulo:'Qué son los conectores y cómo se agregan', rec:'info', resumen:'Las herramientas externas a las que Claude puede llegar.',
+  que:'Un conector es un puente entre Claude y una herramienta que el equipo ya usa: el correo, el calendario, Drive, Canva, el CRM. Con el conector puesto, Claude lee y escribe ahí mismo en vez de que alguien copie y pegue de una ventana a otra. También puedes conectar un servidor MCP propio, que es un conector hecho a la medida del negocio. La pantalla es una lista con buscador y filtros, y el único botón es Agregar. La columna Authorization indica que cada persona se autentica por su cuenta: que el conector esté en la lista no significa que alguien ya tenga acceso.',
+  criterio:'Lo que gana la organización: que Claude trabaje con los datos reales de la empresa y no con lo que alguien alcanzó a pegar en el chat. Ahí se acaba el "dónde quedó ese archivo". Agrega solo lo que el equipo usa de verdad, porque cada conector activo ocupa espacio en cada conversación, y recuerda que los personalizados conectan Claude con servicios que Anthropic no ha verificado: ninguno debería entrar sin que un propietario lo revise.',
+  fuente:{t:'Usar conectores para ampliar las capacidades de Claude', u:'https://support.claude.com/es/articles/11176164-usar-conectores-para-ampliar-las-capacidades-de-claude'}},
+
+ {titulo:'Lista de permitidos de extensiones de escritorio', rec:'info', resumen:'Limita qué extensiones puede instalar el equipo.',
+  que:'Es una lista de extensiones de escritorio aprobadas, que se llena una por una con el botón Agregar extensiones de escritorio. Cuando está en uso, los miembros solo pueden instalar las que estén en esa lista. Los controles de política empresarial a nivel de usuario y de máquina la anulan dentro de la aplicación.',
+  criterio:'Mientras la lista esté vacía no restringe nada. En un equipo pequeño esto se gobierna hablando; a partir de quince personas, deja de ser opcional.',
+  fuente:{t:'Configuración empresarial para Claude Desktop', u:'https://support.claude.com/es/articles/12622667-configuracion-empresarial-para-claude-desktop'}}
+]});
+
+S.push({
+id:'habilidades', nombre:'Habilidades', quien:'Propietario de la organización',
+intro:'Las habilidades compartidas con toda la organización suelen ser el activo más valioso de esta consola y el que menos respaldo tiene.',
+items:[
+ {titulo:'Qué son las habilidades y cómo se agregan', rec:'info', resumen:'Instrucciones guardadas que Claude usa cuando hacen falta.',
+  que:'Una habilidad, o skill, es un instructivo guardado que Claude aplica solo cuando la tarea lo pide: cómo se escribe en la marca, el checklist de compliance antes de publicar, el formato exacto de una presentación. En vez de que alguien pegue el mismo prompt largo cada vez, queda escrito una sola vez y Claude lo usa cuando corresponde. Las habilidades de la organización quedan disponibles para todo el equipo sin que nadie las instale. La pantalla tiene buscador y tres pestañas, Biblioteca, Solicitudes y Política, y el único botón es Agregar, que sube un archivo comprimido con la definición. Necesitan que la ejecución de código esté habilitada.',
+  criterio:'Lo que gana la organización: que el criterio deje de vivir en la cabeza de una persona. La habilidad de compliance revisa igual a las tres de la tarde que un domingo, y alguien que entra nuevo produce en marca desde el primer día. Es el activo más valioso de esta consola y el que menos respaldo tiene: descarga las que ya tienes y guárdalas en Git, porque ese archivo comprimido es lo único que te devuelve el trabajo si alguien borra una por error. En la pestaña Política define quién aprueba lo que se sube.',
+  fuente:{t:'Aprovisionamiento y gestión de skills para su organización', u:'https://support.claude.com/es/articles/13119606-aprovisionamiento-y-gestion-de-skills-para-su-organizacion'}}
+]});
+
+
+S.push({
+id:'directorio', nombre:'Directorio', quien:'Propietario de la organización',
+intro:'Lo que se envía al catálogo público de Anthropic para que otras organizaciones lo instalen.',
+items:[
+ {titulo:'Qué es enviar algo al directorio', rec:'info', resumen:'Publicar tus servidores MCP o plugins para otras organizaciones.',
+  que:'El directorio es el catálogo público de Claude. Desde aquí se envían los servidores MCP y los plugins que construyó el equipo: pasan por una revisión de Anthropic y, si los aprueban, aparecen en claude.ai/directory para que cualquier otra organización los instale. Son dos listas con su estado, y los únicos botones son Enviar un servidor y Enviar un plugin. Está en beta.',
+  criterio:'Aquí hay una jugada de posicionamiento: aparecer en el directorio de Anthropic es distribución que no se compra con pauta. Antes de enviar nada, decide qué es producto abierto y qué es ventaja competitiva; lo que codifica tu criterio interno no va al directorio.',
+  fuente:{t:'Explora habilidades, conectores y complementos en un directorio', u:'https://support.claude.com/es/articles/14328846-explora-habilidades-conectores-y-complementos-en-un-directorio'}}
+]});
+</script>
+
+<script>
+/* ---------- render ---------- */
+const cont = document.getElementById('contenido');
+const nav  = document.getElementById('nav');
+const estado = {};
+
+S.forEach(sec => {
+  const a = document.createElement('a');
+  a.className = 'nav'; a.dataset.sec = sec.id;
+  a.setAttribute('role', 'link'); a.setAttribute('tabindex', '0');
+  a.innerHTML = '<span>' + sec.nombre + '</span>' + (sec.aviso ? '<span class="pill alerta">' + sec.aviso + '</span>' : '');
+  nav.appendChild(a);
+
+  const s = document.createElement('section');
+  s.id = sec.id;
+  let html = '<div class="cab"><h2>' + sec.nombre + '</h2><span class="quien">' + sec.quien + '</span></div>';
+  html += '<p class="intro">' + sec.intro + '</p>';
+
+  sec.items.forEach((it, i) => {
+    const key = sec.id + '-' + i;
+    const encendido = it.rec === 'activar';
+    estado[key] = { on: encendido, rec: it.rec, titulo: it.titulo, seccion: sec.nombre, tocado: false };
+    const etiqueta = {activar:'Enciéndelo', desactivar:'Déjalo apagado', decidir:'Decide tú', info:'Sin interruptor'}[it.rec];
+    const clase = 'm-' + it.rec;
+    const bloqueado = it.rec === 'info' ? ' disabled' : '';
+
+    html += '<div class="item" data-key="' + key + '" data-rec="' + it.rec + '">';
+    html += '<div class="fila" role="button" tabindex="0" aria-expanded="false">';
+    html += '<div class="txt"><h3>' + it.titulo + '<span class="marca ' + clase + '">' + etiqueta + '</span></h3><p>' + it.resumen + '</p></div>';
+    html += '<div class="sw"><small>' + (it.rec === 'info' ? '' : (encendido ? 'Encendido' : 'Apagado')) + '</small>';
+    html += '<button class="toggle" role="switch" aria-checked="' + encendido + '" aria-label="Interruptor de ' + it.titulo + '"' + bloqueado + '></button></div>';
+    html += '</div>';
+
+    html += '<div class="detalle">';
+    html += '<h5>Qué hace</h5><p>' + it.que + '</p>';
+    if (it.aviso)  html += '<div class="aviso">' + it.aviso + '</div>';
+    if (it.nodoc)  html += '<div class="sinverificar">' + it.nodoc + '</div>';
+    html += '<h5>Qué haría yo</h5><div class="criterio"><p>' + it.criterio + '</p></div>';
+    if (it.fuente) html += '<div class="fuente"><span>Fuente</span><a href="' + it.fuente.u + '" target="_blank" rel="noopener">' + it.fuente.t + '</a></div>';
+    html += '</div></div>';
+  });
+
+  s.innerHTML = html;
+  cont.appendChild(s);
+});
+
+/* ---------- interacción ---------- */
+cont.addEventListener('click', e => {
+  const tg = e.target.closest('.toggle');
+  if (tg) {
+    e.stopPropagation();
+    if (tg.disabled) return;
+    const item = tg.closest('.item');
+    const on = tg.getAttribute('aria-checked') === 'true';
+    tg.setAttribute('aria-checked', String(!on));
+    item.querySelector('.sw small').textContent = !on ? 'Encendido' : 'Apagado';
+    estado[item.dataset.key].on = !on;
+    estado[item.dataset.key].tocado = true;
+    refrescar();
+    return;
+  }
+  const fila = e.target.closest('.fila');
+  if (fila) {
+    const item = fila.closest('.item');
+    const abierto = item.classList.toggle('abierto');
+    fila.setAttribute('aria-expanded', String(abierto));
+  }
+});
+cont.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('fila')) {
+    e.preventDefault(); e.target.click();
+  }
+});
+
+document.querySelectorAll('.filtro').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filtro').forEach(x => x.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', 'true');
+    const f = b.dataset.f;
+    document.querySelectorAll('.item').forEach(it => {
+      it.classList.toggle('oculto', f !== 'todo' && it.dataset.rec !== f);
+    });
+    document.querySelectorAll('section').forEach(s => {
+      const vis = s.querySelectorAll('.item:not(.oculto)').length;
+      s.style.display = vis ? '' : 'none';
+    });
+  });
+});
+
+/* ---------- plan y progreso ---------- */
+function refrescar() {
+  const todos = Object.values(estado).filter(x => x.rec !== 'info');
+
+  const pendientes = todos.filter(x => x.rec === 'decidir' && !x.tocado);
+  const encender  = todos.filter(x => x.on && x.rec === 'activar');
+  const apagar    = todos.filter(x => !x.on && x.rec === 'desactivar');
+
+  let h = '<h2>Tu plan de acción</h2><ol>';
+  h += '<li><b>Vacía la cola de solicitudes y asigna los asientos sueltos</b> antes de tocar nada más. Sin asientos libres, cada aprobación compra una licencia nueva.</li>';
+  h += '<li><b>Cierra los dominios en estado Pendiente.</b> O los verificas o los retiras, porque a medias no protegen nada y ensucian la lista.</li>';
+  if (encender.length) h += '<li><b>Enciende:</b> ' + encender.map(x => x.titulo).join(', ') + '.</li>';
+  if (apagar.length)   h += '<li><b>Deja apagado:</b> ' + apagar.map(x => x.titulo).join(', ') + '.</li>';
+  if (pendientes.length) h += '<li><b>Todavía sin decidir:</b> ' + pendientes.map(x => x.titulo).join(', ') + '.</li>';
+  else h += '<li class="vacio">Ya no queda nada por decidir en esta guía.</li>';
+  h += '</ol>';
+  document.getElementById('plan').innerHTML = h;
+}
+const totalAjustes = document.getElementById('tAjustes');   // la portada ya no lo muestra
+if (totalAjustes) totalAjustes.textContent = Object.keys(estado).length;
+refrescar();
+
+/* ---------- navegación interna sin salir de la página ---------- */
+function irA(id){
+  const s = document.getElementById(id);
+  if (!s) return;
+  s.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+document.getElementById('nav').addEventListener('click', e => {
+  const a = e.target.closest('a.nav');
+  if (!a) return;
+  e.preventDefault();
+  irA(a.dataset.sec);
+});
+document.getElementById('nav').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const a = e.target.closest('a.nav');
+  if (!a) return;
+  e.preventDefault();
+  irA(a.dataset.sec);
+  menu(false);
+});
+
+/* ---------- menú replegable ---------- */
+const btnMenu = document.getElementById('abrirMenu');
+const velo = document.getElementById('velo');
+function menu(abrir){
+  document.body.classList.toggle('menu', abrir);
+  btnMenu.setAttribute('aria-expanded', String(abrir));
+  btnMenu.textContent = abrir ? 'Cerrar' : 'Secciones';
+}
+btnMenu.addEventListener('click', () => menu(!document.body.classList.contains('menu')));
+velo.addEventListener('click', () => menu(false));
+document.getElementById('nav').addEventListener('click', () => menu(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') menu(false); });
+
+/* ---------- nav activa ---------- */
+const obs = new IntersectionObserver(es => {
+  es.forEach(en => {
+    if (en.isIntersecting) {
+      document.querySelectorAll('.side a.nav').forEach(a => a.classList.remove('on'));
+      const a = document.querySelector('.side a.nav[data-sec="' + en.target.id + '"]');
+      if (a) a.classList.add('on');
+    }
+  });
+}, { rootMargin: '-72px 0px -70% 0px' });
+document.querySelectorAll('section').forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

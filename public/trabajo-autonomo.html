@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trabajo autónomo — PorContar Academia</title>
+<link rel="icon" type="image/svg+xml" href="marca/burbuja.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: encabezado azul con progreso, lista de tareas de la sesión activa, ruta completa de 12 sesiones al final.
+   Colores de la marca PorContar: azul #2B4FE8 y amarillo #FFF401. Sin memoria: al refrescar arranca en cero. */
+:root{
+  --bg:#f4f7fc; --surface:#ffffff; --ink:#11162a; --ink-soft:#5b6479; --line:#e4e9f3;
+  --head:#2b4fe8; --head-deep:#1b33a8; --on-head:#ffffff; --on-head-soft:rgba(255,255,255,.78);
+  --brand:#fff401; --on-brand:#11162a;
+  --blue:#2b4fe8; --blue-tint:#eaeeff;
+  --check-bg:#2b4fe8; --check-fg:#ffffff;
+  --font:'Hanken Grotesk','Segoe UI',system-ui,-apple-system,sans-serif;
+  --display:'Poppins','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55;margin:0;padding-inline:16px;padding-block:24px 56px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin-inline:auto;display:grid;gap:24px}
+h1,h2,h3,p{margin:0;text-wrap:balance}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.01em}
+
+/* Encabezado */
+.head{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--head),var(--head-deep));color:var(--on-head);border-radius:18px;padding:28px 24px;display:grid;gap:16px}
+.head::after{content:"";position:absolute;top:-46px;right:-46px;width:150px;height:150px;border-radius:50%;
+  background:repeating-linear-gradient(135deg,var(--brand) 0 3px,transparent 3px 9px);opacity:.7;pointer-events:none}
+.head::before{content:"";position:absolute;left:-80px;bottom:-110px;width:260px;height:220px;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(70,104,255,.7),transparent);pointer-events:none}
+.tag{position:relative;justify-self:start;background:var(--brand);color:var(--on-brand);font-family:var(--display);font-weight:700;font-size:12px;padding:4px 12px;border-radius:999px;letter-spacing:.06em;text-transform:uppercase}
+.head h1{position:relative;font-weight:800;font-size:clamp(26px,5.2vw,36px);line-height:1.15;max-width:30ch}
+.head p{position:relative;color:var(--on-head-soft);max-width:52ch}
+.prog{position:relative;display:grid;gap:8px}
+.prog-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;font-weight:500;color:var(--on-head-soft)}
+.prog-row strong{color:var(--on-head);font-weight:700;font-variant-numeric:tabular-nums}
+.bar{height:10px;border-radius:999px;background:rgba(255,255,255,.2);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--brand);border-radius:999px;transition:width .35s ease}
+.done-msg{position:relative;background:var(--brand);color:var(--on-brand);font-weight:600;padding:10px 14px;border-radius:10px;font-size:14px}
+.sin-tareas{position:relative;background:rgba(255,255,255,.12);border:1px dashed rgba(255,255,255,.4);color:var(--on-head);padding:10px 14px;border-radius:10px;font-size:14px}
+
+/* Tareas */
+.tasks{display:grid;gap:16px}
+.task{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:14px;min-width:0}
+.task-top{display:flex;gap:14px;align-items:flex-start}
+.badge{flex:none;min-width:34px;height:34px;border-radius:50%;background:var(--blue);color:var(--brand);font-family:var(--display);font-weight:700;display:grid;place-items:center;font-size:15px}
+.task[data-done="true"] .badge{background:var(--brand);color:var(--on-brand)}
+.task h2{font-size:17px;line-height:1.3;font-weight:700}
+.task .why{color:var(--ink-soft);font-size:14px;margin-top:2px}
+.count{margin-left:auto;flex:none;font-size:12px;font-weight:600;color:var(--ink-soft);font-variant-numeric:tabular-nums;padding-top:4px}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.step{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:10px;cursor:pointer;min-width:0}
+.step:hover{background:var(--bg)}
+.step input{position:absolute;opacity:0;width:1px;height:1px}
+.box{flex:none;width:22px;height:22px;border:2px solid var(--ink-soft);border-radius:6px;display:grid;place-items:center;margin-top:1px}
+.box svg{width:14px;height:14px;opacity:0}
+.step input:checked + .box{background:var(--check-bg);border-color:var(--check-bg)}
+.step input:checked + .box svg{opacity:1;stroke:var(--check-fg)}
+.step input:focus-visible + .box{outline:3px solid var(--blue);outline-offset:2px}
+.step span.t{min-width:0;overflow-wrap:anywhere}
+.step input:checked ~ span.t{color:var(--ink-soft);text-decoration:line-through;text-decoration-thickness:1px}
+
+/* Selector de opciones (radios) */
+.choose{display:grid;gap:8px;padding:4px 0 6px}
+.choose legend{font-weight:600;font-size:14px;padding:0 0 6px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+.opts{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.opt{display:block;cursor:pointer;min-width:0}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt .card{display:grid;gap:2px;padding:12px 14px;border:2px solid var(--line);border-radius:12px;height:100%}
+.opt .card b{font-size:14px;font-weight:600}
+.opt .card small{color:var(--ink-soft);font-size:12.5px;line-height:1.4}
+.opt:hover .card{border-color:var(--ink-soft)}
+.opt input:checked + .card{border-color:var(--blue);background:var(--blue-tint)}
+.opt input:focus-visible + .card{outline:3px solid var(--blue);outline-offset:2px}
+
+.foot{display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap;align-items:center;color:var(--ink-soft);font-size:13px}
+button.reset{font:inherit;font-family:var(--display);font-weight:600;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 16px;cursor:pointer}
+button.reset:hover{border-color:var(--blue);color:var(--blue)}
+button.reset:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+@media (max-width:480px){
+  .head{padding:24px 18px}
+  .task{padding:16px}
+  .task-top{flex-wrap:wrap}
+  .count{margin-left:48px;padding-top:0}
+}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+
+/* Quién eres: nombre y apellido */
+.who{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;display:grid;gap:14px;box-shadow:0 24px 60px -34px rgba(17,22,42,.35)}
+.who h2{font-size:18px;font-weight:700}
+.who p{color:var(--ink-soft);font-size:14px}
+.who-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.who label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--ink-soft)}
+.who input{font:inherit;font-size:15px;color:var(--ink);padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);min-width:0}
+.who input:focus{outline:none;border-color:var(--blue);background:var(--surface);box-shadow:0 0 0 3px var(--blue-tint)}
+.btn-go{font:inherit;font-family:var(--display);font-weight:600;font-size:14px;padding:11px 20px;border-radius:999px;border:0;background:var(--blue);color:#fff;cursor:pointer;white-space:nowrap;box-shadow:0 12px 26px -12px rgba(43,79,232,.55)}
+.btn-go:hover{background:var(--head-deep)}
+.btn-go:disabled{opacity:.6;cursor:wait}
+.msg{color:#c0392b;font-size:13px;min-height:1em}
+.me{position:relative;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--on-head-soft)}
+.me b{color:var(--on-head)}
+.me button{font:inherit;font-size:12px;font-weight:600;color:var(--on-head);background:transparent;border:1px solid rgba(255,255,255,.4);border-radius:999px;padding:3px 12px;cursor:pointer}
+.me button:hover{background:rgba(255,255,255,.12)}
+.me .estado{margin-left:auto;font-size:12px}
+@media (max-width:560px){ .who-row{grid-template-columns:1fr} }
+
+/* Admin: avance del grupo */
+.grupo{display:grid;gap:12px}
+.grupo-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.grupo-head h2{font-size:18px;font-weight:700}
+.grupo-head span{color:var(--ink-soft);font-size:13px}
+.grupo-head button{margin-left:auto}
+.personas{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}
+.persona{background:var(--surface);border:1px solid var(--line);border-left:4px solid #c9d3ff;border-radius:14px;padding:14px 16px;display:grid;gap:8px}
+.persona.full{border-left-color:var(--blue)}
+.persona-top{display:flex;align-items:flex-start;gap:8px}
+.persona b{flex:1;min-width:0;font-size:15px;overflow-wrap:anywhere}
+.persona .x{font:inherit;border:0;background:none;color:var(--ink-soft);cursor:pointer;font-size:18px;line-height:1;padding:0 2px}
+.persona .x:hover{color:#c0392b}
+.persona small{color:var(--ink-soft);font-size:12px}
+.persona .bar{height:8px;background:var(--bg)}
+.persona .bar i{background:var(--blue)}
+.persona ul{list-style:none;margin:0;padding:0;display:grid;gap:2px;font-size:12.5px}
+.persona li{display:flex;gap:6px;color:var(--ink-soft)}
+.persona li.ok{color:var(--ink)}
+.persona li::before{content:"○";flex:none}
+.persona li.ok::before{content:"●";color:var(--blue)}
+.vacio{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:18px;color:var(--ink-soft);font-size:14px}
+.preview{font-size:13px;color:var(--ink-soft);background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:10px 14px}
+
+/* Clases plegables */
+.list{display:grid;gap:10px}
+.ses{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.ses summary,.ses .row{display:grid;grid-template-columns:34px minmax(0,1fr) auto 18px;gap:12px;align-items:center;padding:14px 16px;list-style:none}
+.ses summary{cursor:pointer}
+.ses summary::-webkit-details-marker{display:none}
+.ses summary:focus-visible{outline:3px solid var(--blue);outline-offset:-3px}
+.ses .n{font-family:var(--display);font-weight:700;font-variant-numeric:tabular-nums;color:var(--blue)}
+.ses .name{font-weight:600;font-size:15px;line-height:1.35;overflow-wrap:anywhere}
+.ses .row .name{font-weight:500;font-size:14px}
+.ses .row{grid-template-columns:34px minmax(0,1fr) auto}
+.pill{font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--ink-soft);white-space:nowrap;font-variant-numeric:tabular-nums}
+.chev{width:10px;height:10px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-top:-4px;justify-self:center;transition:transform .2s ease}
+.ses[open] > summary{background:var(--head);color:var(--on-head)}
+.ses[open] > summary .n{color:var(--brand)}
+.ses[open] > summary .pill{background:var(--brand);color:var(--on-brand);border-color:transparent}
+.ses[open] > summary .chev{transform:rotate(225deg);margin-top:4px}
+.ses[data-complete="true"] .pill{background:var(--blue-tint);color:var(--blue);border-color:transparent}
+.ses[data-complete="true"][open] > summary .pill{background:var(--brand);color:var(--on-brand)}
+.ses-body{padding:16px;display:grid;gap:16px;border-top:1px solid var(--line)}
+.ses .task{background:var(--bg)}
+.ses .step:hover{background:var(--surface)}
+@media (max-width:480px){
+  .ses summary,.ses .row{gap:10px;padding:12px}
+  .ses-body{padding:12px}
+}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
+</style>
+
+</head>
+<body>
+<main class="wrap">
+  <header class="head">
+    <span class="tag">12 sesiones</span>
+    <h1>Trabajo autónomo</h1>
+    <p>Las tareas de cada sesión en un solo lugar. Abre la sesión en curso y marca cada paso a medida que lo termines.</p>
+    <div class="prog" aria-live="polite">
+      <div class="prog-row"><span>Tareas completas</span><strong id="progTxt">0 de 4</strong></div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" id="progBar"><i id="progFill"></i></div>
+    </div>
+    <p class="done-msg" id="doneMsg" hidden>Completaste todas las tareas disponibles.</p>
+    <div class="me" id="me" hidden>
+      <span>Avance de <b id="meNombre"></b></span>
+      <button type="button" id="cambiar">No soy yo</button>
+      <span class="estado" id="estado"></span>
+    </div>
+  </header>
+
+  <!-- Admin: avance de cada persona -->
+  <section class="grupo" id="grupo" hidden>
+    <div class="grupo-head">
+      <h2>Avance del grupo</h2><span id="grupoTxt"></span>
+      <button class="reset" id="grupoRefresh" type="button">Actualizar</button>
+    </div>
+    <div class="personas" id="personas"></div>
+    <p class="preview">Debajo ves la lista como la ve un estudiante. Lo que marques aquí no se guarda.</p>
+  </section>
+
+  <!-- Estudiante: se identifica con nombre y apellido -->
+  <form class="who" id="who" hidden>
+    <h2>¿Quién eres?</h2>
+    <p>Escribe tu nombre y tu apellido. Así guardamos tu avance y lo encuentras cuando vuelvas, desde cualquier equipo.</p>
+    <div class="who-row">
+      <label>Nombre<input id="wNombre" autocomplete="given-name" maxlength="30" required></label>
+      <label>Apellido<input id="wApellido" autocomplete="family-name" maxlength="30" required></label>
+      <button class="btn-go" id="wBtn" type="submit">Ver mis tareas</button>
+    </div>
+    <p class="msg" id="wMsg"></p>
+  </form>
+
+  <section class="list" id="lista" aria-label="Sesiones" hidden>
+    <details class="ses" data-ses="s1" open>
+      <summary><span class="n">1</span><span class="name">Arquitectura de tu Máquina Comercial con IA</span><span class="pill" data-pill></span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="ses-body">
+<article class="task" data-task="t1">
+      <div class="task-top">
+        <div class="badge">1</div>
+        <div>
+          <h2>Tener el archivo .md con el resumen de tu empresa</h2>
+          <p class="why">Un documento corto que Claude pueda leer cada vez que trabaje contigo.</p>
+        </div>
+        <span class="count" data-count></span>
+      </div>
+      <ul class="steps">
+        <li><label class="step"><input type="checkbox" id="t1a"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Tengo el archivo .md con el resumen de mi empresa</span></label></li>
+      </ul>
+    </article>
+
+    <article class="task" data-task="t2">
+      <div class="task-top">
+        <div class="badge">2</div>
+        <div>
+          <h2>Crear un proyecto en Claude</h2>
+          <p class="why">El proyecto guarda el contexto de tu empresa para todos tus chats.</p>
+        </div>
+        <span class="count" data-count></span>
+      </div>
+      <ul class="steps">
+        <li><label class="step"><input type="checkbox" id="t2a"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Crea un proyecto nuevo con el nombre de tu empresa</span></label></li>
+        <li><label class="step"><input type="checkbox" id="t2b"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Sube el archivo .md al conocimiento del proyecto</span></label></li>
+        <li><label class="step"><input type="checkbox" id="t2c"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Confirma que el archivo aparece cargado dentro del proyecto</span></label></li>
+      </ul>
+    </article>
+
+    <article class="task" data-task="t3">
+      <div class="task-top">
+        <div class="badge">3</div>
+        <div>
+          <h2>Tener 5 chats dentro del proyecto</h2>
+          <p class="why">Un chat por área, así cada conversación conserva su propio hilo.</p>
+        </div>
+        <span class="count" data-count></span>
+      </div>
+      <ul class="steps">
+        <li><label class="step"><input type="checkbox" id="t3a"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Chat de Estrategia</span></label></li>
+        <li><label class="step"><input type="checkbox" id="t3b"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Chat de SEO</span></label></li>
+        <li><label class="step"><input type="checkbox" id="t3c"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Chat de Pauta</span></label></li>
+        <li><label class="step"><input type="checkbox" id="t3d"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Chat de Redes sociales</span></label></li>
+        <li><label class="step"><input type="checkbox" id="t3e"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Chat de Métricas y performance</span></label></li>
+      </ul>
+    </article>
+
+    <article class="task" data-task="t4">
+      <div class="task-top">
+        <div class="badge">4</div>
+        <div>
+          <h2>Crear 1 prompt con el GPT personalizado</h2>
+          <p class="why">Elige un tema, escribe el prompt y revisa qué te responde.</p>
+        </div>
+        <span class="count" data-count></span>
+      </div>
+      <fieldset class="choose">
+        <legend>Elige el tema de tu prompt</legend>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="tema" value="Planificación de contenido"><span class="card"><b>Planificación de contenido</b><small>Un calendario con temas y formatos.</small></span></label>
+          <label class="opt"><input type="radio" name="tema" value="Guiones de redes sociales"><span class="card"><b>Guiones de redes sociales</b><small>Guiones listos para grabar.</small></span></label>
+          <label class="opt"><input type="radio" name="tema" value="Crear una landing page"><span class="card"><b>Crear una landing page</b><small>Estructura y textos de una página de captación.</small></span></label>
+          <label class="opt"><input type="radio" name="tema" value="Mejorar la propuesta de valor"><span class="card"><b>Mejorar la propuesta de valor</b><small>Replantear lo que ofrece tu producto o servicio.</small></span></label>
+          <label class="opt"><input type="radio" name="tema" value="Estrategia de adquisición de clientes"><span class="card"><b>Estrategia de adquisición de clientes</b><small>Cómo llegar a tus primeros clientes y a los siguientes.</small></span></label>
+        </div>
+      </fieldset>
+      <ul class="steps">
+        <li><label class="step"><input type="checkbox" id="t4b"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Escribe el prompt en tu GPT personalizado</span></label></li>
+        <li><label class="step"><input type="checkbox" id="t4c"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg></span><span class="t">Revisa la respuesta y ajusta el prompt una vez</span></label></li>
+      </ul>
+    </article>
+      </div>
+    </details>
+      <div class="ses"><div class="row"><span class="n">2</span><span class="name">Cerebro Comercial y Funnel Inteligente con IA</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">3</span><span class="name">Sistema Creativo de Diseño Gráfico con IA</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">4</span><span class="name">Páginas web, SEO y GEO con IA: visibilidad y conversión en la nueva búsqueda</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">5</span><span class="name">Sistema de Producción Audiovisual con IA</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">6</span><span class="name">Máquina de Crecimiento y Contenido en Redes Sociales</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">7</span><span class="name">Sistema de Ventas y Calificación con IA</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">8</span><span class="name">Fuerza Comercial de Agentes de IA</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">9</span><span class="name">Empleados Digitales para Ventas</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">10</span><span class="name">Motor de Prospección y Adquisición de Leads con IA</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">11</span><span class="name">Analítica de Datos e Inteligencia Comercial con IA</span><span class="pill">Próximamente</span></div></div>
+      <div class="ses"><div class="row"><span class="n">12</span><span class="name">Pauta Digital de Alto Rendimiento con Meta Ads e IA</span><span class="pill">Próximamente</span></div></div>
+  </section>
+
+  <footer class="foot" id="pie" hidden>
+    <button class="reset" id="reset" type="button">Reiniciar checklist</button>
+  </footer>
+</main>
+
+<script src="vendor/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="trabajo-autonomo.js"></script>
+</body>
+</html>

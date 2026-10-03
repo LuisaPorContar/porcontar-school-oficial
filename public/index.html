@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PorContar Academia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" type="image/svg+xml" href="marca/burbuja.svg" />
+</head>
+<body>
+
+<!-- ============ ICONOS SVG (sprite) ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-feed" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13h8M8 16.5h5"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3.75h12a1 1 0 0 1 1 1V21l-7-4-7 4V4.75a1 1 0 0 1 1-1Z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="m15.5 12 6-3.5v11l-6-3.5z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13.5a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 1 0-5.7-5.7l-1.4 1.4"/><path d="M14 10.5a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 1 0 5.7 5.7l1.4-1.4"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 7V5h4v2M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14.5 6.5 3 3"/></symbol>
+    <symbol id="i-bold" viewBox="0 0 24 24"><path d="M7 5h6.5a3.5 3.5 0 0 1 0 7H7zM7 12h7.5a3.5 3.5 0 0 1 0 7H7z"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M5 6v12M9 9h10M9 15h6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 3h6l-1 6 4 3v2H6v-2l4-3-1-6Z"/><path d="M12 14v7"/></symbol>
+    <symbol id="i-empty" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 14.5h8"/></symbol>
+    <symbol id="i-skill" viewBox="0 0 24 24"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.2l5.9-.9z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M4 17v1.5A2.5 2.5 0 0 0 6.5 21h11a2.5 2.5 0 0 0 2.5-2.5V17"/></symbol>
+    <!-- copiar / preguntas frecuentes -->
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 6.5V5.5a2 2 0 0 0-2-2H5.5a2 2 0 0 0-2 2V13a2 2 0 0 0 2 2h1"/></symbol>
+    <symbol id="i-faq" viewBox="0 0 24 24"><path d="M4 5.5h16v11H12l-5 4v-4H4z"/><path d="M9.7 9.4a2.3 2.3 0 1 1 2.6 2.3v1.1"/><path d="M12.3 14.6v.1"/></symbol>
+    <!-- Vocabulario y skills -->
+    <symbol id="i-resumen" viewBox="0 0 24 24"><path d="M5.5 3.5h8.5L19 8.5v12H5.5z"/><path d="M14 3.5V9h5"/><path d="M8.5 12.5h7M8.5 16h4.5"/></symbol>
+    <!-- trabajo autónomo: lista con casillas -->
+    <symbol id="i-tareas" viewBox="0 0 24 24"><rect x="4" y="3.5" width="16" height="17" rx="2.5"/><path d="m8 9 1.5 1.5L12.5 7.5M8 15l1.5 1.5 3-3M15 9.5h1.5M15 15.5h1.5"/></symbol>
+    <!-- quizzes -->
+    <symbol id="i-quiz" viewBox="0 0 24 24"><path d="M5.5 3.5h13v17h-13z"/><path d="M9 8.5a2.4 2.4 0 1 1 3 2.3v1.2"/><path d="M12 15.4v.1"/></symbol>
+    <!-- subir y bajar una publicación -->
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V6"/><path d="M6.5 11.5 12 6l5.5 5.5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v13"/><path d="M6.5 12.5 12 18l5.5-5.5"/></symbol>
+    <!-- tutoriales express: pantalla con el triangulo de reproducir -->
+    <symbol id="i-tuto" viewBox="0 0 24 24"><path d="M3.5 5h17v11h-17z"/><path d="M8 20h8M12 16v4"/><path d="M10.5 8.3l4 2.2-4 2.2z"/></symbol>
+    <!-- configurar Claude -->
+    <symbol id="i-config" viewBox="0 0 24 24"><path d="M5 7h9M18 7h1.5M5 12h3M12 12h7.5M5 17h9M18 17h1.5"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="17" r="2"/></symbol>
+    <!-- ojito: ocultar o mostrar una clase -->
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M10.6 5.6A9.7 9.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.5 7.3C3.9 9 2.5 12 2.5 12S6 18.5 12 18.5c1.9 0 3.5-.6 4.9-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m3.5 3.5 17 17"/></symbol>
+    <!-- redes -->
+    <symbol id="i-ig" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-in" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 10.5V17M8 7.3v.1M12 17v-3.6a2 2 0 0 1 4 0V17"/></symbol>
+    <!-- iconos de sesión -->
+    <symbol id="s-base" viewBox="0 0 24 24"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.2l5.9-.9z"/></symbol>
+    <symbol id="s-funnel" viewBox="0 0 24 24"><path d="M3.5 5h17l-6.5 7.5V20l-4-2.2v-5.3z"/></symbol>
+    <symbol id="s-design" viewBox="0 0 24 24"><path d="M6 20c2 0 3-1 3-3 0-1.2-.8-2-2-2s-2 .8-2 2c0 1-.5 2-1 2.5.6.3 1.3.5 2 .5Z"/><path d="M9.5 15 19 5.5a1.8 1.8 0 0 0-2.5-2.5L7 12.5"/></symbol>
+    <symbol id="s-web" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M3 9h18"/><circle cx="11" cy="14" r="2.4"/><path d="m12.8 15.8 2 2"/></symbol>
+    <symbol id="s-crm" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 5.8a3 3 0 0 1 .5 5.9M17.5 19a5.5 5.5 0 0 0-1.8-4.1"/></symbol>
+    <symbol id="s-prospec" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22"/></symbol>
+    <symbol id="s-ecom" viewBox="0 0 24 24"><circle cx="10" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/><path d="M3 4.5h2.4l2.3 11h10l1.9-7.6H6.3"/></symbol>
+    <symbol id="s-viral" viewBox="0 0 24 24"><circle cx="17" cy="6" r="2.4"/><circle cx="17" cy="18" r="2.4"/><circle cx="7" cy="12" r="2.4"/><path d="m9.2 10.9 5.6-3.3M9.2 13.1l5.6 3.3"/></symbol>
+    <symbol id="s-video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="m15.5 12 6-3.5v11l-6-3.5z"/></symbol>
+    <symbol id="s-ads" viewBox="0 0 24 24"><path d="M4 10v4a1 1 0 0 0 1 1h2.5l7.5 3.8V5.2L7.5 9H5a1 1 0 0 0-1 1Z"/><path d="M18.5 9.4a3.6 3.6 0 0 1 0 5.2"/></symbol>
+    <symbol id="s-agent" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 4v4"/><circle cx="9.3" cy="13.5" r="1.2"/><circle cx="14.7" cy="13.5" r="1.2"/></symbol>
+    <symbol id="s-dash" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 16.5v-4M12 16.5v-8M16 16.5v-5.5"/></symbol>
+    <symbol id="s-pre" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="s-0" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M10 20v-5h4v5"/></symbol>
+    <symbol id="s-1" viewBox="0 0 24 24"><path d="M12 3.5 20 8v5c0 4-3.4 6.6-8 7.5-4.6-.9-8-3.5-8-7.5V8z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="s-2" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></symbol>
+    <symbol id="s-3" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6 7.8 7.8M16.2 16.2l2.2 2.2M18.4 5.6l-2.2 2.2M7.8 16.2l-2.2 2.2"/></symbol>
+    <symbol id="s-4" viewBox="0 0 24 24"><path d="m9 8-5 4 5 4M15 8l5 4-5 4M13.5 5l-3 14"/></symbol>
+    <symbol id="s-5" viewBox="0 0 24 24"><path d="M4 5h16v10H4z"/><path d="M12 15v4M8.5 19h7"/><path d="m8 11 2.5-2.5L13 11l3-3.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <!-- dona wireframe: elemento firma del universo gráfico -->
+    <svg class="dona" viewBox="0 0 200 200" aria-hidden="true">
+      <g fill="none" stroke="#4668ff" stroke-width="1" opacity=".85">
+        <ellipse cx="100" cy="100" rx="86" ry="34"/>
+        <ellipse cx="100" cy="100" rx="78" ry="26"/>
+        <ellipse cx="100" cy="100" rx="66" ry="17"/>
+        <ellipse cx="100" cy="100" rx="52" ry="9"/>
+        <ellipse cx="100" cy="100" rx="86" ry="34" transform="rotate(30 100 100)"/>
+        <ellipse cx="100" cy="100" rx="86" ry="34" transform="rotate(60 100 100)"/>
+        <ellipse cx="100" cy="100" rx="86" ry="34" transform="rotate(90 100 100)"/>
+        <ellipse cx="100" cy="100" rx="86" ry="34" transform="rotate(120 100 100)"/>
+        <ellipse cx="100" cy="100" rx="86" ry="34" transform="rotate(150 100 100)"/>
+      </g>
+    </svg>
+    <div class="brand">
+      <!-- logo oficial, el mismo de la web de PorContar (versión blanca para fondo oscuro) -->
+      <img class="logo" src="marca/porcontar-blanco.png" alt="PorContar" width="540" height="340" />
+      <span class="brand-sub">Academia</span>
+    </div>
+
+    <nav class="nav" id="nav">
+      <p class="nav-title">Sesiones</p>
+      <div id="navSessions"></div>
+
+      <p class="nav-title">Extras</p>
+      <!-- Lo primero de Extras y con color propio: las tareas de cada sesión -->
+      <button class="nav-item nav-tareas" data-view="tareas" title="Las tareas de cada sesión, con tu avance">
+        <svg class="ico"><use href="#i-tareas"/></svg>
+        <span class="nav-label">Trabajo autónomo</span>
+      </button>
+      <button class="nav-item" data-view="skills" title="Catálogo de skills">
+        <svg class="ico"><use href="#i-skill"/></svg>
+        <span class="nav-label">Catálogo de prompts</span>
+        <span class="count" id="countSkills">0</span>
+      </button>
+      <!-- filtro por área: solo se ve dentro del catálogo -->
+      <div class="nav-areas" id="navAreas" hidden></div>
+      <button class="nav-item" data-view="resumen" title="Vocabulario y términos">
+        <svg class="ico"><use href="#i-resumen"/></svg>
+        <span class="nav-label">Vocabulario y términos</span>
+      </button>
+      <!-- Oculto por ahora: para mostrarlo de nuevo, quitar hidden -->
+      <button class="nav-item" data-view="config" hidden title="Qué dejar activo en tu organización de Claude">
+        <svg class="ico"><use href="#i-config"/></svg>
+        <span class="nav-label">Configurar Claude</span>
+      </button>
+      <button class="nav-item" data-view="tuto" title="Videos cortos con el paso a paso">
+        <svg class="ico"><use href="#i-tuto"/></svg>
+        <span class="nav-label">Tutoriales express</span>
+        <span class="count" id="countTuto">0</span>
+      </button>
+      <button class="nav-item" data-view="faq">
+        <svg class="ico"><use href="#i-faq"/></svg>
+        <span class="nav-label">Preguntas frecuentes</span>
+        <span class="count" id="countFaq">0</span>
+      </button>
+      <button class="nav-item" data-view="saved">
+        <svg class="ico"><use href="#i-bookmark"/></svg>
+        <span class="nav-label">Guardados</span>
+        <span class="count" id="countSaved">0</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="progress">
+        <div class="progress-bar"><i id="progressFill"></i></div>
+        <span id="progressText">0 de 14 sesiones con contenido</span>
+      </div>
+
+      <div class="social">
+        <a href="https://www.instagram.com/por.contar/" target="_blank" rel="noopener" title="PorContar en Instagram">
+          <svg class="ico"><use href="#i-ig"/></svg>
+        </a>
+        <a href="https://www.linkedin.com/in/ximena-villalobos-vel%C3%A1squez/" target="_blank" rel="noopener" title="Ximena Villalobos en LinkedIn">
+          <svg class="ico"><use href="#i-in"/></svg><span>Ximena</span>
+        </a>
+        <a href="https://www.linkedin.com/in/luisa-navarro-salgado-porcontar/" target="_blank" rel="noopener" title="Luisa Navarro en LinkedIn">
+          <svg class="ico"><use href="#i-in"/></svg><span>Luisa</span>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ CONTENIDO ============ -->
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn only-mobile" id="btnMenu" aria-label="Abrir el menú">
+          <svg class="ico"><use href="#i-menu"/></svg>
+        </button>
+        <img class="logo-mini only-mobile" src="marca/burbuja.svg" alt="PorContar" width="30" height="30" />
+        <div>
+          <h1 id="viewTitle">PorContar Academia</h1>
+          <p id="viewSubtitle">Cargando el contenido…</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <label class="search">
+          <svg class="ico"><use href="#i-search"/></svg>
+          <input type="search" id="search" placeholder="Buscar en el muro" />
+        </label>
+        <button class="btn btn-primary" id="btnNew">
+          <svg class="ico"><use href="#i-plus"/></svg>
+          Nueva publicación
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+      <section class="stream">
+        <div class="composer" id="composerTrigger">
+          <div class="avatar">PC</div>
+          <span>Comparte una nota o sube un video…</span>
+          <span class="composer-plus"><svg class="ico"><use href="#i-plus"/></svg></span>
+        </div>
+        <div id="posts"></div>
+      </section>
+
+      <aside class="rail">
+        <!-- estudiantes: formulario de pregunta · admin: preguntas por responder (lo pinta app.js) -->
+        <div class="card rail-card rail-pregunta" id="railPregunta"></div>
+        <div class="card rail-card">
+          <h3>Sesiones</h3>
+          <ol class="rail-list" id="railSessions"></ol>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<!-- ============ MODAL COMPOSER ============ -->
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header class="modal-head">
+      <h2 id="modalTitle">Nueva publicación</h2>
+      <button class="icon-btn" id="btnCloseModal" aria-label="Cerrar">
+        <svg class="ico"><use href="#i-close"/></svg>
+      </button>
+    </header>
+
+    <div class="modal-body">
+      <label class="field">
+        <span>Sesión</span>
+        <select id="fSession"></select>
+      </label>
+
+      <label class="field">
+        <span>Título</span>
+        <input type="text" id="fTitle" placeholder="Ej. Resumen y asignación de la sesión" maxlength="140" />
+      </label>
+
+      <div class="field">
+        <span>Contenido</span>
+        <div class="editor">
+          <div class="editor-tools">
+            <button type="button" data-fmt="bold" title="Negrita"><svg class="ico"><use href="#i-bold"/></svg></button>
+            <button type="button" data-fmt="quote" title="Cita destacada"><svg class="ico"><use href="#i-quote"/></svg></button>
+            <span class="hint">**negrita** · &gt; cita · los enlaces se detectan solos</span>
+          </div>
+          <textarea id="fBody" rows="7" placeholder="Escribe aquí el contenido de la clase, los pasos, la asignación…"></textarea>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>Video, imagen o PDF</span>
+        <div class="tabs">
+          <button type="button" class="tab is-active" data-tab="file"><svg class="ico"><use href="#i-upload"/></svg> Subir archivo</button>
+          <button type="button" class="tab" data-tab="url"><svg class="ico"><use href="#i-link"/></svg> Enlace</button>
+        </div>
+
+        <div class="tabpane" data-pane="file">
+          <div class="dropzone" id="dropzone">
+            <svg class="ico ico-lg"><use href="#i-video"/></svg>
+            <p><b>Arrastra un video, una imagen o un PDF</b> o haz clic para elegirlo</p>
+            <small>Video MP4, WebM o MOV hasta 300 MB · Imagen JPG, PNG, GIF o WebP hasta 10 MB · PDF hasta 25 MB</small>
+            <input type="file" id="fFile" accept="video/*,image/*,application/pdf,.pdf" hidden />
+          </div>
+          <div class="filechip" id="fileChip" hidden>
+            <svg class="ico"><use href="#i-video"/></svg>
+            <span id="fileName"></span>
+            <button type="button" id="fileClear" aria-label="Quitar archivo"><svg class="ico"><use href="#i-close"/></svg></button>
+          </div>
+        </div>
+
+        <div class="tabpane" data-pane="url" hidden>
+          <input type="url" id="fUrl" placeholder="https://www.youtube.com/watch?v=…" />
+        </div>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="fPinned" />
+        <span>Destacar esta publicación</span>
+      </label>
+    </div>
+
+    <footer class="modal-foot">
+      <span class="modal-msg" id="modalMsg"></span>
+      <div>
+        <button class="btn" id="btnCancel">Cancelar</button>
+        <button class="btn btn-primary" id="btnPublish">Publicar</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div class="overlay" id="skOverlay" hidden>
+  <div class="modal modal-sk" role="dialog" aria-modal="true" aria-labelledby="skTitle">
+    <header class="modal-head">
+      <div>
+        <span class="sk-num-big" id="skNum">#1</span>
+        <h2 id="skTitle">Skill</h2>
+      </div>
+      <button class="icon-btn" id="skClose" aria-label="Cerrar">
+        <svg class="ico"><use href="#i-close"/></svg>
+      </button>
+    </header>
+
+    <div class="modal-body">
+      <div class="sk-tags" id="skTags"></div>
+
+      <div class="sk-actions">
+        <button class="btn btn-primary" id="skDownload">
+          <svg class="ico"><use href="#i-download"/></svg> Descargar Skill (.md)
+        </button>
+        <button class="btn" id="skCopy">
+          <svg class="ico"><use href="#i-copy"/></svg> Copiar prompt
+        </button>
+        <span class="sk-admin" id="skAdmin" hidden>
+          <button class="btn" id="skEdit"><svg class="ico"><use href="#i-edit"/></svg> Editar</button>
+          <button class="btn btn-danger" id="skDelete"><svg class="ico"><use href="#i-trash"/></svg> Eliminar</button>
+        </span>
+      </div>
+
+      <div class="sk-block" id="skObjectiveBlock">
+        <span class="sk-label">Objetivo</span>
+        <p id="skObjective"></p>
+      </div>
+
+      <div class="sk-block">
+        <span class="sk-label">Prompt completo</span>
+        <pre class="sk-prompt" id="skPrompt"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDITOR DE SKILL (admin) ============ -->
+<div class="overlay" id="skEdOverlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="skEdTitle">
+    <header class="modal-head">
+      <h2 id="skEdTitle">Nueva skill</h2>
+      <button class="icon-btn" id="skEdClose" aria-label="Cerrar">
+        <svg class="ico"><use href="#i-close"/></svg>
+      </button>
+    </header>
+
+    <div class="modal-body">
+      <!-- ¿Ya está en un .md? Se sube y llena los campos solos -->
+      <div class="dropzone dropzone-md" id="skDrop">
+        <svg class="ico"><use href="#i-upload"/></svg>
+        <p><b>Sube la skill en .md</b> o arrástrala aquí</p>
+        <small>Toma el nombre, el área, el nivel, las etiquetas, el objetivo y el prompt con su formato</small>
+        <input type="file" id="skFile" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden />
+      </div>
+
+      <label class="field">
+        <span>Nombre de la skill</span>
+        <input type="text" id="skfTitle" placeholder="Ej. Análisis de competencia" maxlength="120" />
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Área</span>
+          <select id="skfArea"></select>
+        </label>
+        <label class="field">
+          <span>Nivel</span>
+          <select id="skfLevel"></select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Etiquetas</span>
+        <input type="text" id="skfTags" placeholder="Análisis, Generación… (separadas por coma)" maxlength="120" />
+      </label>
+
+      <label class="field">
+        <span>Objetivo</span>
+        <textarea id="skfObjective" rows="3" placeholder="En una o dos frases: qué resuelve esta skill."></textarea>
+      </label>
+
+      <label class="field">
+        <span>Prompt completo</span>
+        <textarea id="skfPrompt" rows="12" placeholder="Pega aquí el prompt tal cual lo usas."></textarea>
+      </label>
+    </div>
+
+    <footer class="modal-foot">
+      <span class="modal-msg" id="skEdMsg"></span>
+      <div>
+        <button class="btn" id="skEdCancel">Cancelar</button>
+        <button class="btn btn-primary" id="skEdSave">Guardar skill</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="vendor/supabase.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

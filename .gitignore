@@ -1,0 +1,9 @@
+# Nunca al repositorio: llevan la clave de admin dentro
+*.sql
+LEEME.md
+
+# Ruido del sistema
+.DS_Store
+Thumbs.db
+.playwright-mcp/
+*.tmp

@@ -1,0 +1,4 @@
+# La app es estatica: no hay build, solo se publica la carpeta public.
+[build]
+  publish = "public"
+  command = ""
