@@ -7,8 +7,9 @@
 
 const CFG = window.MURO_CONFIG || {};
 
-/* Las clases de la Academia, en el orden del cronograma (una por semana). */
-const SESSIONS = [
+/* Las clases del reto. Se administran desde la app (tabla reto_sesiones);
+   esta lista es solo el arranque y el respaldo del modo local. */
+const SESIONES_BASE = [
   { id:'s0', icon:'s-0', short:'Sesión 0', name:'Kick off',
     desc:'Arranque del reto: cómo funciona, qué vamos a construir y qué dejar listo.' },
   { id:'s1', icon:'s-base', short:'Sesión 1', name:'Arquitectura de tu Máquina Comercial con IA',
@@ -36,6 +37,16 @@ const SESSIONS = [
   { id:'s12', icon:'s-ads', short:'Sesión 12', name:'Pauta Digital de Alto Rendimiento con Meta Ads e IA',
     desc:'Anuncios pagados en Meta: cómo armarlos y cuánto invertir.' },
 ].map(s => ({ ...s, title: `${s.short}. ${s.name}` }));
+let SESSIONS = SESIONES_BASE.slice();
+
+/** Fila de reto_sesiones → sesión que entiende la app. */
+const deSesion = r => ({
+  id:r.id, orden:r.orden || 0, short:r.corto, name:r.nombre, desc:r.descripcion || '',
+  icon:r.icono || 's-1', tipo:r.tipo || 'clase', title:`${r.corto}. ${r.nombre}`,
+});
+const TIPOS_SESION = { kickoff:'Kick off', clase:'Clase', proyecto:'Proyecto', cierre:'Cierre' };
+const ICONOS_SESION = ['s-0','s-base','s-funnel','s-design','s-web','s-video','s-viral','s-1','s-agent',
+                       's-crm','s-prospec','s-dash','s-ads','s-ecom','s-pre','s-2','s-3','s-4','s-5'];
 
 const REACTIONS = [
   { id:'like',  label:'Me gusta', path:'M7 21V10l5-7a2 2 0 0 1 3 2l-1 5h4.5a2 2 0 0 1 2 2.4l-1.5 7A2 2 0 0 1 17 21H7Zm0 0H3V10h4' },
@@ -47,14 +58,31 @@ const REACTION_IDS = REACTIONS.map(r => r.id);
 
 const ME = { name:'PorContar', initials:'PC' };
 
-/* Dos accesos, sin usuarios ni contraseñas: la URL decide.
-   index.html?admin=<clave> → puede publicar, editar y borrar
-   index.html               → solo lee y reacciona
-
-   La clave nunca está en el código: viaja en la URL de quien
-   administra y quien la valida es la base de datos (is_admin()).   */
-const ADMIN_KEY = (new URLSearchParams(location.search).get('admin') || '').trim();
+/* Quién mira (lo resuelve sesion.js y lo confirma la base):
+   · admin: entró una vez con index.html?admin=<clave>; publica, edita, borra
+     y administra empresas y cohortes. La base valida la clave (is_admin()).
+   · estudiante: entra con su correo y la contraseña de su empresa o cohorte.
+     Solo recibe lo que va dirigido a sus grupos.
+   · responsable: un estudiante que además ve el panel de su equipo.      */
+const ADMIN_KEY = window.ACADEMIA ? ACADEMIA.adminKey() : '';
 let IS_ADMIN = false;   // se confirma contra la base en el arranque
+let PERFIL = null;      // estudiante: { email, nombre, grupos:[{id, nombre, tipo, rol, vence_el}] }
+let GRUPOS = [];        // admin: todas las empresas y cohortes
+let gruposFalla = '';   // por qué no cargaron (p. ej. falta correr supabase-empresas.sql)
+/* Admin: espacio de trabajo. '' = Principal (el contenido para todos);
+   el id de una empresa = lo que ve esa empresa, y lo nuevo queda solo para ella. */
+const ESPACIO_KEY = 'academia-espacio';
+let vistaComo = (() => { try { return localStorage.getItem(ESPACIO_KEY) || ''; } catch { return ''; } })();
+let vistos = new Set(); // estudiante: publicaciones con video que marcó como vistas
+
+/* Fase 1 (supabase-fase1.sql): la lógica vive en programa.js */
+let fase1 = false;       // ¿la base ya tiene reto, cronograma y grabaciones?
+let CRONO = [];          // cronograma: estudiante, el de sus grupos; admin, el de todos
+let GRABS = [];          // grabaciones: estudiante, las de sus grupos; admin, todas
+let progresoVideo = {};  // estudiante: { idGrabacion: { segundos, duracion, completado, vistas } }
+
+/** Grupos donde la persona es responsable: los que puede ver en el panel. */
+const gruposResponsable = () => (PERFIL?.grupos || []).filter(g => g.rol === 'responsable');
 
 const MAX_VIDEO_MB = 300;
 const MAX_IMAGE_MB = 10;
@@ -185,10 +213,7 @@ let store;
 
 /* ---------- Supabase ---------- */
 function cloudStore(){
-  const sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {
-    auth: { persistSession:false },
-    global: { headers: ADMIN_KEY ? { 'x-admin-key': ADMIN_KEY } : {} },
-  });
+  const sb = ACADEMIA.cliente();   // lleva la clave de admin o el token de la sesión
   const bucket = CFG.BUCKET || 'videos';
   const tablaSk = CFG.TABLE_SKILLS || 'skills';   // catalogo de prompts
   const tablaQz = CFG.TABLE_QUIZZES   || 'quizzes';
@@ -204,6 +229,7 @@ function cloudStore(){
     id:r.id, titulo:r.titulo || '', descripcion:r.descripcion || '',
     activo:!!r.activo, orden:r.orden || 0,
     preguntas:Array.isArray(r.preguntas) ? r.preguntas : [],
+    audiencia:Array.isArray(r.audiencia) ? r.audiencia : [],
   });
 
   const fromRow = r => ({
@@ -211,6 +237,7 @@ function cloudStore(){
     pinned:!!r.pinned, orden:Number.isFinite(r.orden) ? r.orden : null,
     author:r.author, initials:r.initials,
     videoUrl:r.video_url || null, videoPath:r.video_path || null, videoName:r.video_name || null,
+    audiencia:Array.isArray(r.audiencia) ? r.audiencia : [],
     reactions:r.reactions || {}, createdAt:new Date(r.created_at).getTime(),
   });
   const toRow = p => ({
@@ -220,14 +247,22 @@ function cloudStore(){
     ...(Number.isFinite(p.orden) ? { orden:p.orden } : {}),
     author:p.author, initials:p.initials,
     video_url:p.videoUrl, video_path:p.videoPath, video_name:p.videoName,
+    audiencia:p.audiencia || [],
     updated_at:new Date().toISOString(),
   });
   const check = ({ error }) => { if (error) throw error; };
+  /** Llama una función de la base y devuelve lo que responde (o lanza su error). */
+  const rpc = async (fn, args) => {
+    const { data, error } = await sb.rpc(fn, args);
+    if (error) throw error;
+    return data;
+  };
 
   const fromSkill = r => ({
     id:r.id, title:r.title || '', area:r.area || AREAS[0], level:r.level || NIVELES[0],
     tags:r.tags || '', objective:r.objective || '', prompt:r.prompt || '',
     visible:r.visible !== false,   // sin la columna (antes del SQL) todas se ven
+    audiencia:Array.isArray(r.audiencia) ? r.audiencia : [],
     createdAt:new Date(r.created_at).getTime(),
   });
   const toSkill = s => ({
@@ -236,6 +271,7 @@ function cloudStore(){
     // visible solo viaja si está apagada o se acaba de cambiar: así guardar sigue
     // funcionando aunque aún no se haya corrido supabase-skills-visibles.sql
     ...(s.visible === false || s.cambioVisible ? { visible:s.visible !== false } : {}),
+    audiencia:s.audiencia || [],
     updated_at:new Date().toISOString(),
   });
 
@@ -243,6 +279,68 @@ function cloudStore(){
   return {
     kind:'cloud',
     async init(){},
+
+    /* ---------- Sesión, grupos y avance (supabase-empresas.sql) ---------- */
+    perfil:       ()           => rpc('mi_perfil'),
+    salir:        ()           => rpc('salir'),
+    misVistos:    async ()     => (await rpc('mis_vistos')) || [],
+    marcarVisto:  (id, on)     => rpc('marcar_visto', { p_post:id, p_visto:on }),
+    panel:        grupo        => rpc('panel_grupo', { p_grupo:grupo }),
+    grupos:       async ()     => (await rpc('admin_grupos')) || [],
+    guardarGrupo: g            => rpc('admin_guardar_grupo', {
+      p_id:g.id || null, p_nombre:g.nombre, p_tipo:g.tipo, p_clave:g.clave || '',
+      p_vence:g.vence_el || null, p_activo:g.activo }),
+    borrarGrupo:  id           => rpc('admin_borrar_grupo', { p_id:id }),
+    miembros:     async grupo  => (await rpc('admin_miembros', { p_grupo:grupo })) || [],
+    agregarMiembros: (grupo, filas) => rpc('admin_agregar_miembros', { p_grupo:grupo, p_filas:filas }),
+    actualizarMiembro: m       => rpc('admin_actualizar_miembro', {
+      p_id:m.id, p_nombre:m.nombre, p_rol:m.rol, p_activo:m.activo }),
+    quitarMiembro: id          => rpc('admin_quitar_miembro', { p_id:id }),
+
+    /* ---------- Fase 1: ficha, reto, cronograma y grabaciones (supabase-fase1.sql) ---------- */
+    fichaGrupo: (id, ficha)    => rpc('admin_ficha_grupo', { p_id:id, p_ficha:ficha }),
+    async subirLogo(grupoId, file){
+      const ext = (file.name.match(/\.(\w+)$/) || [, 'png'])[1].toLowerCase();
+      const path = `logos/${grupoId}-${Date.now().toString(36)}.${ext}`;
+      const { error } = await sb.storage.from(bucket).upload(path, file, { upsert:true, contentType:file.type, cacheControl:'31536000' });
+      if (error) throw error;
+      return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    },
+    async sesiones(){
+      const { data, error } = await sb.from('reto_sesiones').select('*').order('orden', { ascending:true });
+      if (error) throw error;
+      return data.map(deSesion);
+    },
+    async guardarSesiones(lista){
+      if (!lista.length) return;
+      check(await sb.from('reto_sesiones').upsert(lista.map(s => ({
+        id:s.id, orden:s.orden, corto:s.short, nombre:s.name, descripcion:s.desc || '',
+        icono:s.icon, tipo:s.tipo || 'clase', updated_at:new Date().toISOString() }))));
+    },
+    async borrarSesion(id){ check(await sb.from('reto_sesiones').delete().eq('id', id)); },
+    async cronograma(grupoId){
+      let q = sb.from('cronograma').select('*');
+      if (grupoId) q = q.eq('grupo_id', grupoId);
+      const { data, error } = await q;
+      if (error) throw error;
+      // La fecha siempre como AAAA-MM-DD y la hora como HH:MM, venga como venga
+      return data.map(r => ({ ...r, fecha:r.fecha ? String(r.fecha).slice(0, 10) : null,
+                              hora:r.hora ? String(r.hora).slice(0, 5) : null }));
+    },
+    async guardarCronograma(filas){
+      if (filas.length) check(await sb.from('cronograma').upsert(filas));
+    },
+    async grabaciones(grupoId){
+      let q = sb.from('grabaciones').select('*').order('orden', { ascending:true });
+      if (grupoId) q = q.eq('grupo_id', grupoId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+    async guardarGrabacion(g){ check(await sb.from('grabaciones').upsert(g)); },
+    async borrarGrabacion(id){ check(await sb.from('grabaciones').delete().eq('id', id)); },
+    registrarVideo: (id, evento, pos, dur) => rpc('registrar_video', { p_id:id, p_evento:evento, p_pos:pos, p_dur:dur }),
+    miProgresoVideo: async () => (await rpc('mi_progreso_video')) || {},
 
     /** ¿La clave de la URL es la buena? Lo dice la base, no el navegador. */
     async checkAdmin(){
@@ -328,12 +426,13 @@ function cloudStore(){
     async saveQuiz(q){
       check(await sb.from(tablaQz).upsert({
         id:q.id, titulo:q.titulo, descripcion:q.descripcion, activo:q.activo,
-        orden:q.orden, preguntas:q.preguntas, updated_at:new Date().toISOString(),
+        orden:q.orden, preguntas:q.preguntas, audiencia:q.audiencia || [],
+        updated_at:new Date().toISOString(),
       }));
     },
-    /** La base califica y guarda el intento; devuelve el puntaje y las correctas. */
-    async submitQuiz(id, nombre, respuestas){
-      const { data, error } = await sb.rpc(rpcQzEnviar, { p_id:id, p_nombre:nombre, p_respuestas:respuestas });
+    /** La base califica y guarda el intento a nombre de la sesión; devuelve el puntaje y las correctas. */
+    async submitQuiz(id, respuestas){
+      const { data, error } = await sb.rpc(rpcQzEnviar, { p_id:id, p_respuestas:respuestas });
       if (error) throw error;
       return data;
     },
@@ -375,9 +474,25 @@ function localStore(){
   const req = r => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   const tx  = (s, m='readonly') => db.transaction(s, m).objectStore(s);
 
+  // Empresas, sesiones y paneles viven solo en la base: aquí no existen
+  const soloNube = async () => { throw new Error('Esto solo funciona con la base de datos en la nube (config.js).'); };
+
   return {
     kind:'local',
     async checkAdmin(){ return !!ADMIN_KEY; },   // sin nube no hay quién valide
+    async perfil(){ return null; },
+    async salir(){},
+    async misVistos(){ return []; },
+    async marcarVisto(){},
+    panel:soloNube, grupos:soloNube, guardarGrupo:soloNube, borrarGrupo:soloNube,
+    miembros:soloNube, agregarMiembros:soloNube, actualizarMiembro:soloNube, quitarMiembro:soloNube,
+    fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
+    guardarCronograma:soloNube, guardarGrabacion:soloNube, borrarGrabacion:soloNube,
+    async sesiones(){ return SESIONES_BASE.slice(); },
+    async cronograma(){ return []; },
+    async grabaciones(){ return []; },
+    async registrarVideo(){ return {}; },
+    async miProgresoVideo(){ return {}; },
     async init(){
       db = await new Promise((res, rej) => {
         const r = indexedDB.open(DB_NAME, DB_VER);
@@ -456,7 +571,8 @@ function localStore(){
                preguntas:q.preguntas.map(p => ({ text:p.text, options:p.options })) };
     },
     async saveQuiz(q){ await req(tx('quizzes','readwrite').put({ ...q })); },
-    async submitQuiz(id, nombre, respuestas){
+    async submitQuiz(id, respuestas){
+      const nombre = 'Prueba local';
       const q = await req(tx('quizzes').get(id));
       if (!q || !q.activo || !q.preguntas.length) throw new Error('Ese quiz no está disponible');
       const aciertos = q.preguntas.map((p, i) => Number(respuestas[i]) === p.correctIndex ? 1 : 0);
@@ -511,7 +627,6 @@ let skills      = [];      // catálogo de skills
 /* ---------- Quizzes ----------
    La vista tiene cuatro momentos: la lista, responder, el resultado y,
    solo para el admin, la estadística y el editor.                       */
-const QUIZ_NOMBRE_KEY = 'muro-academia-nombre';
 let quizzes       = [];
 let estadisticas  = [];          // solo admin
 let quizFalla     = '';          // por qué no cargaron (p. ej. falta correr el SQL)
@@ -520,7 +635,6 @@ let quizElegidas  = [];          // opción marcada en cada pregunta
 let quizResultado = null;        // {puntaje, total, aciertos, correctas}
 let quizEditando  = null;        // copia que edita el admin
 let quizVista     = 'lista';     // lista | responder | resultado | stats | editar
-let quizNombre    = (() => { try { return localStorage.getItem(QUIZ_NOMBRE_KEY) || ''; } catch { return ''; } })();
 let skillArea   = 'todas';
 let editingSkillId = null;
 let openSkillId    = null;
@@ -595,6 +709,16 @@ function toast(msg){
 }
 function errorMsg(err){
   const m = err?.message || String(err);
+  // La sesión venció o le quitaron el acceso mientras navegaba: de vuelta a la entrada
+  if (/sesión terminó/i.test(m) && !IS_ADMIN && CLOUD){
+    ACADEMIA.olvidarToken();
+    setTimeout(() => mostrarLogin('Tu sesión terminó. Vuelve a entrar.'), 600);
+    return 'Tu sesión terminó.';
+  }
+  if (/Solo el responsable/i.test(m)) return 'Solo el responsable de ese grupo puede ver su avance.';
+  if (/sin permiso/i.test(m)) return 'La base no reconoce la clave de admin. Vuelve a entrar con ?admin=…';
+  if (/admin_|mi_perfil|panel_grupo|marcar_visto|mis_vistos|entrar/i.test(m) && /could not find|schema cache|does not exist/i.test(m))
+    return 'Falta correr supabase-empresas.sql en Supabase.';
   // Lo que crea supabase-extras.sql (quizzes y la columna "orden"): si falta, se dice claro
   if (/quiz|orden/i.test(m) && /could not find|schema cache|does not exist/i.test(m))
     return IS_ADMIN
@@ -608,6 +732,86 @@ function errorMsg(err){
   return m;
 }
 
+/* ================================================================
+   Audiencia: a quién va dirigido cada contenido
+   Lista vacía = todos. 'tipo:b2b' / 'tipo:b2c' = todas las empresas /
+   todas las cohortes. Si no, el id de cada grupo. Quien filtra de verdad
+   es la base; aquí solo se arma el selector y la vista previa del admin.
+   ================================================================ */
+const AUD_B2B = 'tipo:b2b', AUD_B2C = 'tipo:b2c';
+const audDe = x => Array.isArray(x?.audiencia) ? x.audiencia : [];
+const grupoPorId = id => GRUPOS.find(g => g.id === id);
+const veGrupo = (aud, g) => !aud.length || aud.includes(g.id) || aud.includes('tipo:' + g.tipo);
+
+/** ¿Va dirigido a grupos puntuales (contenido exclusivo de una empresa o cohorte)? */
+const esExclusivo = x => audDe(x).some(v => !v.startsWith('tipo:'));
+
+/** Qué ve el admin según su espacio de trabajo:
+    · Principal: el contenido general (lo exclusivo vive en el espacio de su empresa).
+      Las preguntas frecuentes se ven todas, para responder las de cualquier empresa.
+    · Una empresa: exactamente lo que ve esa empresa (lo general y lo suyo). */
+const alcance = x => {
+  if (!IS_ADMIN || !CLOUD) return true;
+  if (!vistaComo) return x.session === FAQ_ID || !esExclusivo(x);
+  const g = grupoPorId(vistaComo);
+  return !g || veGrupo(audDe(x), g);
+};
+const vis = lista => lista.filter(alcance);
+
+/** Audiencia con la que nace lo que se crea: la del espacio en que está el admin. */
+const audDefecto = () => vistaComo && grupoPorId(vistaComo) ? [vistaComo] : [];
+
+function audienciaTxt(aud){
+  if (!aud.length) return 'Todos los grupos';
+  return aud.map(v => v === AUD_B2B ? 'Todas las empresas'
+                    : v === AUD_B2C ? 'Todas las cohortes'
+                    : grupoPorId(v)?.nombre || 'Grupo eliminado').join(' · ');
+}
+
+/** Etiqueta para el admin: a quién va dirigido, si no es para todos. */
+const audTagHtml = x => IS_ADMIN && audDe(x).length
+  ? `<span class="tag tag-aud" title="Solo lo ven: ${escapeHtml(audienciaTxt(audDe(x)))}">
+       <svg class="ico"><use href="#i-lock"/></svg>${escapeHtml(audienciaTxt(audDe(x)))}</span>` : '';
+
+/** Selector de audiencia: casillas; sin marcar ninguna, lo ven todos. */
+function audienciaHtml(aud = []){
+  const op = (valor, texto, extra = '') => `
+    <label class="aud-op">
+      <input type="checkbox" data-aud value="${escapeHtml(valor)}" ${aud.includes(valor) ? 'checked' : ''} />
+      <span>${texto}</span>${extra}
+    </label>`;
+  const grupos = GRUPOS.slice().sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'));
+  // Un grupo borrado que siga en la lista se muestra para poder quitarlo
+  const huerfanos = aud.filter(v => !v.startsWith('tipo:') && !grupoPorId(v));
+  return `
+    <p class="aud-resumen">Lo ven: <b>${escapeHtml(audienciaTxt(aud))}</b></p>
+    <div class="aud-ops">
+      ${op(AUD_B2B, 'Todas las empresas <em>B2B</em>')}
+      ${op(AUD_B2C, 'Todas las cohortes <em>B2C</em>')}
+      ${grupos.length ? '<span class="aud-sep">O solo estos grupos</span>' : ''}
+      ${grupos.map(g => op(g.id, escapeHtml(g.nombre),
+          `<em class="aud-tipo">${g.tipo === 'b2b' ? 'Empresa' : 'Cohorte'}${g.vigente === false ? ' · sin acceso' : ''}</em>`)).join('')}
+      ${huerfanos.map(v => op(v, 'Grupo eliminado')).join('')}
+    </div>
+    <p class="aud-nota">${gruposFalla
+      ? escapeHtml(gruposFalla)
+      : grupos.length
+        ? 'Si no marcas nada, lo ven todos los grupos, también los que crees después.'
+        : 'Todavía no hay empresas ni cohortes creadas: por ahora lo ven todos.'}</p>`;
+}
+const leerAudiencia = cont => $$('input[data-aud]:checked', cont).map(i => i.value);
+
+// El resumen de cada selector se actualiza mientras se marca
+document.addEventListener('change', e => {
+  const caja = e.target.closest('.aud'); if (!caja || !e.target.matches('[data-aud]')) return;
+  const aud = leerAudiencia(caja);
+  const r = $('.aud-resumen b', caja); if (r) r.textContent = audienciaTxt(aud);
+  if (caja.id === 'quizAud' && quizEditando) quizEditando.audiencia = aud;
+});
+
+/** ¿La publicación trae un video (y no una imagen o un PDF)? Solo esos se marcan como vistos. */
+const esVideo = p => !!(p.videoUrl || p.videoId) && (!!(p.videoUrl && toEmbed(p.videoUrl)) || (!esImagen(p) && !esPdf(p)));
+
 const sessionOf = id => id === FAQ_ID ? FAQ : id === TUTO_ID ? TUTO
                       : SESSIONS.find(s => s.id === id) || SESSIONS[0];
 /** Vista que le corresponde a una publicación según su sección. */
@@ -617,7 +821,9 @@ const vistaDe = id => id === FAQ_ID ? { type:'faq' } : id === TUTO_ID ? { type:'
 /* ================================================================
    Sidebar y navegación
    ================================================================ */
-function buildNav(){
+/** Dibuja las sesiones en el menú, en el selector del composer y en la columna derecha.
+    Se llama al arrancar y cada vez que el admin edita el reto. */
+function pintarNav(){
   $('#navSessions').innerHTML = SESSIONS.map(s => `
     <div class="nav-row" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
@@ -653,8 +859,12 @@ function buildNav(){
       <span class="t">${escapeHtml(s.title)}</span>
       <em data-railcount="${s.id}">0</em>
     </button></li>`).join('');
+}
 
+function buildNav(){
+  pintarNav();
   $('#nav').addEventListener('click', e => {
+    if (e.target.closest('[data-editar-reto]')){ setView('reto'); $('#sidebar').classList.remove('is-open'); return; }
     const ojo = e.target.closest('[data-hide]');
     if (ojo){                        // el ojito no navega: solo oculta o muestra la clase
       const s = sessionOf(ojo.dataset.hide);
@@ -682,16 +892,31 @@ function buildNav(){
 
 function setView(type, id){
   view = { type, id: id || null };
+  clearInterval(panelTimer);
+  if (typeof grabAgregando !== 'undefined') grabAgregando = false;
+  if (type !== 'inicio' && typeof inicioEditando !== 'undefined') inicioEditando = false;
   if (type === 'quiz'){                 // se entra siempre por la lista, con datos frescos
     quizVista = 'lista'; quizAbierto = null; quizResultado = null; quizEditando = null;
     cargarQuizzes().catch(err => console.warn(err)).then(render);   // si falla, la vista dice por qué
+  }
+  if (type === 'grupos'){
+    grupoAbierto = id || null; miembros = []; miembrosFalla = '';
+    (grupoAbierto ? cargarMiembros() : cargarGrupos()).then(render);
+  }
+  if (type === 'panel'){
+    if (id) panelGrupo = id;
+    cargarPanel().then(render);
+    // "En vivo": mientras el panel esté abierto se actualiza solo cada minuto
+    panelTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') cargarPanel().then(() => { if (view.type === 'panel') render(); });
+    }, 60000);
   }
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
 function currentList(){
-  let list = posts.slice();
+  let list = vis(posts);
   if (view.type === 'faq')        list = list.filter(p => p.session === FAQ_ID);
   else if (view.type === 'tuto')  list = list.filter(p => p.session === TUTO_ID);
   else if (view.type !== 'saved') list = list.filter(p => !APARTE.includes(p.session));
@@ -772,16 +997,23 @@ async function moverPost(id, paso){
 /* ================================================================
    Render
    ================================================================ */
+/** Dibuja la vista y, aparte, el bloque de grabaciones (que no se rehace si no cambió). */
 function render(){
+  renderVista();
+  if (typeof pintarGrabacion === 'function') pintarGrabacion();
+}
+
+function renderVista(){
   objectUrls.splice(0).forEach(URL.revokeObjectURL);
 
   if (view.type === 'session' && query){
     $('#viewTitle').textContent = 'Resultados de búsqueda';
     $('#viewSubtitle').textContent = `“${query}” en todas las clases`;
   } else if (view.type === 'session'){
+    // Arriba solo la etiqueta: el nombre y la descripción van grandes en la página de la clase
     const s = sessionOf(view.id);
-    $('#viewTitle').textContent = s.title;
-    $('#viewSubtitle').textContent = s.desc;
+    $('#viewTitle').textContent = s.short;
+    $('#viewSubtitle').textContent = TIPOS_SESION[s.tipo] && s.tipo !== 'clase' ? TIPOS_SESION[s.tipo] : 'El reto';
   } else if (view.type === 'skills'){
     $('#viewTitle').textContent = skillArea === 'todas' ? 'Skills' : skillArea;
     $('#viewSubtitle').textContent = 'Prompts listos para usar: ábrelos, cópialos o descárgalos en .md';
@@ -802,8 +1034,26 @@ function render(){
   } else if (view.type === 'tareas'){
     $('#viewTitle').textContent = 'Trabajo autónomo';
     $('#viewSubtitle').textContent = IS_ADMIN
-      ? 'El avance de cada persona en las tareas de cada sesión'
+      ? 'Así ven las tareas los estudiantes. El avance de cada persona está en el Panel de avance'
       : 'Las tareas de cada sesión: marca cada paso a medida que lo termines';
+  } else if (view.type === 'inicio'){
+    const g = typeof grupoInicio === 'function' ? grupoInicio() : null;
+    $('#viewTitle').textContent = IS_ADMIN && !g ? 'Cronogramas' : 'Inicio';
+    $('#viewSubtitle').textContent = IS_ADMIN && !g
+      ? 'El programa de cada empresa: fechas, encuentros y enlaces'
+      : 'Tu programa: el próximo encuentro y el cronograma completo';
+  } else if (view.type === 'reto'){
+    $('#viewTitle').textContent = 'Sesiones del reto';
+    $('#viewSubtitle').textContent = 'Agrega, edita, ordena o elimina las sesiones: el cambio se ve en todas las empresas';
+  } else if (view.type === 'grupos'){
+    const g = grupoAbierto && grupoPorId(grupoAbierto);
+    $('#viewTitle').textContent = g ? g.nombre : 'Empresas y cohortes';
+    $('#viewSubtitle').textContent = g
+      ? 'Las personas de este grupo: entran con su correo y la contraseña del grupo'
+      : 'Crea cada empresa o cohorte, dale una contraseña y da de alta los correos';
+  } else if (view.type === 'panel'){
+    $('#viewTitle').textContent = IS_ADMIN ? 'Panel de avance' : 'Panel de mi equipo';
+    $('#viewSubtitle').textContent = 'Quién entró, qué videos vio, qué tareas completó y cómo le fue en los quizzes';
   } else if (view.type === 'config'){
     $('#viewTitle').textContent = 'Configurar Claude';
     $('#viewSubtitle').textContent = 'Qué dejar activo en la organización: qué hace cada ajuste y qué conviene encender';
@@ -817,9 +1067,14 @@ function render(){
     b.dataset.view === view.type && (b.dataset.id || null) === view.id &&
     !(view.type === 'session' && query)));
 
+  const visibles = vis(posts);   // en la vista previa del admin, solo lo de ese grupo
   SESSIONS.forEach(s => {
-    const n = posts.filter(p => p.session === s.id).length;
-    const c = $(`[data-count="${s.id}"]`);      if (c) c.textContent = n;
+    const n = visibles.filter(p => p.session === s.id).length;
+    // Para el estudiante, la sesión con todas sus grabaciones vistas lleva una marca en vez del número
+    const grabs = PERFIL ? GRABS.filter(g => g.sesion_id === s.id) : [];
+    const hecha = grabs.length > 0 && grabs.every(g => progresoVideo[g.id]?.completado);
+    const c = $(`[data-count="${s.id}"]`);
+    if (c){ c.textContent = hecha ? '✓' : n; c.classList.toggle('is-hecha', hecha); c.title = hecha ? 'Ya viste la grabación' : ''; }
     const r = $(`[data-railcount="${s.id}"]`);  if (r) r.textContent = n;
     const d = $(`[data-dot="${s.id}"]`);        if (d) d.classList.toggle('on', n > 0);
 
@@ -835,22 +1090,35 @@ function render(){
     }
     const li = $(`[data-rail="${s.id}"]`);      if (li) li.classList.toggle('is-hidden', oculta);
   });
-  $('#countSaved').textContent = posts.filter(p => isSaved(p.id)).length;
+  $('#countSaved').textContent = visibles.filter(p => isSaved(p.id)).length;
   const ct = $('#countTuto');
-  if (ct) ct.textContent = posts.filter(p => p.session === TUTO_ID).length;
-  const pendientes = posts.filter(sinRespuesta).length;
+  if (ct) ct.textContent = visibles.filter(p => p.session === TUTO_ID).length;
+  const pendientes = visibles.filter(sinRespuesta).length;
   const cf = $('#countFaq');
   if (cf){   // al admin el contador le muestra lo que falta responder, resaltado
     const alerta = IS_ADMIN && pendientes > 0;
-    cf.textContent = alerta ? pendientes : posts.filter(p => p.session === FAQ_ID).length;
+    cf.textContent = alerta ? pendientes : visibles.filter(p => p.session === FAQ_ID).length;
     cf.classList.toggle('is-alert', alerta);
     cf.title = alerta ? `${pendientes} por responder` : '';
   }
   if (IS_ADMIN) $('#railPregunta').innerHTML = railAdminHtml(pendientes);
+  // Columna derecha: el reto con el estado de cada sesión
+  if (typeof retoRailHtml === 'function') $('#railSessions').innerHTML = retoRailHtml();
 
-  const withContent = SESSIONS.filter(s => posts.some(p => p.session === s.id)).length;
-  $('#progressFill').style.width = (withContent / SESSIONS.length * 100) + '%';
-  $('#progressText').textContent = `${withContent} de ${SESSIONS.length} sesiones con contenido`;
+  if (PERFIL){
+    // El estudiante ve su propio avance: cuántos videos de las clases ya vio
+    // Cuentan las grabaciones de su grupo y los videos publicados en las clases
+    const conVideo = visibles.filter(p => !APARTE.includes(p.session) && esVideo(p));
+    const total = conVideo.length + GRABS.length;
+    const hechos = conVideo.filter(p => vistos.has(p.id)).length + GRABS.filter(g => progresoVideo[g.id]?.completado).length;
+    $('#progressFill').style.width = (total ? hechos / total * 100 : 0) + '%';
+    $('#progressText').textContent = total
+      ? `${hechos} de ${total} videos vistos` : 'Todavía no hay videos en las clases';
+  } else {
+    const withContent = SESSIONS.filter(s => visibles.some(p => p.session === s.id)).length;
+    $('#progressFill').style.width = (withContent / SESSIONS.length * 100) + '%';
+    $('#progressText').textContent = `${withContent} de ${SESSIONS.length} sesiones con contenido`;
+  }
 
   // El documento ocupa todo el panel: sin composer ni publicaciones
   // Catálogo de skills: las áreas se filtran desde el sidebar
@@ -859,17 +1127,31 @@ function render(){
   const enResumen = view.type === 'resumen';
   const enConfig  = view.type === 'config';
   const enTareas  = view.type === 'tareas';
+  const enGestion = view.type === 'grupos' || view.type === 'panel' || view.type === 'reto';
+  const enInicio  = view.type === 'inicio';
   // Las clases del body van todas aquí: cada vista sale antes con su return
   document.body.classList.toggle('vista-skills', enSkills);
-  document.body.classList.toggle('vista-quiz', enQuiz);
+  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio);
+  document.body.classList.toggle('vista-gestion', enGestion);
   document.body.classList.toggle('vista-resumen', enResumen || enConfig || enTareas);
-  $('#countSkills').textContent = skills.length;
+  const skillsVisibles = vis(skills);
+  $('#countSkills').textContent = skillsVisibles.length;
   const cq = $('#countQuiz');
-  if (cq) cq.textContent = IS_ADMIN ? quizzes.filter(q => q.activo).length : quizzes.length;
+  if (cq) cq.textContent = IS_ADMIN ? vis(quizzes).filter(q => q.activo).length : quizzes.length;
   $('#navAreas').hidden = !enSkills;
+
+  if (enGestion){
+    $('#posts').innerHTML = view.type === 'grupos' ? gruposHtml() : view.type === 'reto' ? retoHtml() : panelHtml();
+    return;
+  }
+  if (enInicio){
+    $('#posts').innerHTML = inicioHtml();
+    return;
+  }
+
   if (enSkills){
     $('#navAreas').innerHTML = ['todas', ...AREAS].map(a => {
-      const n = a === 'todas' ? skills.length : skills.filter(s => s.area === a).length;
+      const n = a === 'todas' ? skillsVisibles.length : skillsVisibles.filter(s => s.area === a).length;
       return `<button class="nav-area ${skillArea === a ? 'is-on' : ''}" data-area="${escapeHtml(a)}">
                 <span class="t">${a === 'todas' ? 'Todas las áreas' : escapeHtml(a)}</span>
                 <em>${n}</em>
@@ -901,6 +1183,14 @@ function render(){
   const list = currentList();
   const enFaq = view.type === 'faq';
   document.body.classList.toggle('vista-faq', enFaq);
+  // Una clase (sin búsqueda) se ve como página de lección: video, sesión, recursos y siguiente
+  const enClase = view.type === 'session' && !query && !isHidden(view.id);
+  document.body.classList.toggle('vista-clase', enClase);
+  if (enClase){
+    $('#posts').innerHTML = claseHtml(list);
+    list.forEach(p => { if (p.videoId && store.kind === 'local' && recursosAbiertos.has(p.id)) hydrateVideo(p); });
+    return;
+  }
 
   // Clase apagada con el ojito: en vez de sus publicaciones, el aviso para volver a verla
   if (view.type === 'session' && isHidden(view.id) && !query){
@@ -930,8 +1220,8 @@ function render(){
    Catálogo de skills
    ================================================================ */
 const skillList = () => skillArea === 'todas'
-  ? skills
-  : skills.filter(s => s.area === skillArea);
+  ? vis(skills)
+  : vis(skills).filter(s => s.area === skillArea);
 
 /** El número visible es la posición en el catálogo completo, no en el filtro:
     así una skill conserva su #04 aunque cambies de área. */
@@ -970,6 +1260,7 @@ function skillsHtml(){
           <span class="sk-tag is-lvl">${escapeHtml(s.level)}</span>
           ${tagList(s.tags).map(t => `<span class="sk-tag">${escapeHtml(t)}</span>`).join('')}
         </div>
+        ${audTagHtml(s)}
       </div>
     </article>`).join('')}</div>`;
 }
@@ -1040,6 +1331,7 @@ function openSkillEditor(s = null){
   $('#skfTags').value      = s ? s.tags  : '';
   $('#skfObjective').value = s ? s.objective : '';
   $('#skfPrompt').value    = s ? s.prompt : '';
+  $('#skfAudiencia').innerHTML = audienciaHtml(s ? audDe(s) : audDefecto());
   $('#skEdMsg').textContent = '';
   $('#skEdOverlay').hidden = false;
   setTimeout(() => $('#skfTitle').focus(), 40);
@@ -1062,6 +1354,8 @@ function hiddenHtml(s){
 }
 
 function emptyHtml(){
+  // Si la clase ya tiene su grabación, el estudiante no necesita el aviso de «sin contenido»
+  if (!IS_ADMIN && view.type === 'session' && !query && typeof grabacionesDe === 'function' && grabacionesDe(view.id).length) return '';
   if (query) return `
     <div class="empty">
       <svg class="ico"><use href="#i-search"/></svg>
@@ -1145,6 +1439,7 @@ function postHtml(p, i, lista){
           ${escapeHtml(p.author || ME.name)}
           <span class="tag"><svg class="ico"><use href="#${s.icon}"/></svg>${escapeHtml(s.short)}</span>
           ${p.pinned ? `<span class="tag tag-pin"><svg class="ico"><use href="#i-pin"/></svg>Destacada</span>` : ''}
+          ${audTagHtml(p)}
         </div>
         <div class="post-sub">Publicada en ${escapeHtml(s.title)} · ${timeAgo(p.createdAt)}</div>
       </div>
@@ -1170,9 +1465,34 @@ function postHtml(p, i, lista){
     <div class="reactions">
       ${botones}
       ${total > 0 ? `<span class="react-total">${total} ${total === 1 ? 'reacción' : 'reacciones'}</span>` : ''}
+      ${vistoHtml(p)}
     </div>
   </article>`;
 }
+
+/** El estudiante marca que ya vio el video: es lo que mide el panel de su empresa. */
+function vistoHtml(p){
+  if (!PERFIL || !esVideo(p) || APARTE.includes(p.session)) return '';
+  const on = vistos.has(p.id);
+  return `<button class="visto ${on ? 'is-on' : ''}" data-visto="${p.id}" aria-pressed="${on}"
+            title="${on ? 'Quitar la marca de visto' : 'Marca este video cuando lo termines'}">
+            <svg class="ico"><use href="#i-check"/></svg>${on ? 'Visto' : 'Marcar como visto'}
+          </button>`;
+}
+
+async function marcarVisto(id, on){
+  if (!PERFIL || vistos.has(id) === on) return;
+  on ? vistos.add(id) : vistos.delete(id);
+  render();                                   // respuesta inmediata
+  try { await store.marcarVisto(id, on); }
+  catch (err){ on ? vistos.delete(id) : vistos.add(id); toast(errorMsg(err)); render(); }
+}
+
+// Un video subido que se ve hasta el final queda marcado solo
+document.addEventListener('ended', e => {
+  const card = e.target.closest?.('[data-post]');
+  if (card && e.target.tagName === 'VIDEO') marcarVisto(card.dataset.post, true);
+}, true);
 
 /** Una pregunta frecuente, en acordeón. La respuesta puede ser texto, video o ambos. */
 function faqHtml(p, i, lista){
@@ -1183,6 +1503,7 @@ function faqHtml(p, i, lista){
       <span class="faq-q">
         ${escapeHtml(p.title || 'Pregunta sin título')}
         ${pendiente ? `<span class="faq-badge">Sin responder</span>` : ''}
+        ${audTagHtml(p)}
       </span>
       ${pendiente && IS_ADMIN ? `<button class="btn btn-primary faq-reply" data-responder="${p.id}">
         <svg class="ico"><use href="#i-edit"/></svg> Responder
@@ -1240,7 +1561,7 @@ function quizListaHtml(){
         : 'Cuando el equipo publique el primero, aparece aquí.'}</p>
     </div>`;
 
-  const tarjetas = quizzes.map(q => {
+  const tarjetas = vis(quizzes).map(q => {
     const stat = estadisticas.find(s => s.id === q.id);
     const preguntas = IS_ADMIN ? (q.preguntas || []).length : q.preguntas;
     const listo = preguntas > 0;
@@ -1251,6 +1572,7 @@ function quizListaHtml(){
         ${IS_ADMIN ? `<span class="quiz-estado ${q.activo ? 'is-on' : ''}">${q.activo ? 'Publicado' : 'Borrador'}</span>` : ''}
       </div>
       ${q.descripcion ? `<p class="quiz-desc">${escapeHtml(q.descripcion)}</p>` : ''}
+      ${audTagHtml(q) ? `<div>${audTagHtml(q)}</div>` : ''}
       <p class="quiz-meta">${preguntas} ${preguntas === 1 ? 'pregunta' : 'preguntas'}${
         IS_ADMIN && stat ? ` · ${stat.personas} ${stat.personas === 1 ? 'persona respondió' : 'personas respondieron'}` : ''}</p>
       ${IS_ADMIN && stat && stat.personas ? `
@@ -1275,7 +1597,7 @@ function statsResumenHtml(){
   const aciertos = conDatos.reduce((a,s) => a + s.aciertos, 0);
   const respondidas = conDatos.reduce((a,s) => a + s.respondidas, 0);
   const personas = new Set();
-  conDatos.forEach(s => (s.intentos || []).forEach(i => personas.add((i.nombre || '').toLowerCase())));
+  conDatos.forEach(s => (s.intentos || []).forEach(i => personas.add((i.persona || i.nombre || '').toLowerCase())));
   return `
     <div class="card quiz-resumen">
       <h3>Cómo va el grupo</h3>
@@ -1309,11 +1631,6 @@ function quizResponderHtml(){
       <button class="btn quiz-volver" data-quiz-volver>← Volver a los quizzes</button>
       <h2 class="quiz-titulo">${escapeHtml(q.titulo)}</h2>
       ${q.descripcion ? `<p class="quiz-desc">${escapeHtml(q.descripcion)}</p>` : ''}
-      <label class="field quiz-nombre">
-        <span>Tu nombre</span>
-        <input type="text" id="quizNombre" maxlength="80" placeholder="Nombre y apellido"
-               value="${escapeHtml(quizNombre)}" autocomplete="name" />
-      </label>
       <ol class="quiz-lista">${preguntas}</ol>
       <div class="quiz-enviar">
         <span class="quiz-meta">${faltan ? `Te faltan ${faltan} ${faltan === 1 ? 'pregunta' : 'preguntas'}` : 'Ya respondiste todas'}</span>
@@ -1376,7 +1693,8 @@ function quizStatsHtml(){
   }).join('');
 
   const intentos = (stat.intentos || []).map(i => `
-    <tr><td>${escapeHtml(i.nombre)}</td><td>${i.puntaje} de ${i.total}</td>
+    <tr><td>${escapeHtml(i.nombre)}${i.persona && i.persona !== (i.nombre || '').toLowerCase()
+          ? `<small class="celda-sub">${escapeHtml(i.persona)}</small>` : ''}</td><td>${i.puntaje} de ${i.total}</td>
         <td>${pct(i.puntaje, i.total)}%</td><td>${timeAgo(new Date(i.fecha).getTime())}</td>
         <td class="quiz-borrar-celda">
           <button class="icon-btn" data-quiz-borrar-persona="${escapeHtml(i.persona || i.nombre)}"
@@ -1452,6 +1770,10 @@ function quizEditorHtml(){
         <input type="checkbox" id="quizActivo" ${q.activo ? 'checked' : ''} />
         <span>Publicado: los estudiantes lo ven y pueden responderlo</span>
       </label>
+      <div class="field quiz-aud">
+        <span>¿Quién lo ve?</span>
+        <div class="aud" id="quizAud">${audienciaHtml(audDe(q))}</div>
+      </div>
       <ol class="quiz-lista">${preguntas}</ol>
       <button class="btn quiz-mini" data-quiz-add-p>+ Agregar pregunta</button>
       <div class="quiz-enviar">
@@ -1570,6 +1892,9 @@ $('#posts').addEventListener('click', async e => {
   const card = e.target.closest('[data-skill]');
   if (card) return openSkill(card.dataset.skill);
 
+  const visto = e.target.closest('[data-visto]');
+  if (visto) return marcarVisto(visto.dataset.visto, !vistos.has(visto.dataset.visto));
+
   const react = e.target.closest('[data-react]');
   if (react){
     const p = posts.find(x => x.id === react.dataset.id); if (!p) return;
@@ -1618,6 +1943,7 @@ function openMenu(btn){
   btn.parentElement.appendChild(el);
 
   el.addEventListener('click', async ev => {
+    ev.preventDefault();   // dentro de un recurso, el menú no abre ni cierra el desplegable
     const act = ev.target.closest('button')?.dataset.act; if (!act) return;
     closeMenus();
     if (act === 'edit') return openComposer(p);
@@ -1662,6 +1988,7 @@ function openComposer(post = null){
   $('#fTitle').value    = post ? (post.title || '') : '';
   $('#fBody').value     = post ? (post.body  || '') : '';
   $('#fPinned').checked = post ? !!post.pinned : false;
+  $('#fAudiencia').innerHTML = audienciaHtml(post ? audDe(post) : audDefecto());
   $('#modalMsg').textContent = '';
 
   // un enlace embebible va en la pestaña "Enlace"; un archivo subido, en "Subir"
@@ -1753,6 +2080,7 @@ $('#btnPublish').addEventListener('click', async () => {
   p.title   = title;
   p.body    = body;
   p.pinned  = $('#fPinned').checked;
+  p.audiencia = leerAudiencia($('#fAudiencia'));
 
   const btn = $('#btnPublish');
   const textoOriginal = btn.textContent;
@@ -1778,7 +2106,9 @@ $('#btnPublish').addEventListener('click', async () => {
     else posts.unshift(p);
 
     closeComposer();
-    toast(existing ? 'Publicación actualizada' : 'Publicación creada');
+    toast(!alcance(p)
+      ? `Publicada solo para ${audienciaTxt(audDe(p))}: la ves en su espacio de trabajo`
+      : existing ? 'Publicación actualizada' : 'Publicación creada');
     // Se va a la sección donde quedó la publicación (una clase, Tutoriales o Preguntas)
     const destino = vistaDe(p.session);
     if (view.type !== destino.type || (destino.id && view.id !== destino.id)) setView(destino.type, destino.id);
@@ -1936,6 +2266,7 @@ $('#skEdSave').addEventListener('click', async () => {
   s.tags      = $('#skfTags').value.trim();
   s.objective = $('#skfObjective').value.trim();
   s.prompt    = prompt;
+  s.audiencia = leerAudiencia($('#skfAudiencia'));
 
   const btn = $('#skEdSave');
   btn.disabled = true; btn.textContent = 'Guardando…';
@@ -1980,12 +2311,6 @@ let modoAplicado = false;
 function applyMode(){
   if (modoAplicado) return;
   modoAplicado = true;
-  const badge = document.createElement('span');
-  badge.className = 'mode ' + (IS_ADMIN ? 'mode-admin' : 'mode-read');
-  badge.innerHTML = IS_ADMIN
-    ? `<svg class="ico"><use href="#i-edit"/></svg>Modo edición`
-    : `<svg class="ico"><use href="#i-feed"/></svg>Solo lectura`;
-  $('.topbar-right').prepend(badge);
   // Columna derecha: el estudiante pregunta; el admin ve lo pendiente (se pinta en render)
   if (!IS_ADMIN) $('#railPregunta').innerHTML = preguntaFormHtml('rail');
   document.body.classList.toggle('modo-estudiante', !IS_ADMIN);   // el ojito es solo para estudiantes
@@ -1995,7 +2320,77 @@ function applyMode(){
     $('#composerTrigger').remove();
     $('.brand-sub').textContent = 'Academia';
   }
+
+  // El admin cambia de espacio desde el menú; el responsable ve ahí el panel de su equipo
+  $('#navEspacio').hidden = !(IS_ADMIN && CLOUD);
+  $('#navGestion').hidden = IS_ADMIN || !gruposResponsable().length;
+  $('[data-editar-reto]').hidden = !(IS_ADMIN && CLOUD);
+  refrescarVerComo();
+
+  // Menú de cuenta (arriba a la derecha): quién eres, accesos de gestión y cerrar sesión
+  if (!IS_ADMIN && !PERFIL) return;
+  const nombre = IS_ADMIN ? 'PorContar' : (PERFIL.nombre || PERFIL.email);
+  const sub    = IS_ADMIN ? 'Admin · modo edición' : PERFIL.grupos.map(g => g.nombre).join(' · ');
+  const av     = IS_ADMIN ? 'PC' : iniciales(nombre.split('@')[0]);
+  const opcion = (vista, icono, titulo, detalle) => `
+    <button role="menuitem" data-cfg-ir="${vista}"><svg class="ico"><use href="#${icono}"/></svg>
+      <span><b>${titulo}</b><em>${detalle}</em></span></button>`;
+  const opciones = IS_ADMIN && CLOUD
+    ? opcion('grupos', 'i-users', 'Empresas y cohortes', 'Crear grupos, contraseñas y correos')
+      + opcion('reto', 'i-cal', 'Sesiones del reto', 'Agregar, editar u ordenar las sesiones')
+      + opcion('panel', 'i-chart', 'Panel de avance', 'Videos, tareas y quizzes de cada persona')
+    : gruposResponsable().length
+      ? opcion('panel', 'i-chart', 'Panel de mi equipo', 'El avance de cada persona de tu equipo') : '';
+
+  const cuenta = document.createElement('div');
+  cuenta.className = 'cuenta';
+  cuenta.innerHTML = `
+    <button class="cuenta-btn" data-cfg aria-haspopup="menu" aria-expanded="false" title="Tu cuenta">
+      <span class="yo-av ${IS_ADMIN ? 'is-admin' : ''}">${escapeHtml(av)}</span>
+      <span class="yo-txt"><b>${escapeHtml(nombre)}</b><em>${escapeHtml(sub)}</em></span>
+      <svg class="ico cuenta-chev"><use href="#i-chev"/></svg>
+    </button>
+    <div class="cfg-menu" role="menu" hidden>
+      <div class="cuenta-cab">
+        <span class="yo-av ${IS_ADMIN ? 'is-admin' : ''}">${escapeHtml(av)}</span>
+        <span><b>${escapeHtml(nombre)}</b>${IS_ADMIN ? '<em>Administración de la Academia</em>'
+          : nombre !== PERFIL.email ? `<em>${escapeHtml(PERFIL.email)}</em>` : ''}
+          ${IS_ADMIN ? '' : PERFIL.grupos.map(g => `<span class="gr-tipo">${escapeHtml(g.nombre)}</span>`).join(' ')}</span>
+      </div>
+      ${opciones ? `<div class="cuenta-ops">${opciones}</div>` : ''}
+      <button role="menuitem" class="cuenta-salir" data-salir>
+        <svg class="ico"><use href="#i-logout"/></svg>
+        <span><b>${IS_ADMIN ? 'Salir del modo admin' : 'Cerrar sesión'}</b></span>
+      </button>
+    </div>`;
+  $('.topbar-right').append(cuenta);
 }
+
+/* ---------- Salir y vista previa por grupo ---------- */
+document.addEventListener('click', async e => {
+  if (!e.target.closest('[data-salir]')) return;
+  if (IS_ADMIN){
+    ACADEMIA.olvidarAdmin();
+  } else {
+    try { await store.salir(); } catch (err){ console.warn(err); }
+    ACADEMIA.olvidarToken();
+  }
+  location.reload();
+});
+/* ---------- Configuración (engranaje de la barra superior) ---------- */
+document.addEventListener('click', e => {
+  const menu = $('.cfg-menu'); if (!menu) return;
+  const btn = e.target.closest('[data-cfg]');
+  const ir = e.target.closest('[data-cfg-ir]');
+  if (btn){
+    menu.hidden = !menu.hidden;
+    btn.setAttribute('aria-expanded', !menu.hidden);
+    return;
+  }
+  if (!e.target.closest('.cfg-menu') || ir){ menu.hidden = true; $('[data-cfg]').setAttribute('aria-expanded', 'false'); }
+  if (ir) setView(ir.dataset.cfgIr, ir.dataset.cfgIr === 'panel' ? vistaComo || null : null);
+});
+
 
 /* ================================================================
    Quizzes: interacciones
@@ -2115,7 +2510,6 @@ const preguntaVacia = () => ({ text:'', options:['', ''], correctIndex:0 });
 /* Lo que se escribe o se marca se guarda en memoria, sin redibujar de más */
 $('#posts').addEventListener('input', e => {
   const t = e.target;
-  if (t.id === 'quizNombre'){ quizNombre = t.value; return; }
   if (!quizEditando) return;
   if (t.id === 'quizTitulo'){ quizEditando.titulo = t.value; return; }
   if (t.id === 'quizDesc'){ quizEditando.descripcion = t.value; return; }
@@ -2142,16 +2536,10 @@ $('#posts').addEventListener('change', e => {
 
 async function enviarQuiz(){
   const msg = $('#quizMsg'), btn = $('[data-quiz-enviar]');
-  const nombre = (quizNombre || '').replace(/\s+/g, ' ').trim();
-  if (nombre.length < 2){
-    msg.textContent = 'Escribe tu nombre para enviar el quiz.';
-    return $('#quizNombre')?.focus();
-  }
   btn.disabled = true; btn.textContent = 'Enviando…'; msg.textContent = '';
   try {
-    quizResultado = await store.submitQuiz(quizAbierto.id, nombre, quizElegidas);
-    quizNombre = nombre;
-    try { localStorage.setItem(QUIZ_NOMBRE_KEY, nombre); } catch {}
+    // El intento queda a nombre de quien tiene la sesión: no hay que escribir el nombre
+    quizResultado = await store.submitQuiz(quizAbierto.id, quizElegidas);
     quizVista = 'resultado';
     render();
     toast(`Listo: ${quizResultado.puntaje} de ${quizResultado.total}`);
@@ -2249,8 +2637,812 @@ document.addEventListener('click', e => {
 /* ================================================================
    Arranque
    ================================================================ */
+/* ================================================================
+   Empresas y cohortes (admin)
+   ================================================================ */
+let grupoAbierto   = null;   // id del grupo cuyas personas se están viendo
+let miembros       = [];
+let miembrosFalla  = '';
+let miembrosFiltro = '';
+let resultadoAlta  = '';
+let editandoGrupo  = null;   // null = nuevo
+const claveReciente = {};    // contraseña recién puesta, para el mensaje de bienvenida (solo en memoria)
+const MAX_FILAS = 300;       // con miles de personas, la tabla se acota y se usa el buscador
+
+async function cargarGrupos(){
+  try { GRUPOS = await store.grupos(); gruposFalla = ''; }
+  catch (err){ console.warn(err); gruposFalla = errorMsg(err); }
+  refrescarVerComo();
+}
+async function cargarMiembros(){
+  if (!GRUPOS.length) await cargarGrupos();
+  try { miembros = await store.miembros(grupoAbierto); miembrosFalla = ''; }
+  catch (err){ console.warn(err); miembrosFalla = errorMsg(err); }
+}
+
+/** El selector de espacio sigue la lista de grupos cuando se crea o se borra uno. */
+let espacioFiltro = '';
+
+/** Iniciales para el cuadrito de cada empresa: "Banco de Bogotá" → "BB", "Bancolombia" → "BA". */
+function iniciales(nombre){
+  const p = String(nombre || '').split(/[\s·\-_/]+/).filter(w => w && !/^(de|del|la|las|los|el|y|e)$/i.test(w));
+  return (p.length > 1 ? p[0][0] + p[1][0] : (p[0] || '?').slice(0, 2)).toUpperCase();
+}
+
+const avEspacio = g => g?.logo_url
+  ? `<span class="esp-av has-logo"><b>${escapeHtml(iniciales(g.nombre))}</b><img src="${escapeHtml(g.logo_url)}" alt="" onerror="this.remove()" /></span>`
+  : g
+  ? `<span class="esp-av ${g.tipo === 'b2c' ? 'is-b2c' : ''}">${escapeHtml(iniciales(g.nombre))}</span>`
+  : `<span class="esp-av is-principal"><img src="marca/burbuja.svg" alt="" width="18" height="18" /></span>`;
+
+function itemEspacio(g){
+  const activo = (g?.id || '') === vistaComo;
+  const sub = !g ? 'Contenido para todos'
+            : g.vigente === false ? 'Sin acceso'
+            : g.vence_el ? 'Hasta el ' + fechaLarga(g.vence_el) : 'Sin vencimiento';
+  return `
+    <button type="button" class="esp-item ${activo ? 'is-on' : ''}" role="option" aria-selected="${activo}" data-esp="${g?.id || ''}">
+      ${avEspacio(g)}
+      <span class="esp-txt"><b>${g ? escapeHtml(g.nombre) : 'Principal'}</b><em class="${g?.vigente === false ? 'is-off' : ''}">${escapeHtml(sub)}</em></span>
+      ${activo ? '<svg class="ico esp-ok"><use href="#i-check"/></svg>' : ''}
+    </button>`;
+}
+
+function pintarMenuEspacios(){
+  const f = sinTildes(espacioFiltro);
+  const ordenados = GRUPOS.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    .filter(g => !f || sinTildes(g.nombre).includes(f));
+  const bloque = (tipo, titulo) => {
+    const lista = ordenados.filter(g => g.tipo === tipo);
+    return lista.length ? `<p class="esp-grupo">${titulo}</p>${lista.map(itemEspacio).join('')}` : '';
+  };
+  $('#espMenu').innerHTML = `
+    ${GRUPOS.length > 6 ? `<input type="search" class="esp-buscar" id="espBuscar" placeholder="Buscar empresa…" value="${escapeHtml(espacioFiltro)}" />` : ''}
+    <div class="esp-lista">
+      ${!f ? itemEspacio(null) : ''}
+      ${bloque('b2b', 'Empresas')}
+      ${bloque('b2c', 'Cohortes')}
+      ${f && !ordenados.length ? `<p class="esp-vacio">Ninguna empresa coincide.</p>` : ''}
+    </div>
+    <button type="button" class="esp-nuevo" data-esp-nuevo><svg class="ico"><use href="#i-plus"/></svg> Nueva empresa o cohorte</button>`;
+}
+
+function abrirMenuEspacios(abrir){
+  const menu = $('#espMenu');
+  menu.hidden = !abrir;
+  $('#espBtn').setAttribute('aria-expanded', abrir);
+  if (abrir){
+    espacioFiltro = '';
+    pintarMenuEspacios();
+    $('#espBuscar')?.focus();
+  }
+}
+
+function refrescarVerComo(){
+  if (!IS_ADMIN || !$('#espBtn')) return;
+  if (vistaComo && !grupoPorId(vistaComo)){   // el grupo se borró: de vuelta al Principal
+    vistaComo = '';
+    try { localStorage.setItem(ESPACIO_KEY, ''); } catch {}
+  }
+  const g = grupoPorId(vistaComo);
+  $('#espAv').outerHTML = avEspacio(g).replace('class="esp-av', 'id="espAv" class="esp-av');
+  $('#espNombre').textContent = g ? g.nombre : 'Principal';
+  $('#espBtn').title = g ? `Ves lo que ve ${g.nombre}. Lo que publiques aquí es solo para este grupo.`
+                         : 'Lo que publiques aquí lo ven todas las empresas y cohortes';
+  document.body.classList.toggle('en-espacio', !!g);
+  if (!$('#espMenu').hidden) pintarMenuEspacios();
+
+  const aviso = $('#espacioAviso');
+  aviso.hidden = !g;
+  if (g) aviso.innerHTML = `
+    <svg class="ico"><use href="#i-lock"/></svg>
+    <span>Estás en el espacio de <b>${escapeHtml(g.nombre)}</b>: ves el contenido general más el exclusivo
+      (con candado). Lo que publiques aquí lo ve solo ${escapeHtml(g.nombre)}.</span>
+    <button class="btn" data-espacio-principal>Volver al Principal</button>`;
+}
+
+/** Cambia de espacio de trabajo y lo recuerda en este navegador. */
+function cambiarEspacio(id){
+  abrirMenuEspacios(false);
+  if (id === vistaComo) return;
+  vistaComo = id;
+  try { localStorage.setItem(ESPACIO_KEY, vistaComo); } catch {}
+  refrescarVerComo();
+  const g = grupoPorId(vistaComo);
+  toast(g ? `Estás en el espacio de ${g.nombre}` : 'Estás en el espacio Principal');
+  // En el panel se pasa al de ese grupo; en lo demás se redibuja con lo del espacio
+  if (view.type === 'panel') setView('panel', vistaComo || null);
+  else render();
+  $('#sidebar').classList.remove('is-open');
+}
+
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-espacio-principal]')) return cambiarEspacio('');
+  if (!$('#espMenu')) return;
+  if (e.target.closest('#espBtn')) return abrirMenuEspacios($('#espMenu').hidden);
+  const item = e.target.closest('[data-esp]');
+  if (item) return cambiarEspacio(item.dataset.esp);
+  if (e.target.closest('[data-esp-nuevo]')){ abrirMenuEspacios(false); return abrirGrupoForm(); }
+  if (!e.target.closest('#espMenu')) abrirMenuEspacios(false);
+});
+document.addEventListener('input', e => {
+  if (e.target.id !== 'espBuscar') return;
+  espacioFiltro = e.target.value;
+  const pos = e.target.selectionStart;
+  pintarMenuEspacios();
+  const b = $('#espBuscar'); b.focus(); b.setSelectionRange(pos, pos);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#espMenu') && !$('#espMenu').hidden) abrirMenuEspacios(false);
+});
+
+/** "Hace 5 min.", "Hace un momento" o "El 3 oct" para lo que pasó hace más de una semana. */
+function haceTxt(cuando){
+  const t = timeAgo(new Date(cuando).getTime());
+  if (t === 'ahora') return 'Hace un momento';
+  return /^\d+ (min\.|h|d)$/.test(t) ? 'Hace ' + t : 'El ' + t;
+}
+
+const fechaLarga = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' }) : '';
+const hoyIso = () => new Date().toLocaleDateString('en-CA');   // AAAA-MM-DD en la hora local
+
+function estadoGrupo(g){
+  if (!g.activo) return { txt:'Inactivo', cls:'is-off' };
+  if (g.vence_el && g.vence_el < hoyIso()) return { txt:'Venció el ' + fechaLarga(g.vence_el), cls:'is-off' };
+  if (!g.vence_el) return { txt:'Sin vencimiento', cls:'is-on' };
+  const dias = Math.round((new Date(g.vence_el + 'T12:00:00') - new Date(hoyIso() + 'T12:00:00')) / 864e5);
+  return { txt:'Hasta el ' + fechaLarga(g.vence_el), cls:dias <= 7 ? 'is-warn' : 'is-on' };
+}
+const tipoTxt = g => g.tipo === 'b2b' ? 'Empresa' : 'Cohorte';
+
+function gruposHtml(){
+  if (gruposFalla && !GRUPOS.length) return `
+    <div class="empty">
+      <svg class="ico"><use href="#i-users"/></svg>
+      <h3>Las empresas no están disponibles</h3>
+      <p>${escapeHtml(gruposFalla)}</p>
+    </div>`;
+  if (grupoAbierto) return grupoDetalleHtml();
+
+  const b2b = GRUPOS.filter(g => g.tipo === 'b2b').length, b2c = GRUPOS.length - b2b;
+  const cabecera = `
+    <div class="sk-head">
+      <span class="sk-label">${b2b} ${b2b === 1 ? 'empresa' : 'empresas'} · ${b2c} ${b2c === 1 ? 'cohorte' : 'cohortes'}</span>
+      <button class="btn btn-primary" data-gr-nuevo><svg class="ico"><use href="#i-plus"/></svg> Nuevo grupo</button>
+    </div>`;
+  if (!GRUPOS.length) return cabecera + `
+    <div class="empty">
+      <svg class="ico"><use href="#i-users"/></svg>
+      <h3>Todavía no hay empresas ni cohortes</h3>
+      <p>Crea la primera con <b>Nuevo grupo</b>: un nombre, una contraseña y hasta cuándo tiene acceso. Después pegas los correos.</p>
+    </div>`;
+
+  return cabecera + `<div class="quiz-grid">${GRUPOS.map(g => {
+    const e = estadoGrupo(g);
+    return `
+    <article class="quiz-card gr-card ${g.vigente ? '' : 'is-off'}">
+      <div class="gr-top">
+        <span class="gr-tipo">${tipoTxt(g)}</span>
+        <span class="gr-estado ${e.cls}">${escapeHtml(e.txt)}</span>
+      </div>
+      <div class="gr-nombre">${typeof logoHtml === 'function' ? logoHtml(g) : ''}<h3>${escapeHtml(g.nombre)}</h3></div>
+      <p class="quiz-meta"><b>${g.miembros}</b>${g.plazas ? ` de ${g.plazas}` : ''} ${g.plazas ? 'plazas' : g.miembros === 1 ? 'persona' : 'personas'} ·
+         <b>${g.han_entrado}</b> ya ${g.han_entrado === 1 ? 'entró' : 'entraron'} ·
+         <b>${g.responsables}</b> ${g.responsables === 1 ? 'responsable' : 'responsables'}</p>
+      <div class="quiz-acciones">
+        <button class="btn btn-primary" data-gr-abrir="${g.id}">Personas</button>
+        <button class="btn" data-gr-editar="${g.id}">Editar</button>
+        <button class="btn" data-gr-panel="${g.id}">Panel</button>
+      </div>
+    </article>`;
+  }).join('')}</div>`;
+}
+
+function grupoDetalleHtml(){
+  const g = grupoPorId(grupoAbierto);
+  if (!g) return `
+    <div class="empty">
+      <svg class="ico"><use href="#i-users"/></svg>
+      <h3>Ese grupo ya no existe</h3>
+      <button class="btn btn-primary" data-gr-volver>Ver todos los grupos</button>
+    </div>`;
+  const e = estadoGrupo(g);
+  return `
+    <div class="card gr-detalle">
+      <button class="btn quiz-volver" data-gr-volver>← Todas las empresas y cohortes</button>
+      <div class="gr-cab">
+        <div class="gr-top">
+          <span class="gr-tipo">${tipoTxt(g)}</span>
+          <span class="gr-estado ${e.cls}">${escapeHtml(e.txt)}</span>
+        </div>
+        <div class="quiz-acciones">
+          <button class="btn" data-gr-editar="${g.id}"><svg class="ico"><use href="#i-edit"/></svg> Editar grupo</button>
+          <button class="btn" data-gr-bienvenida="${g.id}"><svg class="ico"><use href="#i-copy"/></svg> Copiar mensaje de bienvenida</button>
+          <button class="btn" data-gr-panel="${g.id}"><svg class="ico"><use href="#i-chart"/></svg> Ver panel</button>
+        </div>
+      </div>
+
+      ${fichaResumenHtml(g)}
+
+      <h3 class="quiz-sub">Dar acceso a más personas</h3>
+      <p class="quiz-desc">Pega la lista con un correo por línea. Puede llevar el nombre al lado (copiado de Excel o separado por coma).
+         Si la línea dice <b>responsable</b>, esa persona también verá el panel de su equipo.</p>
+      <textarea id="grLista" class="gr-lista" rows="6" spellcheck="false"
+        placeholder="Ana Pérez, ana@empresa.com&#10;carlos@empresa.com&#10;Laura Gómez, laura@empresa.com, responsable"></textarea>
+      <div class="gr-alta-foot">
+        <label class="btn gr-csv"><svg class="ico"><use href="#i-upload"/></svg> Subir CSV
+          <input type="file" id="grCsv" accept=".csv,.txt,text/csv,text/plain" hidden /></label>
+        <span class="quiz-meta" id="grListaCuenta"></span>
+        <button class="btn btn-primary" data-gr-agregar>Dar acceso</button>
+      </div>
+      <p class="gr-resultado" id="grAltaMsg">${resultadoAlta}</p>
+
+      <div class="gr-personas-cab">
+        <h3 class="quiz-sub">Personas con acceso (${miembros.filter(m => m.activo).length})</h3>
+        ${miembros.length > 8 ? `<input type="search" id="grBuscar" class="gr-buscar" placeholder="Buscar por nombre o correo"
+            value="${escapeHtml(miembrosFiltro)}" />` : ''}
+      </div>
+      ${miembrosFalla ? `<p class="quiz-msg">${escapeHtml(miembrosFalla)}</p>`
+        : miembros.length ? `
+        <div class="quiz-tabla">
+          <table>
+            <thead><tr><th>Persona</th><th>Rol</th><th>Acceso</th><th>Último ingreso</th><th></th></tr></thead>
+            <tbody id="grTbody">${filasMiembrosHtml()}</tbody>
+          </table>
+        </div>`
+        : `<p class="quiz-desc">Todavía no hay nadie. Pega los correos arriba y toca <b>Dar acceso</b>.</p>`}
+
+      <button class="btn quiz-vaciar" data-gr-borrar="${g.id}">Eliminar este grupo</button>
+      <p class="quiz-nota">Eliminarlo quita el acceso a todas sus personas y lo saca de la audiencia de lo publicado. El contenido no se borra.</p>
+    </div>`;
+}
+
+/** La ficha de la empresa en su detalle: datos, contacto y WhatsApp. */
+function fichaResumenHtml(g){
+  const dato = (t, v) => v ? `<div><span>${t}</span><b>${v}</b></div>` : '';
+  const filas = [
+    dato('NIT', escapeHtml(g.nit || '')), dato('Sector', escapeHtml(g.sector || '')),
+    dato('Plazas', g.plazas ? `${g.miembros} de ${g.plazas} usadas` : ''),
+    dato('Programa', escapeHtml(rangoTxt?.(g.fecha_inicio, g.fecha_fin) || '')),
+    dato('Contacto', escapeHtml([g.contacto_nombre, g.contacto_cargo].filter(Boolean).join(' · '))),
+    dato('Correo', g.contacto_email ? `<a href="mailto:${escapeHtml(g.contacto_email)}">${escapeHtml(g.contacto_email)}</a>` : ''),
+    dato('Teléfono', escapeHtml(g.contacto_telefono || '')),
+    dato('WhatsApp', g.whatsapp_url ? `<a href="${escapeHtml(g.whatsapp_url)}" target="_blank" rel="noopener">Grupo de la empresa</a>` : ''),
+  ].join('');
+  return `
+    <div class="gr-ficha">
+      ${typeof logoHtml === 'function' ? logoHtml(g, 'gr-ficha-logo') : ''}
+      ${filas ? `<div class="gr-ficha-datos">${filas}</div>`
+        : `<p class="quiz-desc">Sin ficha todavía: toca <b>Editar grupo</b> para agregar el logo, el contacto y el grupo de WhatsApp.</p>`}
+    </div>`;
+}
+
+function filasMiembrosHtml(){
+  const f = sinTildes(miembrosFiltro);
+  const lista = miembros.filter(m => !f || sinTildes(m.nombre + ' ' + m.email).includes(f));
+  const filas = lista.slice(0, MAX_FILAS).map(m => `
+    <tr class="${m.activo ? '' : 'is-off'}">
+      <td><b>${escapeHtml(m.nombre || '—')}</b><small class="celda-sub">${escapeHtml(m.email)}</small></td>
+      <td><select class="gr-rol" data-m-rol="${m.id}" aria-label="Rol de ${escapeHtml(m.email)}">
+        <option value="estudiante" ${m.rol === 'estudiante' ? 'selected' : ''}>Estudiante</option>
+        <option value="responsable" ${m.rol === 'responsable' ? 'selected' : ''}>Responsable</option>
+      </select></td>
+      <td><label class="check"><input type="checkbox" data-m-activo="${m.id}" ${m.activo ? 'checked' : ''} />
+        ${m.activo ? 'Activo' : 'Sin acceso'}</label></td>
+      <td>${m.ultimo_acceso ? haceTxt(m.ultimo_acceso) : '<span class="celda-sub">Nunca</span>'}</td>
+      <td class="quiz-borrar-celda">
+        <button class="icon-btn" data-m-quitar="${m.id}" title="Quitar a ${escapeHtml(m.email)} del grupo" aria-label="Quitar a ${escapeHtml(m.email)}">
+          <svg class="ico"><use href="#i-trash"/></svg>
+        </button>
+      </td>
+    </tr>`).join('');
+  const resto = lista.length - MAX_FILAS;
+  return filas + (resto > 0 ? `<tr><td colspan="5" class="celda-sub">Y ${resto} más: usa el buscador para encontrar a alguien.</td></tr>` : '')
+               + (!lista.length ? `<tr><td colspan="5" class="celda-sub">Nadie coincide con «${escapeHtml(miembrosFiltro)}».</td></tr>` : '');
+}
+
+/** Lee la lista pegada: un correo por línea, con el nombre y "responsable" opcionales. */
+function leerLista(texto){
+  const filas = [], ya = new Set();
+  const RE = /[^\s,;<>"'()\t|]+@[^\s,;<>"'()\t|]+\.[^\s,;<>"'()\t|]+/g;
+  for (const linea of String(texto || '').split(/\r?\n/)){
+    const correos = linea.match(RE) || [];
+    const responsable = /\bresponsable\b/i.test(linea);
+    // Con un solo correo en la línea, lo demás es el nombre; con varios, solo cuentan los correos
+    const nombre = correos.length === 1
+      ? linea.replace(correos[0], ' ').replace(/\b(responsable|estudiante)\b/ig, ' ')
+             .replace(/[,;\t<>"|()]+/g, ' ').replace(/\s+/g, ' ').trim()
+      : '';
+    for (const c of correos){
+      const email = c.toLowerCase().replace(/\.+$/, '');
+      if (ya.has(email)) continue;
+      ya.add(email);
+      filas.push({ email, nombre, ...(responsable ? { rol:'responsable' } : {}) });
+    }
+  }
+  return filas;
+}
+
+async function darAcceso(){
+  const texto = $('#grLista').value;
+  const filas = leerLista(texto);
+  const msg = $('#grAltaMsg'), btn = $('[data-gr-agregar]');
+  if (!filas.length){ msg.textContent = 'No encontré ningún correo en la lista.'; return; }
+
+  btn.disabled = true; btn.textContent = `Dando acceso a ${filas.length}…`; msg.textContent = '';
+  let nuevos = 0, actualizados = 0, invalidos = [];
+  try {
+    for (let i = 0; i < filas.length; i += 1000){   // en tandas, para listas muy largas
+      const r = await store.agregarMiembros(grupoAbierto, filas.slice(i, i + 1000));
+      nuevos += r.nuevos; actualizados += r.actualizados; invalidos = invalidos.concat(r.invalidos || []);
+    }
+    resultadoAlta = `<b>Listo:</b> ${nuevos} ${nuevos === 1 ? 'persona nueva' : 'personas nuevas'}` +
+      (actualizados ? ` · ${actualizados} ya ${actualizados === 1 ? 'estaba' : 'estaban'} (se actualizaron)` : '') +
+      (invalidos.length ? ` · <span class="quiz-msg">${invalidos.length} con el correo mal escrito: ${escapeHtml(invalidos.slice(0, 5).join(', '))}${invalidos.length > 5 ? '…' : ''}</span>` : '');
+    await Promise.all([cargarMiembros(), cargarGrupos()]);
+    render();
+    toast('Acceso dado. Comparte el mensaje de bienvenida con el grupo.');
+  } catch (err){
+    console.error(err);
+    msg.textContent = errorMsg(err);
+    btn.disabled = false; btn.textContent = 'Dar acceso';
+  }
+}
+
+function mensajeBienvenida(g){
+  const url = location.origin + location.pathname.replace(/index\.html$/, '');
+  return [
+    `Hola. Ya tienes acceso a la Academia de PorContar${g.tipo === 'b2b' ? ' con ' + g.nombre : ''}.`,
+    '',
+    `Entra aquí: ${url}`,
+    'Correo: el mismo con el que te inscribimos',
+    `Contraseña: ${claveReciente[g.id] || '[escribe aquí la contraseña del grupo]'}`,
+    ...(g.vence_el ? ['', `Tu acceso está activo hasta el ${fechaLarga(g.vence_el)}.`] : []),
+  ].join('\n');
+}
+
+/* ---------- Formulario del grupo ---------- */
+function abrirGrupoForm(g = null){
+  editandoGrupo = g;
+  $('#grTitle').textContent = g ? 'Editar grupo' : 'Nuevo grupo';
+  $('#grNombre').value = g ? g.nombre : '';
+  $('#grTipo').value   = g ? g.tipo : 'b2b';
+  $('#grVence').value  = g?.vence_el || '';
+  $('#grClave').value  = '';
+  $('#grClave').placeholder = g ? 'Déjala vacía para no cambiarla' : 'Mínimo 6 caracteres';
+  $('#grClaveLbl').textContent = g ? 'Nueva contraseña (opcional)' : 'Contraseña del grupo';
+  $('#grClaveNota').textContent = g
+    ? 'Si la cambias, quienes ya entraron siguen dentro; la nueva sirve para entrar desde ahora.'
+    : 'Todas las personas del grupo entran con su correo y esta contraseña.';
+  $('#grActivo').checked = g ? g.activo : true;
+
+  // Ficha
+  const campos = { grNit:'nit', grSector:'sector', grPlazas:'plazas', grWhatsapp:'whatsapp_url',
+                   grInicio:'fecha_inicio', grFin:'fecha_fin', grCNombre:'contacto_nombre',
+                   grCCargo:'contacto_cargo', grCEmail:'contacto_email', grCTel:'contacto_telefono' };
+  Object.entries(campos).forEach(([id, k]) => { $('#' + id).value = g?.[k] ?? ''; });
+  logoNuevo = null;
+  logoActual = g?.logo_url || '';
+  pintarLogoForm();
+
+  $('#grMsg').textContent = '';
+  $('#grOverlay').hidden = false;
+  setTimeout(() => $('#grNombre').focus(), 40);
+}
+const cerrarGrupoForm = () => { $('#grOverlay').hidden = true; editandoGrupo = null; logoNuevo = null; };
+
+/* Logo: se elige aquí y se sube al guardar */
+let logoNuevo = null, logoActual = '';
+function pintarLogoForm(){
+  const url = logoNuevo ? URL.createObjectURL(logoNuevo) : logoActual;
+  $('#grLogoPrev').innerHTML = url ? `<img src="${escapeHtml(url)}" alt="Logo" />`
+    : `<span>${escapeHtml(iniciales($('#grNombre').value || '?'))}</span>`;
+  $('#grLogoQuitar').hidden = !url;
+}
+$('#grLogo').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (!/^image\/(png|jpe?g|webp|svg\+xml)$/.test(f.type)) return void ($('#grMsg').textContent = 'El logo debe ser PNG, JPG, WebP o SVG.');
+  if (f.size > 2 * 1048576) return void ($('#grMsg').textContent = 'El logo pesa más de 2 MB.');
+  $('#grMsg').textContent = '';
+  logoNuevo = f; pintarLogoForm();
+});
+$('#grLogoQuitar').addEventListener('click', () => { logoNuevo = null; logoActual = ''; pintarLogoForm(); });
+$('#grNombre').addEventListener('input', () => { if (!logoNuevo && !logoActual) pintarLogoForm(); });
+$('#grClose').addEventListener('click', cerrarGrupoForm);
+$('#grCancel').addEventListener('click', cerrarGrupoForm);
+$('#grOverlay').addEventListener('click', e => { if (e.target.id === 'grOverlay') cerrarGrupoForm(); });
+
+/** Contraseña fácil de dictar: sin letras que se confunden (0/O, 1/l/I). */
+$('#grGenerar').addEventListener('click', () => {
+  const abc = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const azar = crypto.getRandomValues(new Uint32Array(8));
+  $('#grClave').value = 'PC-' + [...azar].map(n => abc[n % abc.length]).join('');
+});
+
+$('#grSave').addEventListener('click', async () => {
+  const nombre = $('#grNombre').value.trim();
+  const clave  = $('#grClave').value.trim();
+  const msg = $('#grMsg'), btn = $('#grSave');
+  if (nombre.length < 2) return void (msg.textContent = 'Ponle un nombre al grupo.');
+  if (!editandoGrupo && !clave) return void (msg.textContent = 'Ponle una contraseña (o toca Generar).');
+  if (clave && clave.length < 6) return void (msg.textContent = 'La contraseña debe tener al menos 6 caracteres.');
+  const v = id => $('#' + id).value.trim();
+  if (v('grWhatsapp') && !/^https:\/\//i.test(v('grWhatsapp'))) return void (msg.textContent = 'El enlace de WhatsApp debe empezar por https://');
+  if (v('grInicio') && v('grFin') && v('grFin') < v('grInicio')) return void (msg.textContent = 'El fin del programa no puede ser antes del inicio.');
+  if (v('grCEmail') && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v('grCEmail'))) return void (msg.textContent = 'Revisa el correo del contacto.');
+
+  const nuevo = !editandoGrupo;
+  btn.disabled = true; btn.textContent = 'Guardando…'; msg.textContent = '';
+  try {
+    const id = await store.guardarGrupo({
+      id:editandoGrupo?.id, nombre, tipo:$('#grTipo').value, clave,
+      vence_el:$('#grVence').value || null, activo:$('#grActivo').checked,
+    });
+    if (clave) claveReciente[id] = clave;
+    // Si algo de la ficha falla, volver a guardar edita este grupo en vez de crear otro
+    if (!editandoGrupo) editandoGrupo = { id, activo:true };
+
+    // La ficha va aparte; si la base aún no tiene la Fase 1, el grupo igual queda guardado
+    if (fase1){
+      const logo = logoNuevo ? await store.subirLogo(id, logoNuevo) : logoActual;
+      await store.fichaGrupo(id, {
+        logo_url:logo, nit:v('grNit'), sector:v('grSector'), plazas:v('grPlazas'), whatsapp_url:v('grWhatsapp'),
+        fecha_inicio:v('grInicio'), fecha_fin:v('grFin'), contacto_nombre:v('grCNombre'),
+        contacto_cargo:v('grCCargo'), contacto_email:v('grCEmail'), contacto_telefono:v('grCTel'),
+      });
+    }
+    cerrarGrupoForm();
+    await cargarGrupos();
+    if (nuevo){
+      toast('Grupo creado. Ahora pega los correos de las personas.');
+      setView('grupos', id);
+    } else {
+      toast(clave ? 'Grupo guardado con la contraseña nueva' : 'Grupo guardado');
+      render();
+    }
+  } catch (err){
+    console.error(err);
+    msg.textContent = errorMsg(err);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+});
+
+/* ---------- Interacciones de la vista de grupos ---------- */
+$('#posts').addEventListener('click', async e => {
+  if (view.type !== 'grupos') return;
+  const t = sel => e.target.closest(sel);
+
+  if (t('[data-gr-nuevo]')) return abrirGrupoForm();
+  if (t('[data-gr-editar]')) return abrirGrupoForm(grupoPorId(t('[data-gr-editar]').dataset.grEditar));
+  if (t('[data-gr-abrir]'))  { resultadoAlta = ''; miembrosFiltro = ''; return setView('grupos', t('[data-gr-abrir]').dataset.grAbrir); }
+  if (t('[data-gr-volver]')) { resultadoAlta = ''; return setView('grupos'); }
+  if (t('[data-gr-panel]'))  return setView('panel', t('[data-gr-panel]').dataset.grPanel);
+  if (t('[data-gr-agregar]')) return darAcceso();
+
+  if (t('[data-gr-bienvenida]')){
+    const g = grupoPorId(t('[data-gr-bienvenida]').dataset.grBienvenida);
+    try {
+      await navigator.clipboard.writeText(mensajeBienvenida(g));
+      toast(claveReciente[g.id] ? 'Mensaje copiado, con la contraseña' : 'Mensaje copiado: completa la contraseña antes de enviarlo');
+    } catch { toast('El navegador no dejó copiar'); }
+    return;
+  }
+
+  const quitar = t('[data-m-quitar]');
+  if (quitar){
+    const m = miembros.find(x => String(x.id) === quitar.dataset.mQuitar); if (!m) return;
+    if (!confirm(`¿Quitar a ${m.email} de este grupo? Deja de entrar de inmediato. Su avance no se borra.`)) return;
+    try {
+      await store.quitarMiembro(m.id);
+      miembros = miembros.filter(x => x !== m);
+      await cargarGrupos();
+      toast('Persona quitada del grupo');
+      render();
+    } catch (err){ toast(errorMsg(err)); }
+    return;
+  }
+
+  const borrar = t('[data-gr-borrar]');
+  if (borrar){
+    const g = grupoPorId(borrar.dataset.grBorrar); if (!g) return;
+    const escrito = prompt(`Para eliminar «${g.nombre}» y quitarle el acceso a sus ${g.miembros} personas, escribe ELIMINAR`);
+    if ((escrito || '').trim().toUpperCase() !== 'ELIMINAR') return;
+    try {
+      await store.borrarGrupo(g.id);
+      // La base ya lo quitó de las audiencias: aquí se refleja sin recargar
+      [posts, skills, quizzes].forEach(l => l.forEach(x => { if (x.audiencia) x.audiencia = x.audiencia.filter(v => v !== g.id); }));
+      await cargarGrupos();
+      toast('Grupo eliminado');
+      setView('grupos');
+    } catch (err){ toast(errorMsg(err)); }
+  }
+});
+
+$('#posts').addEventListener('change', async e => {
+  if (view.type !== 'grupos') return;
+  const t = e.target;
+
+  if (t.id === 'grCsv' && t.files[0]){
+    const texto = await t.files[0].text();
+    const caja = $('#grLista');
+    caja.value = (caja.value.trim() ? caja.value.trim() + '\n' : '') + texto;
+    t.value = '';
+    caja.dispatchEvent(new Event('input', { bubbles:true }));
+    return;
+  }
+
+  const id = t.dataset.mRol || t.dataset.mActivo; if (!id) return;
+  const m = miembros.find(x => String(x.id) === id); if (!m) return;
+  const cambio = { ...m, rol:t.dataset.mRol ? t.value : m.rol, activo:t.dataset.mActivo ? t.checked : m.activo };
+  try {
+    await store.actualizarMiembro(cambio);
+    Object.assign(m, cambio);
+    toast(t.dataset.mRol
+      ? (m.rol === 'responsable' ? `${m.email} ahora ve el panel del equipo` : `${m.email} ya no ve el panel`)
+      : (m.activo ? `${m.email} vuelve a tener acceso` : `${m.email} ya no puede entrar`));
+    cargarGrupos();
+  } catch (err){ toast(errorMsg(err)); }
+  render();
+});
+
+$('#posts').addEventListener('input', e => {
+  if (view.type !== 'grupos') return;
+  if (e.target.id === 'grLista'){
+    const n = leerLista(e.target.value).length;
+    $('#grListaCuenta').textContent = n ? `${n} ${n === 1 ? 'correo' : 'correos'} en la lista` : '';
+  }
+  if (e.target.id === 'grBuscar'){   // solo se redibuja la tabla, para no perder el foco
+    miembrosFiltro = e.target.value;
+    $('#grTbody').innerHTML = filasMiembrosHtml();
+  }
+});
+
+/* ================================================================
+   Panel de avance (responsable de la empresa y admin)
+   Se actualiza solo cada minuto mientras está abierto.
+   ================================================================ */
+let panelGrupo   = '';
+let panelData    = null;
+let panelFalla   = '';
+let panelAt      = 0;
+let panelTimer   = null;
+let panelBuscar  = '';
+let panelOrden   = 'nombre';
+let panelTareas  = null;     // las tareas, leídas de trabajo-autonomo.html (la misma fuente que ve el estudiante)
+
+const panelOpciones = () => IS_ADMIN ? GRUPOS : gruposResponsable();
+
+async function cargarTareasDef(){
+  if (panelTareas) return panelTareas;
+  try {
+    const html = await (await fetch('trabajo-autonomo.html', { cache:'no-cache' })).text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    panelTareas = [...doc.querySelectorAll('.task')].map(t => ({
+      titulo: t.querySelector('h2')?.textContent.trim() || '',
+      checks: [...t.querySelectorAll('.steps input[type=checkbox]')].map(c => c.id),
+      radio:  t.querySelector('input[type=radio]')?.name || null,
+    }));
+  } catch (err){ console.warn('No se pudieron leer las tareas:', err); panelTareas = []; }
+  return panelTareas;
+}
+
+async function cargarPanel(){
+  const ops = panelOpciones();
+  if (!ops.some(g => g.id === panelGrupo)) panelGrupo = ops[0]?.id || '';
+  if (!panelGrupo){ panelData = null; return; }
+  try {
+    const [data] = await Promise.all([store.panel(panelGrupo), cargarTareasDef()]);
+    panelData = data; panelFalla = ''; panelAt = Date.now();
+  } catch (err){ console.warn(err); panelFalla = errorMsg(err); }
+}
+
+/** Las cifras de cada persona: videos vistos, tareas completas y quizzes. */
+function avanceDe(m){
+  const videos = panelData.posts.filter(p => esVideo({ videoUrl:p.video_url, videoName:p.video_name }));
+  const idsVideo = new Set(videos.map(p => p.id));
+  const idsQuiz  = new Set(panelData.quizzes.map(q => q.id));
+  const tareas = panelTareas || [];
+  const c = m.tareas?.c || {}, r = m.tareas?.r || {};
+  const hechas = tareas.filter(t => t.checks.every(id => c[id]) && (!t.radio || r[t.radio])).length;
+  const quizzesR = (m.quizzes || []).filter(q => idsQuiz.has(q.quiz_id));
+  // Grabaciones de su empresa: cuántas terminó y cuántas veces le dio reproducir
+  const grabs = panelData.grabaciones || [];
+  const pg = m.grabaciones || {};
+  return {
+    grabsVistas: grabs.filter(x => pg[x.id]?.completado).length, grabsTotal: grabs.length,
+    reproducciones: Object.values(pg).reduce((n, x) => n + (x.vistas || 0), 0),
+    dias: m.dias_activos || 0,
+    vistos: (m.vistos || []).filter(id => idsVideo.has(id)).length, videos: videos.length,
+    tareas: hechas, tareasTotal: tareas.length,
+    quizzes: quizzesR.length, quizzesTotal: idsQuiz.size,
+    nota: quizzesR.length ? Math.round(quizzesR.reduce((a, q) => a + q.puntaje / q.total, 0) / quizzesR.length * 100) : null,
+  };
+}
+
+const miniBarra = (n, total) => `
+  <div class="mini"><span>${n} de ${total}</span>
+    <div class="quiz-barra ${total && n / total < .5 ? 'is-baja' : ''}"><i style="width:${pct(n, total)}%"></i></div></div>`;
+
+function filasPanel(){
+  const f = sinTildes(panelBuscar);
+  const filas = panelData.miembros
+    .filter(m => !f || sinTildes(m.nombre + ' ' + m.email).includes(f))
+    .map(m => ({ m, a:avanceDe(m) }));
+  const avance = ({ a }) => (pct(a.grabsVistas, a.grabsTotal) + pct(a.vistos, a.videos) + pct(a.tareas, a.tareasTotal) + (a.nota || 0)) / 4;
+  filas.sort(panelOrden === 'menos' ? (x, y) => avance(x) - avance(y)
+           : panelOrden === 'ingreso' ? (x, y) => (new Date(y.m.ultimo_acceso || 0)) - (new Date(x.m.ultimo_acceso || 0))
+           : (x, y) => (x.m.nombre || x.m.email).localeCompare(y.m.nombre || y.m.email, 'es'));
+  return filas;
+}
+
+function filasPanelHtml(){
+  const filas = filasPanel();
+  if (!filas.length) return `<tr><td colspan="7" class="celda-sub">${panelBuscar ? `Nadie coincide con «${escapeHtml(panelBuscar)}».` : 'Este grupo todavía no tiene personas.'}</td></tr>`;
+  return filas.map(({ m, a }) => `
+    <tr class="${m.activo ? '' : 'is-off'}">
+      <td><b>${escapeHtml(m.nombre || m.email)}</b>${m.rol === 'responsable' ? ' <span class="gr-tipo">Responsable</span>' : ''}
+          <small class="celda-sub">${escapeHtml(m.email)}${m.activo ? '' : ' · sin acceso'}</small></td>
+      <td>${m.ultimo_acceso ? haceTxt(m.ultimo_acceso) : '<span class="celda-sub">Nunca ha entrado</span>'}</td>
+      <td>${miniBarra(a.grabsVistas, a.grabsTotal)}${a.reproducciones ? `<small class="celda-sub">${a.reproducciones} ${a.reproducciones === 1 ? 'reproducción' : 'reproducciones'}</small>` : ''}</td>
+      <td>${a.dias}</td>
+      <td>${miniBarra(a.vistos, a.videos)}</td>
+      <td>${miniBarra(a.tareas, a.tareasTotal)}</td>
+      <td>${a.quizzesTotal ? `${a.quizzes} de ${a.quizzesTotal}${a.nota !== null ? ` · <b>${a.nota}%</b>` : ''}` : '—'}</td>
+    </tr>`).join('');
+}
+
+function panelHtml(){
+  const ops = panelOpciones();
+  if (!ops.length) return `
+    <div class="empty">
+      <svg class="ico"><use href="#i-chart"/></svg>
+      <h3>${IS_ADMIN ? 'Todavía no hay grupos' : 'No tienes equipos a cargo'}</h3>
+      <p>${IS_ADMIN ? escapeHtml(gruposFalla) || 'Crea la primera empresa o cohorte en <b>Empresas y cohortes</b>.' : 'Si deberías ver el avance de tu equipo, escríbele al equipo de PorContar.'}</p>
+    </div>`;
+  if (panelFalla && !panelData) return `
+    <div class="empty">
+      <svg class="ico"><use href="#i-chart"/></svg>
+      <h3>El panel no está disponible</h3>
+      <p>${escapeHtml(panelFalla)}</p>
+    </div>`;
+  if (!panelData) return `<div class="empty"><svg class="ico"><use href="#i-chart"/></svg><h3>Cargando el panel…</h3></div>`;
+
+  const g = panelData.grupo;
+  const activos = panelData.miembros.filter(m => m.activo);
+  const av = activos.map(avanceDe);
+  const entraron = activos.filter(m => m.ultimo_acceso).length;
+  const prom = (f, t) => av.length ? Math.round(av.reduce((s, a) => s + pct(f(a), t(a)), 0) / av.length) : 0;
+  const notas = av.filter(a => a.nota !== null);
+  const e = estadoGrupo({ ...g, activo:g.activo });
+
+  return `
+    <div class="card panel-cab">
+      <div class="panel-cab-top">
+        <div>
+          ${ops.length > 1
+            ? `<select class="panel-sel" data-panel-grupo aria-label="Grupo">${ops.map(o =>
+                `<option value="${o.id}" ${o.id === panelGrupo ? 'selected' : ''}>${escapeHtml(o.nombre)}</option>`).join('')}</select>`
+            : `<h3 class="panel-nombre">${escapeHtml(g.nombre)}</h3>`}
+          <p class="quiz-meta"><span class="gr-estado ${e.cls}">${escapeHtml(e.txt)}</span>
+            · Actualizado ${panelAt ? haceTxt(panelAt).toLowerCase() : ''} · se actualiza solo cada minuto</p>
+        </div>
+        <div class="quiz-acciones">
+          <button class="btn" data-panel-refrescar>Actualizar</button>
+          <button class="btn" data-panel-csv><svg class="ico"><use href="#i-download"/></svg> Descargar para Excel</button>
+        </div>
+      </div>
+      <div class="quiz-cifras">
+        <div><b>${entraron} de ${activos.length}</b><span>personas ya entraron</span></div>
+        <div><b>${prom(a => a.grabsVistas, a => a.grabsTotal)}%</b><span>de las grabaciones vistas, en promedio</span></div>
+        <div><b>${prom(a => a.tareas, a => a.tareasTotal)}%</b><span>de las tareas completas, en promedio</span></div>
+        <div><b>${notas.length ? Math.round(notas.reduce((s, a) => s + a.nota, 0) / notas.length) + '%' : '—'}</b>
+             <span>${notas.length ? `de aciertos en quizzes (${notas.length} ${notas.length === 1 ? 'persona' : 'personas'})` : 'nadie ha respondido quizzes'}</span></div>
+      </div>
+    </div>
+
+    <div class="card panel-tabla">
+      <div class="panel-tools">
+        <input type="search" id="panelBuscar" placeholder="Buscar por nombre o correo" value="${escapeHtml(panelBuscar)}" />
+        <select id="panelOrden" aria-label="Ordenar">
+          <option value="nombre"  ${panelOrden === 'nombre'  ? 'selected' : ''}>Por nombre</option>
+          <option value="menos"   ${panelOrden === 'menos'   ? 'selected' : ''}>Menos avance primero</option>
+          <option value="ingreso" ${panelOrden === 'ingreso' ? 'selected' : ''}>Último ingreso</option>
+        </select>
+      </div>
+      <div class="quiz-tabla">
+        <table>
+          <thead><tr><th>Persona</th><th>Último ingreso</th><th>Grabaciones</th><th>Días activos</th><th>Otros videos</th><th>Tareas</th><th>Quizzes</th></tr></thead>
+          <tbody id="panelTbody">${filasPanelHtml()}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function descargarPanel(){
+  const celda = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const filas = filasPanel().map(({ m, a }) => [
+    m.nombre, m.email, m.rol, m.activo ? 'Sí' : 'No',
+    m.ultimo_acceso ? new Date(m.ultimo_acceso).toLocaleString('es-CO') : 'Nunca',
+    a.grabsVistas, a.grabsTotal, a.reproducciones, a.dias,
+    a.vistos, a.videos, a.tareas, a.tareasTotal, a.quizzes, a.quizzesTotal, a.nota ?? '',
+  ]);
+  const cab = ['Nombre', 'Correo', 'Rol', 'Activo', 'Último ingreso',
+               'Grabaciones vistas', 'Grabaciones en total', 'Reproducciones', 'Días activos',
+               'Otros videos vistos', 'Otros videos en total',
+               'Tareas completas', 'Tareas en total', 'Quizzes respondidos', 'Quizzes en total', 'Promedio quizzes (%)'];
+  // Punto y coma y BOM: así Excel en español abre las columnas y las tildes bien
+  const csv = '﻿' + [cab, ...filas].map(f => f.map(celda).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `avance-${slug(panelData.grupo.nombre)}-${hoyIso()}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+$('#posts').addEventListener('click', async e => {
+  if (view.type !== 'panel') return;
+  if (e.target.closest('[data-panel-refrescar]')){
+    await cargarPanel(); render(); toast('Panel actualizado');
+  }
+  if (e.target.closest('[data-panel-csv]') && panelData) descargarPanel();
+});
+$('#posts').addEventListener('change', async e => {
+  if (view.type !== 'panel') return;
+  if (e.target.matches('[data-panel-grupo]')){
+    panelGrupo = e.target.value; panelData = null; render();
+    await cargarPanel(); render();
+  }
+  if (e.target.id === 'panelOrden'){ panelOrden = e.target.value; $('#panelTbody').innerHTML = filasPanelHtml(); }
+});
+$('#posts').addEventListener('input', e => {
+  if (view.type === 'panel' && e.target.id === 'panelBuscar'){
+    panelBuscar = e.target.value;
+    $('#panelTbody').innerHTML = filasPanelHtml();
+  }
+});
+
+/** Pantalla de entrada: correo + contraseña de la empresa o cohorte. */
+function mostrarLogin(msg = ''){
+  clearInterval(panelTimer);
+  $('#login').hidden = false;
+  document.body.classList.add('con-login');
+  $('#loginMsg').textContent = msg;
+  setTimeout(() => $('#loginEmail').focus(), 40);
+}
+
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('#loginEmail').value.trim();
+  const clave = $('#loginClave').value;
+  const msg = $('#loginMsg'), btn = $('#loginBtn');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return void (msg.textContent = 'Escribe tu correo completo.');
+  if (!clave) return void (msg.textContent = 'Escribe la contraseña.');
+
+  btn.disabled = true; btn.textContent = 'Entrando…'; msg.textContent = '';
+  try {
+    ACADEMIA.olvidarToken();
+    const { data, error } = await ACADEMIA.cliente().rpc('entrar', { p_email:email, p_clave:clave });
+    if (error) throw error;
+    if (!data?.token) throw new Error(data?.error || 'No se pudo entrar. Inténtalo de nuevo.');
+    ACADEMIA.guardarToken(data.token);
+    location.reload();   // arranca de cero con la identidad nueva
+  } catch (err){
+    msg.textContent = /Failed to fetch|NetworkError/i.test(err?.message || '')
+      ? 'Sin conexión. Revisa tu internet.'
+      : /could not find|schema cache/i.test(err?.message || '')
+        ? 'La Academia todavía no está lista para entrar. Avísale al equipo de PorContar.'
+        : (err?.message || String(err));
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+});
+
 (async function init(){
   buildNav();
+
+  // Con la base en la nube nadie entra sin identificarse: o es admin o tiene sesión
+  if (CLOUD && !ADMIN_KEY && !ACADEMIA.token()) return mostrarLogin();
   store = CLOUD ? cloudStore() : localStore();
 
   try {
@@ -2258,9 +3450,37 @@ document.addEventListener('click', e => {
 
     if (ADMIN_KEY){
       IS_ADMIN = await store.checkAdmin();
-      if (!IS_ADMIN) toast('Esa clave de admin no es válida: entras en modo lectura');
+      if (!IS_ADMIN){
+        ACADEMIA.olvidarAdmin();
+        if (CLOUD && !ACADEMIA.token()) return mostrarLogin('Esa clave de admin no es válida.');
+        toast('Esa clave de admin no es válida');
+      }
     }
+
+    if (CLOUD && !IS_ADMIN){
+      PERFIL = await store.perfil();
+      if (!PERFIL || !PERFIL.grupos?.length){
+        ACADEMIA.olvidarToken();
+        return mostrarLogin(PERFIL
+          ? 'Tu acceso terminó o ya no estás en un grupo activo. Escríbele a quien coordina el programa.'
+          : 'Tu sesión terminó. Vuelve a entrar.');
+      }
+      vistos = new Set(await store.misVistos().catch(err => { console.warn(err); return []; }));
+    }
+
+    if (IS_ADMIN && CLOUD) await cargarGrupos();
     applyMode();
+
+    // Fase 1: el reto, el cronograma y las grabaciones. Si falta supabase-fase1.sql,
+    // la academia sigue con las sesiones de siempre y sin cronograma.
+    try {
+      const ss = await store.sesiones();
+      if (ss.length) SESSIONS = ss;
+      [CRONO, GRABS] = await Promise.all([store.cronograma(), store.grabaciones()]);
+      if (PERFIL) progresoVideo = await store.miProgresoVideo();
+      fase1 = true;
+    } catch (err){ console.warn("Fase 1 no disponible (falta supabase-fase1.sql):", err); }
+    pintarNav();
 
     posts = await store.list();
 
@@ -2290,8 +3510,8 @@ document.addEventListener('click', e => {
   }
 
   if (!CLOUD) console.warn('Muro en modo local: falta SUPABASE_ANON_KEY en config.js');
-  // Sin Feed, el muro abre en la primera clase que el estudiante no haya ocultado
+  // Lo primero que se ve es el inicio con el cronograma; sin él, la primera clase no oculta
   const inicio = SESSIONS.find(s => !isHidden(s.id)) || SESSIONS[0];
-  view = { type:'session', id:inicio.id };
+  view = fase1 ? { type:'inicio', id:null } : { type:'session', id:inicio.id };
   render();
 })();

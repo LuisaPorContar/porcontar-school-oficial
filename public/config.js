@@ -11,12 +11,12 @@
    ================================================================ */
 window.MURO_CONFIG = {
 
-  // PENDIENTE: Project URL del proyecto de Supabase de la academia
-  SUPABASE_URL: '',
+  // Project URL del proyecto de Supabase de la academia
+  SUPABASE_URL: 'https://lcbonixjumchbhffyxee.supabase.co',
 
-  // PENDIENTE: anon public key (Project Settings → API). Es pública por diseño.
+  // anon public key (Project Settings → API). Es pública por diseño.
   // NUNCA pongas aquí la service_role.
-  SUPABASE_ANON_KEY: '',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxjYm9uaXhqdW1jaGJoZmZ5eGVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5ODA3NTQsImV4cCI6MjEwNjU1Njc1NH0.UF1whoThGmU4HQn40pAxHAu78TtfUcS9Oq6ysfHpH9o',
 
   // Bucket de Supabase Storage donde se suben videos e imágenes (el nombre lo fija supabase-academia.sql)
   BUCKET: 'videos-academia',
