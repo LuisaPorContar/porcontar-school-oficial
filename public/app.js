@@ -93,18 +93,16 @@ function pdfHtml(url, nombre){
    Si cambias el nombre de un área, las skills ya guardadas conservan el
    nombre viejo hasta que las edites.                                    */
 const AREAS = [
-  'Estrategia',
-  'Email marketing',
-  'Pauta digital',
-  'Redes sociales',
+  'Marketing',
   'Ventas',
-  'SEO y GEO',
-  'Contenido',
-  'Diseño',
-  'Video',
-  'Prospección',
-  'Analítica',
-  'Agentes y automatización',
+  'Estrategia',
+  'Data',
+  'Finanzas',
+  'Recursos Humanos',
+  'Operaciones',
+  'Calidad',
+  'Tecnología',
+  'Servicio al cliente',
 ];
 /** Las áreas del catálogo: las de la lista más las que traigan los prompts (p. ej. los importados). */
 const areasCatalogo = () => {
