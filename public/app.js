@@ -41,7 +41,7 @@ const REACTION_IDS = REACTIONS.map(r => r.id);
 const ME = { name:'PorContar', initials:'PC' };
 
 /* Quién mira (lo resuelve sesion.js y lo confirma la base):
-   · admin: entró una vez con index.html?admin=<clave>; publica, edita, borra
+   · admin: entra por /admin (la clave se pide una vez por equipo); publica, edita, borra
      y administra empresas y cohortes. La base valida la clave (is_admin()).
    · estudiante: entra con su correo y la contraseña de su empresa o cohorte.
      Solo recibe lo que va dirigido a sus grupos.
@@ -728,7 +728,7 @@ function errorMsg(err){
     return 'Tu sesión terminó.';
   }
   if (/Solo el responsable/i.test(m)) return 'Solo el responsable de ese grupo puede ver su avance.';
-  if (/sin permiso/i.test(m)) return 'La base no reconoce la clave de admin. Vuelve a entrar con ?admin=…';
+  if (/sin permiso/i.test(m)) { ACADEMIA.olvidarAdmin(); return 'La base no reconoce la clave de admin: recarga /admin y escríbela de nuevo.'; }
   if (/admin_|mi_perfil|panel_grupo|marcar_visto|mis_vistos|entrar/i.test(m) && /could not find|schema cache|does not exist/i.test(m))
     return 'Falta correr supabase-empresas.sql en Supabase.';
   // Lo que crea supabase-extras.sql (quizzes y la columna "orden"): si falta, se dice claro
@@ -2391,7 +2391,7 @@ function applyMode(){
   if (IS_ADMIN){
     const modo = document.createElement('span');
     modo.className = 'modo-admin';
-    modo.title = 'Estás en modo admin porque la dirección lleva ?admin=. Quítalo para ver la academia como un estudiante.';
+    modo.title = 'Estás en modo admin porque la dirección termina en /admin. Sin /admin ves la academia como un estudiante.';
     modo.innerHTML = '<svg class="ico"><use href="#i-edit"/></svg>Modo admin';
     $('.topbar-right').prepend(modo);
   }
@@ -2425,7 +2425,7 @@ document.addEventListener('click', async e => {
   if (!e.target.closest('[data-salir]')) return;
   if (IS_ADMIN){
     // El modo admin vive en la URL: salir es abrir la misma dirección sin la clave
-    location.href = location.pathname;
+    location.href = location.origin + '/';
     return;
   }
   try { await store.salir(); } catch (err){ console.warn(err); }
@@ -3076,7 +3076,7 @@ async function darAcceso(){
 }
 
 function mensajeBienvenida(g){
-  const url = location.origin + location.pathname.replace(/index\.html$/, '');
+  const url = location.origin + '/';   // la dirección de los estudiantes, nunca la de admin
   return [
     `Hola. Ya tienes acceso a la Academia de PorContar${g.tipo === 'b2b' ? ' con ' + g.nombre : ''}.`,
     '',
@@ -3501,8 +3501,40 @@ function mostrarLogin(msg = ''){
   setTimeout(() => $('#loginEmail').focus(), 40);
 }
 
+/** Pantalla de la clave de admin (en /admin, la primera vez en cada equipo). Usa la misma tarjeta. */
+let modoClaveAdmin = false;
+function mostrarClaveAdmin(msg = ''){
+  modoClaveAdmin = true;
+  $('#loginForm h1').innerHTML = 'Modo <span class="u-mark">admin</span>';
+  $('.login-sub').textContent = 'Escribe tu clave de admin. Se recuerda en este equipo: la próxima vez entras directo por /admin.';
+  $('#loginEmail').closest('.field').hidden = true;
+  $('#loginClave').closest('.field').querySelector('span').textContent = 'Clave de admin';
+  $('#loginClave').autocomplete = 'off';
+  $('.login-ayuda').innerHTML = '¿Querías entrar como estudiante? <a href="/">Ir a la academia</a>';
+  mostrarLogin(msg);
+  setTimeout(() => $('#loginClave').focus(), 60);
+}
+
 $('#loginForm').addEventListener('submit', async e => {
   e.preventDefault();
+  if (modoClaveAdmin){
+    const clave = $('#loginClave').value.trim();
+    const msg = $('#loginMsg'), btn = $('#loginBtn');
+    if (!clave) return void (msg.textContent = 'Escribe la clave de admin.');
+    btn.disabled = true; btn.textContent = 'Revisando…'; msg.textContent = '';
+    try {
+      // La base dice si la clave es la buena; solo entonces se guarda en este equipo
+      const { data, error } = await ACADEMIA.cliente({ 'x-admin-key':clave }).rpc('is_admin');
+      if (error) throw error;
+      if (data !== true) throw new Error('Esa clave no es válida. Revisa que esté completa y sin espacios.');
+      ACADEMIA.guardarAdmin(clave);
+      location.reload();
+    } catch (err){
+      msg.textContent = /Failed to fetch|NetworkError/i.test(err?.message || '') ? 'Sin conexión. Revisa tu internet.' : (err?.message || String(err));
+      btn.disabled = false; btn.textContent = 'Entrar';
+    }
+    return;
+  }
   const email = $('#loginEmail').value.trim();
   const clave = $('#loginClave').value;
   const msg = $('#loginMsg'), btn = $('#loginBtn');
@@ -3531,6 +3563,8 @@ $('#loginForm').addEventListener('submit', async e => {
   buildNav();
 
   // Con la base en la nube nadie entra sin identificarse: o es admin o tiene sesión
+  // /admin sin clave guardada en este equipo: se pide la clave de admin
+  if (CLOUD && ACADEMIA.rutaAdmin() && !ADMIN_KEY) return mostrarClaveAdmin();
   if (CLOUD && !ADMIN_KEY && !ACADEMIA.token()) return mostrarLogin();
   store = CLOUD ? cloudStore() : localStore();
 
@@ -3540,9 +3574,9 @@ $('#loginForm').addEventListener('submit', async e => {
     if (ADMIN_KEY){
       IS_ADMIN = await store.checkAdmin();
       if (!IS_ADMIN){
+        // La clave guardada ya no sirve (se cambió o estaba mal escrita): se vuelve a pedir
         ACADEMIA.olvidarAdmin();
-        if (CLOUD && !ACADEMIA.token()) return mostrarLogin('Esa clave de admin no es válida.');
-        toast('Esa clave de admin no es válida');
+        return mostrarClaveAdmin('Esa clave no es válida. Escríbela de nuevo.');
       }
     }
 
