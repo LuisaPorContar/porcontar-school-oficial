@@ -466,9 +466,12 @@ function pintarGrabacion(forzar = false){
   grabPintada = clave;
   destruirReproductor();
 
+  // En el Principal el video también va primero: el espacio del video explica dónde se sube
   if (avisoAdmin){
-    caja.innerHTML = `<p class="grab-aviso"><svg class="ico"><use href="#i-play"/></svg>
-      Las grabaciones de esta clase se suben en el espacio de cada empresa (selector de arriba a la izquierda).</p>`;
+    caja.innerHTML = `
+      <div class="vsl vsl-vacio"><div><svg class="ico"><use href="#i-play"/></svg>
+        <b>Aquí va la grabación de la clase</b>
+        <span>Las grabaciones se suben en el espacio de cada empresa: elige la empresa en «Espacio de trabajo», arriba a la izquierda.</span></div></div>`;
     return;
   }
   if (!enSesion){ caja.innerHTML = ''; return; }

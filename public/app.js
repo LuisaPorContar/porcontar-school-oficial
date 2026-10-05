@@ -2314,6 +2314,7 @@ function applyMode(){
   // Columna derecha: el estudiante pregunta; el admin ve lo pendiente (se pinta en render)
   if (!IS_ADMIN) $('#railPregunta').innerHTML = preguntaFormHtml('rail');
   document.body.classList.toggle('modo-estudiante', !IS_ADMIN);   // el ojito es solo para estudiantes
+  document.body.classList.toggle('es-admin', IS_ADMIN);             // línea azul arriba en modo admin
 
   if (!IS_ADMIN){
     $('#btnNew').remove();
@@ -2340,6 +2341,15 @@ function applyMode(){
       + opcion('panel', 'i-chart', 'Panel de avance', 'Videos, tareas y quizzes de cada persona')
     : gruposResponsable().length
       ? opcion('panel', 'i-chart', 'Panel de mi equipo', 'El avance de cada persona de tu equipo') : '';
+
+  // Insignia fija: con la clave en la URL se está en modo admin; sin ella, se ve como estudiante
+  if (IS_ADMIN){
+    const modo = document.createElement('span');
+    modo.className = 'modo-admin';
+    modo.title = 'Estás en modo admin porque la dirección lleva ?admin=. Quítalo para ver la academia como un estudiante.';
+    modo.innerHTML = '<svg class="ico"><use href="#i-edit"/></svg>Modo admin';
+    $('.topbar-right').prepend(modo);
+  }
 
   const cuenta = document.createElement('div');
   cuenta.className = 'cuenta';
@@ -2369,11 +2379,12 @@ function applyMode(){
 document.addEventListener('click', async e => {
   if (!e.target.closest('[data-salir]')) return;
   if (IS_ADMIN){
-    ACADEMIA.olvidarAdmin();
-  } else {
-    try { await store.salir(); } catch (err){ console.warn(err); }
-    ACADEMIA.olvidarToken();
+    // El modo admin vive en la URL: salir es abrir la misma dirección sin la clave
+    location.href = location.pathname;
+    return;
   }
+  try { await store.salir(); } catch (err){ console.warn(err); }
+  ACADEMIA.olvidarToken();
   location.reload();
 });
 /* ---------- Configuración (engranaje de la barra superior) ---------- */
