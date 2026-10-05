@@ -970,3 +970,107 @@ $('#posts').addEventListener('click', e => {
   if (t('[data-qc-config]')) return abrirQuizSesion(t('[data-qc-config]').dataset.qcConfig, 'editar');
   if (t('[data-qc-stats]'))  return abrirQuizSesion(t('[data-qc-stats]').dataset.qcStats, 'stats');
 });
+
+
+/* ================================================================
+   ADMINISTRADORAS: quién entra a /admin con su correo y contraseña
+   ================================================================ */
+let ADMINS = [];
+let adminsFalla = '';
+
+async function cargarAdmins(){
+  try { ADMINS = await store.adminsLista(); adminsFalla = ''; }
+  catch (err){ console.warn(err); adminsFalla = errorMsg(err); }
+}
+
+function adminsHtml(){
+  if (adminsFalla && !ADMINS.length) return `
+    <div class="empty"><svg class="ico"><use href="#i-lock"/></svg>
+      <h3>Las cuentas de admin no están disponibles</h3>
+      <p>${/admins_lista|schema cache|could not find/i.test(adminsFalla) ? 'Falta correr <b>supabase-admins.sql</b> en Supabase.' : escapeHtml(adminsFalla)}</p></div>`;
+  const yo = ADMINS.find(a => a.soy_yo);
+  return `
+    <section class="card adm-caja">
+      <h3 class="ini-tit">Cuentas con acceso a /admin</h3>
+      <div class="adm-lista">${ADMINS.map(a => `
+        <div class="adm-fila ${a.activo ? '' : 'is-off'}">
+          <span class="yo-av is-admin">${escapeHtml(iniciales(a.nombre || a.email))}</span>
+          <span class="adm-txt"><b>${escapeHtml(a.nombre || a.email)}${a.soy_yo ? ' <em class="adm-tu">Tú</em>' : ''}</b>
+            <small>${escapeHtml(a.email)} · ${a.ultimo_acceso ? 'último ingreso: ' + haceTxt(a.ultimo_acceso).toLowerCase() : 'no ha entrado'}</small></span>
+          ${a.soy_yo ? '<span class="adm-nota">Tu cuenta</span>' : `
+            <button class="sw ${a.activo ? 'is-on' : ''}" data-adm-activo="${escapeHtml(a.email)}" role="switch" aria-checked="${a.activo}">
+              <span class="sw-pista"><span class="sw-bola"></span></span>${a.activo ? 'Activa' : 'Desactivada'}</button>`}
+        </div>`).join('') || '<p class="quiz-desc">Todavía no hay cuentas.</p>'}</div>
+    </section>
+
+    <section class="card adm-caja">
+      <h3 class="ini-tit">Agregar a alguien del equipo</h3>
+      <p class="quiz-desc">Ponle una contraseña temporal y compártesela por un canal privado. Entra por <b>${escapeHtml(location.origin)}/admin</b> y después la cambia aquí mismo.</p>
+      <div class="field-row">
+        <label class="field"><span>Nombre</span><input type="text" id="admNombre" maxlength="80" placeholder="Luisa" /></label>
+        <label class="field"><span>Correo</span><input type="email" id="admEmail" maxlength="160" placeholder="nombre@porcontar.com" /></label>
+      </div>
+      <div class="field"><span>Contraseña temporal</span>
+        <div class="gr-clave"><input type="text" id="admClave" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Mínimo 8 caracteres" />
+          <button type="button" class="btn" data-adm-generar>Generar</button></div></div>
+      <div class="quiz-enviar"><span class="quiz-msg" id="admMsg"></span>
+        <button class="btn btn-primary" data-adm-agregar><svg class="ico"><use href="#i-plus"/></svg> Dar acceso de admin</button></div>
+    </section>
+
+    ${yo ? `
+    <section class="card adm-caja">
+      <h3 class="ini-tit">Cambiar mi contraseña</h3>
+      <div class="field-row">
+        <label class="field"><span>Contraseña actual</span><input type="password" id="admActual" autocomplete="current-password" /></label>
+        <label class="field"><span>Contraseña nueva (mínimo 8)</span><input type="password" id="admNueva" autocomplete="new-password" /></label>
+      </div>
+      <div class="quiz-enviar"><span class="quiz-msg" id="admMsg2"></span>
+        <button class="btn btn-primary" data-adm-clave>Cambiar contraseña</button></div>
+    </section>` : `
+    <p class="quiz-desc adm-aviso">Entraste con la llave de emergencia. Para cambiar contraseñas, entra con tu cuenta.</p>`}`;
+}
+
+$('#posts').addEventListener('click', async e => {
+  if (view.type !== 'admins') return;
+  const t = sel => e.target.closest(sel);
+  if (t('[data-adm-generar]')){
+    const abc = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    $('#admClave').value = 'PC-' + [...crypto.getRandomValues(new Uint32Array(10))].map(n => abc[n % abc.length]).join('');
+    return;
+  }
+  if (t('[data-adm-agregar]')){
+    const email = $('#admEmail').value.trim(), nombre = $('#admNombre').value.trim(), clave = $('#admClave').value.trim();
+    const msg = $('#admMsg');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return void (msg.textContent = 'Escribe un correo válido.');
+    if (clave.length < 8) return void (msg.textContent = 'La contraseña temporal debe tener al menos 8 caracteres (o toca Generar).');
+    try {
+      await store.adminAgregar(email, nombre, clave);
+      try { await navigator.clipboard.writeText(`Acceso de admin a la Academia\n${location.origin}/admin\nCorreo: ${email}\nContraseña temporal: ${clave}\n\nApenas entres, cámbiala en Administradoras.`); } catch {}
+      toast('Acceso creado. Copié los datos para que se los compartas por un canal privado.');
+      await cargarAdmins(); render();
+    } catch (err){ msg.textContent = errorMsg(err); }
+    return;
+  }
+  const sw = t('[data-adm-activo]');
+  if (sw){
+    const a = ADMINS.find(x => x.email === sw.dataset.admActivo); if (!a) return;
+    if (a.activo && !(await confirmar({ titulo:`¿Quitarle el acceso a ${a.nombre || a.email}?`,
+        texto:'Sale de /admin de inmediato. Puedes volver a activarla cuando quieras.', boton:'Quitar acceso' }))) return;
+    try { await store.adminActivar(a.email, !a.activo); await cargarAdmins(); render();
+          toast(a.activo ? 'Acceso desactivado' : 'Acceso activado de nuevo'); }
+    catch (err){ toast(errorMsg(err)); }
+    return;
+  }
+  if (t('[data-adm-clave]')){
+    const msg = $('#admMsg2');
+    const actual = $('#admActual').value, nueva = $('#admNueva').value;
+    if (nueva.length < 8) return void (msg.textContent = 'La contraseña nueva debe tener al menos 8 caracteres.');
+    try {
+      const r = await store.adminCambiarClave(actual, nueva);
+      if (r?.error) return void (msg.textContent = r.error);
+      $('#admActual').value = $('#admNueva').value = '';
+      msg.textContent = '';
+      toast('Contraseña cambiada. Las otras sesiones abiertas con la anterior se cerraron.');
+    } catch (err){ msg.textContent = errorMsg(err); }
+  }
+});

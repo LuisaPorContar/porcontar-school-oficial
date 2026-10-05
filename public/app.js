@@ -48,6 +48,7 @@ const ME = { name:'PorContar', initials:'PC' };
    · responsable: un estudiante que además ve el panel de su equipo.      */
 const ADMIN_KEY = window.ACADEMIA ? ACADEMIA.adminKey() : '';
 let IS_ADMIN = false;   // se confirma contra la base en el arranque
+let ADMIN_PERFIL = null; // admin: { email, nombre } de su cuenta
 let PERFIL = null;      // estudiante: { email, nombre, grupos:[{id, nombre, tipo, rol, vence_el}] }
 let GRUPOS = [];        // admin: todas las empresas y cohortes
 let gruposFalla = '';   // por qué no cargaron (p. ej. falta correr supabase-empresas.sql)
@@ -286,6 +287,14 @@ function cloudStore(){
 
     /* ---------- Fase 1: ficha, reto, cronograma y grabaciones (supabase-fase1.sql) ---------- */
     fichaGrupo: (id, ficha)    => rpc('admin_ficha_grupo', { p_id:id, p_ficha:ficha }),
+
+    /* ---------- Cuentas de admin (supabase-admins.sql) ---------- */
+    adminPerfil:  ()           => rpc('admin_perfil'),
+    salirAdmin:   ()           => rpc('salir_admin'),
+    adminsLista:  async ()     => (await rpc('admins_lista')) || [],
+    adminAgregar: (email, nombre, clave) => rpc('admin_agregar', { p_email:email, p_nombre:nombre, p_clave:clave }),
+    adminActivar: (email, activo)        => rpc('admin_activar', { p_email:email, p_activo:activo }),
+    adminCambiarClave: (actual, nueva)   => rpc('admin_cambiar_clave', { p_actual:actual, p_nueva:nueva }),
     async subirLogo(grupoId, file){
       const ext = (file.name.match(/\.(\w+)$/) || [, 'png'])[1].toLowerCase();
       const path = `logos/${grupoId}-${Date.now().toString(36)}.${ext}`;
@@ -479,6 +488,8 @@ function localStore(){
     async marcarVisto(){},
     panel:soloNube, grupos:soloNube, guardarGrupo:soloNube, borrarGrupo:soloNube,
     miembros:soloNube, agregarMiembros:soloNube, actualizarMiembro:soloNube, quitarMiembro:soloNube,
+    adminPerfil:async () => null, salirAdmin:async () => {}, adminsLista:soloNube, adminAgregar:soloNube,
+    adminActivar:soloNube, adminCambiarClave:soloNube,
     fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
     guardarCronograma:soloNube, guardarGrabacion:soloNube, borrarGrabacion:soloNube,
     async sesiones(){ return SESIONES_BASE.slice(); },
@@ -728,7 +739,7 @@ function errorMsg(err){
     return 'Tu sesión terminó.';
   }
   if (/Solo el responsable/i.test(m)) return 'Solo el responsable de ese grupo puede ver su avance.';
-  if (/sin permiso/i.test(m)) { ACADEMIA.olvidarAdmin(); return 'La base no reconoce la clave de admin: recarga /admin y escríbela de nuevo.'; }
+  if (/sin permiso/i.test(m)) { ACADEMIA.olvidarAdmin(); setTimeout(() => location.reload(), 1500); return 'Tu sesión de admin terminó: vuelve a entrar.'; }
   if (/admin_|mi_perfil|panel_grupo|marcar_visto|mis_vistos|entrar/i.test(m) && /could not find|schema cache|does not exist/i.test(m))
     return 'Falta correr supabase-empresas.sql en Supabase.';
   // Lo que crea supabase-extras.sql (quizzes y la columna "orden"): si falta, se dice claro
@@ -915,6 +926,7 @@ function setView(type, id){
     grupoAbierto = id || null; miembros = []; miembrosFalla = '';
     (grupoAbierto ? cargarMiembros() : cargarGrupos()).then(render);
   }
+  if (type === 'admins') cargarAdmins().then(render);
   if (type === 'panel'){
     if (id) panelGrupo = id;
     cargarPanel().then(render);
@@ -1056,6 +1068,9 @@ function renderVista(){
     $('#viewSubtitle').textContent = IS_ADMIN && !g
       ? 'El programa de cada empresa: fechas, encuentros y enlaces'
       : 'Tu programa: el próximo encuentro y el cronograma completo';
+  } else if (view.type === 'admins'){
+    $('#viewTitle').textContent = 'Administradoras';
+    $('#viewSubtitle').textContent = 'Quién entra a /admin con su correo y su contraseña';
   } else if (view.type === 'reto'){
     $('#viewTitle').textContent = 'Sesiones del reto';
     $('#viewSubtitle').textContent = 'Agrega, edita, ordena o elimina las sesiones: el cambio se ve en todas las empresas';
@@ -1150,7 +1165,7 @@ function renderVista(){
   const enResumen = view.type === 'resumen';
   const enConfig  = view.type === 'config';
   const enTareas  = view.type === 'tareas';
-  const enGestion = view.type === 'grupos' || view.type === 'panel' || view.type === 'reto';
+  const enGestion = ['grupos', 'panel', 'reto', 'admins'].includes(view.type);
   const enInicio  = view.type === 'inicio';
   // Las clases del body van todas aquí: cada vista sale antes con su return
   document.body.classList.toggle('vista-skills', enSkills);
@@ -1164,7 +1179,8 @@ function renderVista(){
   $('#navAreas').hidden = !enSkills;
 
   if (enGestion){
-    $('#posts').innerHTML = view.type === 'grupos' ? gruposHtml() : view.type === 'reto' ? retoHtml() : panelHtml();
+    $('#posts').innerHTML = view.type === 'grupos' ? gruposHtml() : view.type === 'reto' ? retoHtml()
+                          : view.type === 'admins' ? adminsHtml() : panelHtml();
     return;
   }
   if (enInicio){
@@ -2374,9 +2390,9 @@ function applyMode(){
 
   // Menú de cuenta (arriba a la derecha): quién eres, accesos de gestión y cerrar sesión
   if (!IS_ADMIN && !PERFIL) return;
-  const nombre = IS_ADMIN ? 'PorContar' : (PERFIL.nombre || PERFIL.email);
-  const sub    = IS_ADMIN ? 'Admin · modo edición' : PERFIL.grupos.map(g => g.nombre).join(' · ');
-  const av     = IS_ADMIN ? 'PC' : iniciales(nombre.split('@')[0]);
+  const nombre = IS_ADMIN ? (ADMIN_PERFIL?.nombre || ADMIN_PERFIL?.email || 'PorContar') : (PERFIL.nombre || PERFIL.email);
+  const sub    = IS_ADMIN ? 'Admin' + (ADMIN_PERFIL?.email ? ' · ' + ADMIN_PERFIL.email : ' · modo edición') : PERFIL.grupos.map(g => g.nombre).join(' · ');
+  const av     = IS_ADMIN ? (ADMIN_PERFIL?.nombre ? iniciales(ADMIN_PERFIL.nombre) : 'PC') : iniciales(nombre.split('@')[0]);
   const opcion = (vista, icono, titulo, detalle) => `
     <button role="menuitem" data-cfg-ir="${vista}"><svg class="ico"><use href="#${icono}"/></svg>
       <span><b>${titulo}</b><em>${detalle}</em></span></button>`;
@@ -2384,10 +2400,11 @@ function applyMode(){
     ? opcion('grupos', 'i-users', 'Empresas y cohortes', 'Crear grupos, contraseñas y correos')
       + opcion('reto', 'i-cal', 'Sesiones del reto', 'Agregar, editar u ordenar las sesiones')
       + opcion('panel', 'i-chart', 'Panel de avance', 'Videos, tareas y quizzes de cada persona')
+      + opcion('admins', 'i-lock', 'Administradoras', 'Quién entra a /admin · cambiar mi contraseña')
     : gruposResponsable().length
       ? opcion('panel', 'i-chart', 'Panel de mi equipo', 'El avance de cada persona de tu equipo') : '';
 
-  // Insignia fija: con la clave en la URL se está en modo admin; sin ella, se ve como estudiante
+  // Insignia fija: en /admin se está en modo admin; sin /admin, se ve como estudiante
   if (IS_ADMIN){
     const modo = document.createElement('span');
     modo.className = 'modo-admin';
@@ -2414,7 +2431,7 @@ function applyMode(){
       ${opciones ? `<div class="cuenta-ops">${opciones}</div>` : ''}
       <button role="menuitem" class="cuenta-salir" data-salir>
         <svg class="ico"><use href="#i-logout"/></svg>
-        <span><b>${IS_ADMIN ? 'Salir del modo admin' : 'Cerrar sesión'}</b></span>
+        <span><b>${IS_ADMIN ? 'Cerrar sesión de admin' : 'Cerrar sesión'}</b></span>
       </button>
     </div>`;
   $('.topbar-right').append(cuenta);
@@ -2424,8 +2441,10 @@ function applyMode(){
 document.addEventListener('click', async e => {
   if (!e.target.closest('[data-salir]')) return;
   if (IS_ADMIN){
-    // El modo admin vive en la URL: salir es abrir la misma dirección sin la clave
-    location.href = location.origin + '/';
+    // Cierra la sesión de admin en la base y vuelve a la entrada de /admin
+    try { await store.salirAdmin(); } catch (err){ console.warn(err); }
+    ACADEMIA.olvidarAdmin();
+    location.href = location.origin + '/admin';
     return;
   }
   try { await store.salir(); } catch (err){ console.warn(err); }
@@ -3501,37 +3520,71 @@ function mostrarLogin(msg = ''){
   setTimeout(() => $('#loginEmail').focus(), 40);
 }
 
-/** Pantalla de la clave de admin (en /admin, la primera vez en cada equipo). Usa la misma tarjeta. */
+/** Entrada de admin (en /admin): correo y contraseña. «Primera vez u olvidé mi contraseña»
+    usa la llave de emergencia para crear la cuenta o poner una contraseña nueva. */
 let modoClaveAdmin = false;
+let modoLlave = false;
 function mostrarClaveAdmin(msg = ''){
   modoClaveAdmin = true;
-  $('#loginForm h1').innerHTML = 'Modo <span class="u-mark">admin</span>';
-  $('.login-sub').textContent = 'Escribe tu clave de admin. Se recuerda en este equipo: la próxima vez entras directo por /admin.';
-  $('#loginEmail').closest('.field').hidden = true;
-  $('#loginClave').closest('.field').querySelector('span').textContent = 'Clave de admin';
-  $('#loginClave').autocomplete = 'off';
-  $('.login-ayuda').innerHTML = '¿Querías entrar como estudiante? <a href="/">Ir a la academia</a>';
+  pintarEntradaAdmin();
   mostrarLogin(msg);
-  setTimeout(() => $('#loginClave').focus(), 60);
 }
+function pintarEntradaAdmin(){
+  $('#loginForm h1').innerHTML = modoLlave ? 'Crear o recuperar <span class="u-mark">acceso</span>' : 'Modo <span class="u-mark">admin</span>';
+  $('.login-sub').textContent = modoLlave
+    ? 'Con la llave de emergencia creas tu cuenta de admin o le pones una contraseña nueva.'
+    : 'Entra con tu correo y tu contraseña de admin.';
+  $('#loginClave').closest('.field').querySelector('span').textContent = modoLlave ? 'Contraseña nueva (mínimo 8)' : 'Contraseña';
+  $('#loginClave').autocomplete = modoLlave ? 'new-password' : 'current-password';
+  let extra = $('#loginExtra');
+  if (!extra){
+    extra = document.createElement('div');
+    extra.id = 'loginExtra';
+    extra.innerHTML = `
+      <label class="field"><span>Tu nombre</span><input type="text" id="loginNombre" maxlength="80" autocomplete="name" /></label>
+      <label class="field"><span>Llave de emergencia</span><input type="password" id="loginLlave" autocomplete="off" /></label>`;
+    $('#loginEmail').closest('.field').after(extra);
+  }
+  extra.hidden = !modoLlave;
+  $('#loginBtn').textContent = modoLlave ? 'Guardar y entrar' : 'Entrar';
+  $('.login-ayuda').innerHTML = modoLlave
+    ? '<a href="#" data-modo-llave="0">Ya tengo contraseña: entrar</a>'
+    : '<a href="#" data-modo-llave="1">¿Primera vez o se te olvidó la contraseña?</a> · <a href="/">Ir como estudiante</a>';
+  $('#loginMsg').textContent = '';
+  setTimeout(() => $('#loginEmail').focus(), 60);
+}
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-modo-llave]'); if (!a) return;
+  e.preventDefault();
+  modoLlave = a.dataset.modoLlave === '1';
+  pintarEntradaAdmin();
+});
 
 $('#loginForm').addEventListener('submit', async e => {
   e.preventDefault();
   if (modoClaveAdmin){
-    const clave = $('#loginClave').value.trim();
-    const msg = $('#loginMsg'), btn = $('#loginBtn');
-    if (!clave) return void (msg.textContent = 'Escribe la clave de admin.');
+    const email = $('#loginEmail').value.trim(), clave = $('#loginClave').value;
+    const msg = $('#loginMsg'), btn = $('#loginBtn'), texto = btn.textContent;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return void (msg.textContent = 'Escribe tu correo completo.');
+    if (!clave) return void (msg.textContent = 'Escribe la contraseña.');
+    if (modoLlave && clave.length < 8) return void (msg.textContent = 'La contraseña nueva debe tener al menos 8 caracteres.');
+    if (modoLlave && !$('#loginLlave').value.trim()) return void (msg.textContent = 'Escribe la llave de emergencia.');
     btn.disabled = true; btn.textContent = 'Revisando…'; msg.textContent = '';
     try {
-      // La base dice si la clave es la buena; solo entonces se guarda en este equipo
-      const { data, error } = await ACADEMIA.cliente({ 'x-admin-key':clave }).rpc('is_admin');
+      const { data, error } = modoLlave
+        ? await ACADEMIA.cliente().rpc('crear_admin', { p_llave:$('#loginLlave').value.trim(), p_email:email,
+                                                         p_nombre:$('#loginNombre').value.trim(), p_clave:clave })
+        : await ACADEMIA.cliente().rpc('entrar_admin', { p_email:email, p_clave:clave });
       if (error) throw error;
-      if (data !== true) throw new Error('Esa clave no es válida. Revisa que esté completa y sin espacios.');
-      ACADEMIA.guardarAdmin(clave);
+      if (data?.primera_vez){ modoLlave = true; pintarEntradaAdmin(); throw new Error('Tu cuenta aún no tiene contraseña: créala con la llave de emergencia.'); }
+      if (!data?.token) throw new Error(data?.error || 'No se pudo entrar. Inténtalo de nuevo.');
+      ACADEMIA.guardarAdmin(data.token);
       location.reload();
     } catch (err){
-      msg.textContent = /Failed to fetch|NetworkError/i.test(err?.message || '') ? 'Sin conexión. Revisa tu internet.' : (err?.message || String(err));
-      btn.disabled = false; btn.textContent = 'Entrar';
+      msg.textContent = /Failed to fetch|NetworkError/i.test(err?.message || '') ? 'Sin conexión. Revisa tu internet.'
+        : /could not find|schema cache/i.test(err?.message || '') ? 'Falta correr supabase-admins.sql en Supabase.'
+        : (err?.message || String(err));
+      btn.disabled = false; btn.textContent = texto;
     }
     return;
   }
@@ -3563,7 +3616,7 @@ $('#loginForm').addEventListener('submit', async e => {
   buildNav();
 
   // Con la base en la nube nadie entra sin identificarse: o es admin o tiene sesión
-  // /admin sin clave guardada en este equipo: se pide la clave de admin
+  // /admin sin sesión de admin: se pide correo y contraseña
   if (CLOUD && ACADEMIA.rutaAdmin() && !ADMIN_KEY) return mostrarClaveAdmin();
   if (CLOUD && !ADMIN_KEY && !ACADEMIA.token()) return mostrarLogin();
   store = CLOUD ? cloudStore() : localStore();
@@ -3574,9 +3627,9 @@ $('#loginForm').addEventListener('submit', async e => {
     if (ADMIN_KEY){
       IS_ADMIN = await store.checkAdmin();
       if (!IS_ADMIN){
-        // La clave guardada ya no sirve (se cambió o estaba mal escrita): se vuelve a pedir
+        // La sesión de admin venció o la cuenta se desactivó: se vuelve a pedir
         ACADEMIA.olvidarAdmin();
-        return mostrarClaveAdmin('Esa clave no es válida. Escríbela de nuevo.');
+        return mostrarClaveAdmin('Tu sesión de admin terminó. Vuelve a entrar.');
       }
     }
 
@@ -3591,7 +3644,10 @@ $('#loginForm').addEventListener('submit', async e => {
       vistos = new Set(await store.misVistos().catch(err => { console.warn(err); return []; }));
     }
 
-    if (IS_ADMIN && CLOUD) await cargarGrupos();
+    if (IS_ADMIN && CLOUD){
+      ADMIN_PERFIL = await store.adminPerfil().catch(() => null);
+      await cargarGrupos();
+    }
     applyMode();
 
     // Fase 1: el reto, el cronograma y las grabaciones. Si falta supabase-fase1.sql,

@@ -4,6 +4,7 @@ LEEME.md
 # Este sí: no lleva la clave (la valida is_admin() en la base)
 !supabase-empresas.sql
 !supabase-fase1.sql
+!supabase-admins.sql
 
 # Ruido del sistema
 .DS_Store
