@@ -1590,3 +1590,33 @@ body.vista-clase .espacio-aviso{order:-1}
 /* La etiqueta de la sesión no se monta sobre "Apagada" */
 #navSessions .nav-label em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #navSessions .nav-apagada{margin-left:4px}
+
+/* ============ MENÚ DE ATAJOS (debajo de la barra superior) ============ */
+.cabecera{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.72);backdrop-filter:blur(10px);border-bottom:1px solid rgba(17,22,42,.06)}
+.cabecera .topbar{position:static;background:none;border-bottom:1px solid rgba(17,22,42,.05);backdrop-filter:none}
+.subnav{display:flex;align-items:center;gap:6px;padding:6px 26px;overflow-x:auto;scrollbar-width:none}
+.subnav::-webkit-scrollbar{display:none}
+.subnav button,.subnav a,.subnav-off{
+  display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:0;border-radius:10px;background:none;
+  font-size:14px;font-weight:500;color:var(--ink-soft);text-decoration:none;white-space:nowrap;flex:none;
+}
+.subnav .ico{width:17px;height:17px}
+.subnav button:hover,.subnav a:hover{background:rgba(43,79,232,.07);color:var(--pc-blue)}
+.subnav button.is-on{color:var(--pc-blue);background:rgba(43,79,232,.09);font-weight:600}
+.subnav .ico-ext{width:12px;height:12px;opacity:.6}
+.subnav-off{cursor:default}
+body.vista-clase .rail{top:140px}
+@media (max-width:820px){ .subnav{padding:4px 10px} .subnav button,.subnav a,.subnav-off{font-size:13px;padding:7px 9px} }
+
+/* ============ TIPOGRAFÍA DEL MENÚ (como la referencia) ============ */
+.nav-title{margin:24px 12px 10px;font-size:11px;letter-spacing:.16em;opacity:.75}
+.nav-item{padding:11px 14px;gap:14px;border-radius:14px}
+.nav-item>.ico{width:21px;height:21px}
+.nav-label{font-family:var(--font-body);font-size:15px;font-weight:400;color:var(--on-night)}
+#navSessions .nav-item{padding:12px 14px;gap:14px}
+#navSessions .nav-label em{font-family:var(--font-display);font-size:10.5px;font-weight:700;letter-spacing:.14em;line-height:1.7}
+#navSessions .nav-label b{font-family:var(--font-body);font-size:15px;font-weight:400;line-height:1.35;margin-top:1px}
+#navSessions .nav-item.is-active .nav-label em{color:rgba(255,255,255,.88)}
+#navSessions .nav-item.is-active .nav-label b{font-weight:600}
+#navSessions .count{font-size:12.5px}
+.nav-item.is-active .nav-label{font-weight:600;color:#fff}

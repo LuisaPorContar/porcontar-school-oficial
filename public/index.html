@@ -61,6 +61,9 @@
     <symbol id="i-wa" viewBox="0 0 24 24"><path d="M4 20l1.2-3.9A8 8 0 1 1 8 19z"/><path d="M9.2 8.6c.2-.5.6-.5.9-.5h.5c.2 0 .4.1.5.4l.7 1.6c.1.2 0 .5-.1.6l-.5.6c.6 1.1 1.5 2 2.6 2.6l.6-.5c.2-.2.4-.2.6-.1l1.6.7c.3.1.4.3.4.5v.5c0 .3-.1.7-.5.9-.6.3-1.6.5-3-.1a8.5 8.5 0 0 1-4.2-4.2c-.6-1.4-.4-2.4-.1-3z"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
     <symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-libro" viewBox="0 0 24 24"><path d="M3.5 5.5c2.8-1 5.6-1 8.5.8 2.9-1.8 5.7-1.8 8.5-.8v13c-2.8-1-5.6-1-8.5.8-2.9-1.8-5.7-1.8-8.5-.8z"/><path d="M12 6.3v13"/></symbol>
+    <symbol id="i-envivo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5 11 13M18 14v4.5a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1H10"/></symbol>
     <symbol id="i-flecha" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
     <symbol id="i-chev" viewBox="0 0 24 24"><path d="m8 10 4-4 4 4M8 14l4 4 4-4"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
@@ -208,6 +211,7 @@
 
   <!-- ============ CONTENIDO ============ -->
   <main class="main">
+    <div class="cabecera">
     <header class="topbar">
       <div class="topbar-left">
         <button class="icon-btn only-mobile" id="btnMenu" aria-label="Abrir el menú">
@@ -230,6 +234,14 @@
         </button>
       </div>
     </header>
+      <!-- Menú secundario: atajos a lo que más se usa -->
+      <nav class="subnav" id="subnav" aria-label="Atajos">
+        <button data-sub="tuto"><svg class="ico"><use href="#i-libro"/></svg>Cursos</button>
+        <button data-sub="inicio"><svg class="ico"><use href="#i-envivo"/></svg>Clases en vivo</button>
+        <span class="subnav-off"><svg class="ico"><use href="#i-users"/></svg>Comunidad</span>
+        <a href="https://porcontar.substack.com/" target="_blank" rel="noopener"><svg class="ico"><use href="#i-feed"/></svg>Newsletter<svg class="ico ico-ext"><use href="#i-ext"/></svg></a>
+      </nav>
+    </div>
 
     <div class="content">
       <section class="stream">

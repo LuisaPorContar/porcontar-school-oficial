@@ -1062,6 +1062,9 @@ function renderVista(){
     $('#viewSubtitle').textContent = 'Publicaciones que marcaste para revisar';
   }
 
+  // Menú de atajos: marca el que corresponde a la vista abierta
+  $$('#subnav [data-sub]').forEach(b => b.classList.toggle('is-on', b.dataset.sub === view.type));
+
   // Mientras se busca en todas las clases, ninguna queda marcada en el menú
   $$('.nav-item').forEach(b => b.classList.toggle('is-active',
     b.dataset.view === view.type && (b.dataset.id || null) === view.id &&
@@ -2304,6 +2307,11 @@ document.addEventListener('keydown', e => {
   if (!$('#skEdOverlay').hidden) return closeSkillEditor();
   if (!$('#skOverlay').hidden)   return closeSkill();
   if (!$('#overlay').hidden)     return closeComposer();
+});
+// Menú de atajos: Cursos → tutoriales, Clases en vivo → cronograma
+$('#subnav').addEventListener('click', e => {
+  const b = e.target.closest('[data-sub]');
+  if (b) setView(b.dataset.sub);
 });
 $('#btnMenu').addEventListener('click', () => $('#sidebar').classList.toggle('is-open'));
 
