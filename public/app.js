@@ -1946,7 +1946,7 @@ function openMenu(btn){
       render(); return;
     }
     if (act === 'del'){
-      if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) return;
+      if (!(await confirmar({ titulo:'¿Eliminar esta publicación?', texto:'Se borra con su archivo adjunto. No se puede deshacer.', boton:'Eliminar' }))) return;
       try {
         await store.remove(p);
         posts = posts.filter(x => x.id !== p.id);
@@ -2139,7 +2139,7 @@ $('#skEdit').addEventListener('click', () => {
 
 $('#skDelete').addEventListener('click', async () => {
   const s = skills.find(x => x.id === openSkillId); if (!s) return;
-  if (!confirm(`¿Eliminar la skill «${s.title}»? No se puede deshacer.`)) return;
+  if (!(await confirmar({ titulo:`¿Eliminar «${s.title}»?`, texto:'El prompt sale del catálogo de todas las empresas. No se puede deshacer.', boton:'Eliminar' }))) return;
   try {
     await store.removeSkill(s);
     skills = skills.filter(x => x.id !== s.id);
@@ -2385,6 +2385,30 @@ document.addEventListener('click', e => {
 
 
 /* ================================================================
+   Confirmar: ventana propia para lo que no se deshace (los avisos del
+   navegador se ven poco y Chrome deja bloquearlos)
+   ================================================================ */
+function confirmar({ titulo, texto, boton = 'Eliminar' }){
+  return new Promise(resolve => {
+    const ov = $('#cfOverlay');
+    $('#cfTitulo').textContent = titulo;
+    $('#cfTexto').textContent = texto;
+    $('#cfSi').textContent = boton;
+    ov.hidden = false;
+    setTimeout(() => $('#cfNo').focus(), 40);
+    const cerrar = valor => {
+      ov.hidden = true;
+      $('#cfSi').onclick = $('#cfNo').onclick = ov.onclick = document.onkeydown = null;
+      resolve(valor);
+    };
+    $('#cfSi').onclick = () => cerrar(true);
+    $('#cfNo').onclick = () => cerrar(false);
+    ov.onclick = e => { if (e.target === ov) cerrar(false); };
+    document.onkeydown = e => { if (e.key === 'Escape') cerrar(false); };
+  });
+}
+
+/* ================================================================
    Quizzes: interacciones
    ================================================================ */
 /** Trae los quizzes (y la estadística, si eres admin). Si falla, guarda por qué. */
@@ -2451,7 +2475,7 @@ $('#posts').addEventListener('click', async e => {
   const borrarPersona = e.target.closest('[data-quiz-borrar-persona]');
   if (borrarPersona){
     const quien = borrarPersona.getAttribute('aria-label').replace('Quitar a ', '');
-    if (!confirm(`¿Quitar las respuestas de ${quien} en este quiz? No se puede deshacer.`)) return;
+    if (!(await confirmar({ titulo:`¿Quitar las respuestas de ${quien}?`, texto:'Solo en este quiz. No se puede deshacer.', boton:'Quitar' }))) return;
     try {
       await store.borrarPersonaQuiz(quizAbierto, borrarPersona.dataset.quizBorrarPersona);
       estadisticas = await store.quizStats();
@@ -2462,7 +2486,7 @@ $('#posts').addEventListener('click', async e => {
   }
 
   if (e.target.closest('[data-quiz-vaciar]')){
-    if (!confirm('¿Borrar todas las respuestas de este quiz? Las preguntas quedan como están.')) return;
+    if (!(await confirmar({ titulo:'¿Borrar todas las respuestas?', texto:'Las preguntas del quiz quedan como están; solo se borran los intentos.', boton:'Borrar respuestas' }))) return;
     try {
       await store.borrarIntentosQuiz(quizAbierto);
       estadisticas = await store.quizStats();
@@ -2825,6 +2849,8 @@ function gruposHtml(){
         <button class="btn btn-primary" data-gr-abrir="${g.id}">Personas</button>
         <button class="btn" data-gr-editar="${g.id}">Editar</button>
         <button class="btn" data-gr-panel="${g.id}">Panel</button>
+        <button class="icon-btn gr-borrar" data-gr-borrar="${g.id}" title="Eliminar ${escapeHtml(g.nombre)}" aria-label="Eliminar ${escapeHtml(g.nombre)}">
+          <svg class="ico"><use href="#i-trash"/></svg></button>
       </div>
     </article>`;
   }).join('')}</div>`;
@@ -3125,7 +3151,7 @@ $('#posts').addEventListener('click', async e => {
   const quitar = t('[data-m-quitar]');
   if (quitar){
     const m = miembros.find(x => String(x.id) === quitar.dataset.mQuitar); if (!m) return;
-    if (!confirm(`¿Quitar a ${m.email} de este grupo? Deja de entrar de inmediato. Su avance no se borra.`)) return;
+    if (!(await confirmar({ titulo:`¿Quitar a ${m.email}?`, texto:'Deja de entrar de inmediato. Su avance no se borra: si lo vuelves a agregar, lo recupera.', boton:'Quitar' }))) return;
     try {
       await store.quitarMiembro(m.id);
       miembros = miembros.filter(x => x !== m);
@@ -3139,8 +3165,12 @@ $('#posts').addEventListener('click', async e => {
   const borrar = t('[data-gr-borrar]');
   if (borrar){
     const g = grupoPorId(borrar.dataset.grBorrar); if (!g) return;
-    const escrito = prompt(`Para eliminar «${g.nombre}» y quitarle el acceso a sus ${g.miembros} personas, escribe ELIMINAR`);
-    if ((escrito || '').trim().toUpperCase() !== 'ELIMINAR') return;
+    const ok = await confirmar({
+      titulo:`¿Eliminar «${g.nombre}»?`,
+      texto:`${g.miembros} ${g.miembros === 1 ? 'persona pierde' : 'personas pierden'} el acceso de inmediato, y se borran su cronograma y sus grabaciones. Lo publicado para todos no se toca. No se puede deshacer.`,
+      boton:'Eliminar empresa',
+    });
+    if (!ok) return;
     try {
       await store.borrarGrupo(g.id);
       // La base ya lo quitó de las audiencias: aquí se refleja sin recargar

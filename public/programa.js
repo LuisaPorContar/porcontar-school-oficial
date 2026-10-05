@@ -400,7 +400,7 @@ async function borrarSesion(id){
   const nGrabs = GRABS.filter(g => g.sesion_id === id).length;
   const nCrono = CRONO.filter(r => r.sesion_id === id).length;
   const extra = nGrabs || nCrono ? `\n\nTambién se borran sus ${nGrabs} grabaciones y su fecha en ${nCrono} cronogramas.` : '';
-  if (!confirm(`¿Eliminar «${s.title}» del reto? Deja de verse en todas las empresas.${extra}`)) return;
+  if (!(await confirmar({ titulo:`¿Eliminar «${s.title}»?`, texto:`Deja de verse en todas las empresas.${extra} Si solo quieres ocultarla un tiempo, mejor apágala.`, boton:'Eliminar sesión' }))) return;
   try {
     await store.borrarSesion(id);
     SESSIONS = SESSIONS.filter(x => x.id !== id);
@@ -672,7 +672,7 @@ $('#grabacion').addEventListener('click', async e => {
   const borrar = e.target.closest('[data-grab-borrar]');
   if (borrar){
     const g = GRABS.find(x => x.id === borrar.dataset.grabBorrar); if (!g) return;
-    if (!confirm(`¿Quitar «${g.titulo || 'esta grabación'}»? También se borra el avance que llevaban en ella.`)) return;
+    if (!(await confirmar({ titulo:`¿Quitar «${g.titulo || 'esta grabación'}»?`, texto:'También se borra el avance que llevaban las personas en ella.', boton:'Quitar grabación' }))) return;
     try {
       await store.borrarGrabacion(g.id);
       GRABS = GRABS.filter(x => x.id !== g.id);

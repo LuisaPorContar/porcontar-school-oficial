@@ -1529,3 +1529,15 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;height:3px;backgroun
 #navSessions .nav-row.is-apagada .nav-item:not(.is-active)>.ico{opacity:.4}
 .nav-apagada{flex:none;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--on-night-soft);
   font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+
+/* ============ CONFIRMAR ============ */
+.modal-cf{width:min(440px,100%)}
+.cf-cuerpo{align-items:center;text-align:center;gap:10px;padding:28px 26px 20px}
+.cf-ico{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:#fdeeeb;color:#c0392b}
+.cf-ico .ico{width:24px;height:24px}
+.cf-cuerpo h2{font-size:19px;font-weight:600}
+.cf-cuerpo p{margin:0;font-size:14px;color:var(--ink-soft);line-height:1.55}
+.btn-peligro{background:#c0392b;border-color:#c0392b;color:#fff}
+.btn-peligro:hover{background:#a5301f;border-color:#a5301f}
+.gr-borrar{margin-left:auto;color:var(--ink-mute)}
+.gr-borrar:hover{color:#c0392b;background:#fdeeeb}

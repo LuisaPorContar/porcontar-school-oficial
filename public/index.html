@@ -568,6 +568,23 @@
   </div>
 </div>
 
+<!-- ============ CONFIRMAR (acciones que no se deshacen) ============ -->
+<div class="overlay" id="cfOverlay" hidden>
+  <div class="modal modal-cf" role="alertdialog" aria-modal="true" aria-labelledby="cfTitulo" aria-describedby="cfTexto">
+    <div class="modal-body cf-cuerpo">
+      <span class="cf-ico"><svg class="ico"><use href="#i-trash"/></svg></span>
+      <h2 id="cfTitulo"></h2>
+      <p id="cfTexto"></p>
+    </div>
+    <footer class="modal-foot">
+      <div>
+        <button class="btn" id="cfNo">Cancelar</button>
+        <button class="btn btn-peligro" id="cfSi">Eliminar</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
 <!-- ============ ENTRAR ============ -->
 <div class="login" id="login" hidden>
   <svg class="dona login-dona" viewBox="0 0 200 200" aria-hidden="true">
