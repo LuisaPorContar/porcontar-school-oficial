@@ -188,7 +188,8 @@ function inicioHtml(){
       }).join('')}</ol>
     </section>`;
 
-  return selector + hero + continua + prox + lista;
+  // Lo primero que ve el cliente es siempre el cronograma; después lo que sigue y su programa
+  return selector + lista + prox + continua + hero;
 }
 
 /** Logo de la empresa, o sus iniciales si no hay logo. */
@@ -310,7 +311,7 @@ function retoHtml(){
       const nPosts = posts.filter(p => p.session === s.id).length;
       const nGrabs = GRABS.filter(g => g.sesion_id === s.id).length;
       return `
-      <div class="reto-fila">
+      <div class="reto-fila ${s.visible === false ? 'is-apagada' : ''}">
         <span class="reto-num">${i + 1}</span>
         <span class="reto-ico"><svg class="ico"><use href="#${s.icon}"/></svg></span>
         <div class="reto-txt">
@@ -318,6 +319,10 @@ function retoHtml(){
           <b>${escapeHtml(s.name)}</b>
           <small>${nPosts} ${nPosts === 1 ? 'publicación' : 'publicaciones'} · ${nGrabs} ${nGrabs === 1 ? 'grabación' : 'grabaciones'}</small>
         </div>
+        <button class="sw ${s.visible === false ? '' : 'is-on'}" data-reto-visible="${s.id}" role="switch" aria-checked="${s.visible !== false}"
+                title="${s.visible === false ? 'Apagada: los estudiantes no la ven. Toca para encenderla' : 'Encendida: la ven todas las empresas. Toca para apagarla'}">
+          <span class="sw-pista"><span class="sw-bola"></span></span>${s.visible === false ? 'Apagada' : 'Encendida'}
+        </button>
         <span class="mover">
           <button class="icon-btn" data-reto-mover="-1" data-id="${s.id}" ${i === 0 ? 'disabled' : ''} title="Subir" aria-label="Subir ${escapeHtml(s.short)}"><svg class="ico"><use href="#i-up"/></svg></button>
           <button class="icon-btn" data-reto-mover="1" data-id="${s.id}" ${i === SESSIONS.length - 1 ? 'disabled' : ''} title="Bajar" aria-label="Bajar ${escapeHtml(s.short)}"><svg class="ico"><use href="#i-down"/></svg></button>
@@ -694,6 +699,8 @@ $('#posts').addEventListener('click', e => {
     if (ed) return abrirSesionForm(SESSIONS.find(s => s.id === ed.dataset.retoEditar));
     const mv = e.target.closest('[data-reto-mover]');
     if (mv && !mv.disabled) return moverSesion(mv.dataset.id, Number(mv.dataset.retoMover));
+    const sw = e.target.closest('[data-reto-visible]');
+    if (sw) return alternarSesion(sw.dataset.retoVisible);
     const br = e.target.closest('[data-reto-borrar]');
     if (br) return borrarSesion(br.dataset.retoBorrar);
   }
@@ -828,4 +835,36 @@ function retoRailHtml(){
         </button>
       </li>`;
   }).join('');
+}
+
+/** Las clases que todavía no llegan, sin contar la próxima: van atenuadas y con candado. */
+function sesionesBloqueadas(){
+  const gi = PERFIL ? grupoInicio() : null;
+  if (!gi) return new Set();
+  const limite = Date.now() + 2 * 36e5;
+  const futuras = [...cronoDe(gi.id).values()].filter(r => r.fecha && momentoDe(r).getTime() > limite)
+    .sort((a, b) => momentoDe(a) - momentoDe(b));
+  const proxima = [...cronoDe(gi.id).values()].filter(r => r.fecha && momentoDe(r).getTime() + 2 * 36e5 >= Date.now())
+    .sort((a, b) => momentoDe(a) - momentoDe(b))[0];
+  return new Set(futuras.filter(r => r !== proxima).map(r => r.sesion_id));
+}
+
+
+/** Enciende o apaga una sesión: apagada, los estudiantes no la reciben (lo decide la base). */
+async function alternarSesion(id){
+  const s = SESSIONS.find(x => x.id === id); if (!s) return;
+  const nueva = { ...s, visible:s.visible === false, cambioVisible:true };
+  try {
+    await store.guardarSesiones([nueva]);
+    delete nueva.cambioVisible;
+    SESSIONS = SESSIONS.map(x => x.id === id ? nueva : x);
+    pintarNav();
+    toast(nueva.visible ? `«${s.short}» encendida: ya la ven todas las empresas`
+                        : `«${s.short}» apagada: los estudiantes ya no la ven`);
+    render();
+  } catch (err){
+    console.error(err);
+    toast(/visible/i.test(err?.message || '')
+      ? 'Falta volver a correr supabase-fase1.sql en Supabase (agrega el botón de encendido)' : errorMsg(err));
+  }
 }

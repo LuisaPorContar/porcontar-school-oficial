@@ -10,32 +10,13 @@ const CFG = window.MURO_CONFIG || {};
 /* Las clases del reto. Se administran desde la app (tabla reto_sesiones);
    esta lista es solo el arranque y el respaldo del modo local. */
 const SESIONES_BASE = [
-  { id:'s0', icon:'s-0', short:'Sesión 0', name:'Kick off',
-    desc:'Arranque del reto: cómo funciona, qué vamos a construir y qué dejar listo.' },
-  { id:'s1', icon:'s-base', short:'Sesión 1', name:'Arquitectura de tu Máquina Comercial con IA',
-    desc:'Las piezas de Claude (skills, plugins, artefactos y design system) y cómo se arman en una máquina comercial.' },
-  { id:'s2', icon:'s-funnel', short:'Sesión 2', name:'Cerebro Comercial y Funnel Inteligente con IA',
-    desc:'El camino que hace el cliente desde que te descubre hasta que compra, y dónde ayuda la IA.' },
-  { id:'s3', icon:'s-design', short:'Sesión 3', name:'Sistema Creativo de Diseño Gráfico con IA',
-    desc:'Piezas gráficas hechas con Claude Design y Claude Code.' },
-  { id:'s4', icon:'s-web', short:'Sesión 4', name:'Páginas web, SEO y GEO con IA',
-    desc:'Visibilidad y conversión en la nueva búsqueda: que Google y las IA te encuentren.' },
-  { id:'s5', icon:'s-video', short:'Sesión 5', name:'Sistema de Producción Audiovisual con IA',
-    desc:'Producir videos con ayuda de la inteligencia artificial.' },
-  { id:'s6', icon:'s-viral', short:'Sesión 6', name:'Máquina de Crecimiento y Contenido en Redes Sociales',
-    desc:'Planeación, publicación y medición del contenido en redes.' },
-  { id:'s7', icon:'s-1', short:'Sesión 7', name:'Sistema de Ventas y Calificación con IA',
-    desc:'Diseñar el proceso de ventas y calificar a los prospectos.' },
-  { id:'s8', icon:'s-agent', short:'Sesión 8', name:'Fuerza Comercial de Agentes de IA',
-    desc:'Agentes que hacen tareas comerciales solos, sin que estés encima.' },
-  { id:'s9', icon:'s-crm', short:'Sesión 9', name:'Empleados Digitales para Ventas',
-    desc:'Asistentes de IA que atienden, responden y hacen seguimiento como parte del equipo.' },
-  { id:'s10', icon:'s-prospec', short:'Sesión 10', name:'Motor de Prospección y Adquisición de Leads con IA',
-    desc:'Encontrar clientes nuevos y escribirles.' },
-  { id:'s11', icon:'s-dash', short:'Sesión 11', name:'Analítica de Datos e Inteligencia Comercial con IA',
-    desc:'Lead scoring, dashboard de seguimiento, cierres y optimización del pipeline.' },
-  { id:'s12', icon:'s-ads', short:'Sesión 12', name:'Pauta Digital de Alto Rendimiento con Meta Ads e IA',
-    desc:'Anuncios pagados en Meta: cómo armarlos y cuánto invertir.' },
+  { id:'pre', icon:'s-pre',  short:'Antes de empezar', name:'Preconfiguración', desc:'', tipo:'clase' },
+  { id:'s0',  icon:'s-0',    short:'Clase 00', name:'Kickoff', desc:'', tipo:'kickoff' },
+  { id:'s1',  icon:'s-base', short:'Clase 1',  name:'Claude socio estratégico', desc:'', tipo:'clase' },
+  { id:'s2',  icon:'s-2',    short:'Clase 2',  name:'Claude y la construcción de datos', desc:'', tipo:'clase' },
+  { id:'s3',  icon:'s-3',    short:'Clase 3',  name:'Automatización de procesos', desc:'', tipo:'clase' },
+  { id:'s4',  icon:'s-4',    short:'Clase 4',  name:'Claude Code', desc:'', tipo:'clase' },
+  { id:'s5',  icon:'s-5',    short:'Clase 5',  name:'Presentación de proyectos', desc:'', tipo:'proyecto' },
 ].map(s => ({ ...s, title: `${s.short}. ${s.name}` }));
 let SESSIONS = SESIONES_BASE.slice();
 
@@ -43,6 +24,7 @@ let SESSIONS = SESIONES_BASE.slice();
 const deSesion = r => ({
   id:r.id, orden:r.orden || 0, short:r.corto, name:r.nombre, desc:r.descripcion || '',
   icon:r.icono || 's-1', tipo:r.tipo || 'clase', title:`${r.corto}. ${r.nombre}`,
+  visible:r.visible !== false,   // sin la columna (antes del SQL) todas se ven
 });
 const TIPOS_SESION = { kickoff:'Kick off', clase:'Clase', proyecto:'Proyecto', cierre:'Cierre' };
 const ICONOS_SESION = ['s-0','s-base','s-funnel','s-design','s-web','s-video','s-viral','s-1','s-agent',
@@ -315,7 +297,11 @@ function cloudStore(){
       if (!lista.length) return;
       check(await sb.from('reto_sesiones').upsert(lista.map(s => ({
         id:s.id, orden:s.orden, corto:s.short, nombre:s.name, descripcion:s.desc || '',
-        icono:s.icon, tipo:s.tipo || 'clase', updated_at:new Date().toISOString() }))));
+        icono:s.icon, tipo:s.tipo || 'clase',
+        // visible solo viaja si está apagada o se acaba de cambiar: así guardar sigue funcionando
+        // aunque la base todavía no tenga la columna
+        ...(s.visible === false || s.cambioVisible ? { visible:s.visible !== false } : {}),
+        updated_at:new Date().toISOString() }))));
     },
     async borrarSesion(id){ check(await sb.from('reto_sesiones').delete().eq('id', id)); },
     async cronograma(grupoId){
@@ -825,13 +811,14 @@ const vistaDe = id => id === FAQ_ID ? { type:'faq' } : id === TUTO_ID ? { type:'
     Se llama al arrancar y cada vez que el admin edita el reto. */
 function pintarNav(){
   $('#navSessions').innerHTML = SESSIONS.map(s => `
-    <div class="nav-row" data-row="${s.id}">
+    <div class="nav-row ${s.visible === false ? 'is-apagada' : ''}" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
-        <svg class="ico"><use href="#${s.icon}"/></svg>
+        <svg class="ico" data-icono="${s.icon}"><use href="#${s.icon}"/></svg>
         <span class="nav-label">
           <em>${escapeHtml(s.short)}</em>
           <b>${escapeHtml(s.name)}</b>
         </span>
+        ${s.visible === false ? '<span class="nav-apagada">Apagada</span>' : ''}
         <span class="count" data-count="${s.id}">0</span>
       </button>
       <button class="nav-eye" data-hide="${s.id}" aria-pressed="false"
@@ -1068,19 +1055,25 @@ function renderVista(){
     !(view.type === 'session' && query)));
 
   const visibles = vis(posts);   // en la vista previa del admin, solo lo de ese grupo
+  const bloqueadas = typeof sesionesBloqueadas === 'function' ? sesionesBloqueadas() : new Set();
   SESSIONS.forEach(s => {
     const n = visibles.filter(p => p.session === s.id).length;
     // Para el estudiante, la sesión con todas sus grabaciones vistas lleva una marca en vez del número
     const grabs = PERFIL ? GRABS.filter(g => g.sesion_id === s.id) : [];
     const hecha = grabs.length > 0 && grabs.every(g => progresoVideo[g.id]?.completado);
     const c = $(`[data-count="${s.id}"]`);
-    if (c){ c.textContent = hecha ? '✓' : n; c.classList.toggle('is-hecha', hecha); c.title = hecha ? 'Ya viste la grabación' : ''; }
+    if (c){ c.textContent = hecha ? '✓' : n || ''; c.classList.toggle('is-hecha', hecha); c.title = hecha ? 'Ya viste la grabación' : ''; }
     const r = $(`[data-railcount="${s.id}"]`);  if (r) r.textContent = n;
     const d = $(`[data-dot="${s.id}"]`);        if (d) d.classList.toggle('on', n > 0);
 
     const oculta = isHidden(s.id);
     const fila = $(`[data-row="${s.id}"]`);
     if (fila){
+      // La clase que todavía no llega (según el cronograma de su grupo) va atenuada y con candado
+      const futura = bloqueadas.has(s.id);
+      fila.classList.toggle('is-futura', futura);
+      const ico = $('[data-icono]', fila);
+      if (ico) $('use', ico).setAttribute('href', '#' + (futura ? 'i-lock' : ico.dataset.icono));
       fila.classList.toggle('is-hidden', oculta);
       const ojo = $('[data-hide]', fila);
       ojo.setAttribute('aria-pressed', oculta);
@@ -2318,7 +2311,6 @@ function applyMode(){
   if (!IS_ADMIN){
     $('#btnNew').remove();
     $('#composerTrigger').remove();
-    $('.brand-sub').textContent = 'Academia';
   }
 
   // El admin cambia de espacio desde el menú; el responsable ve ahí el panel de su equipo

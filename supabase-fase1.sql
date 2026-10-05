@@ -107,21 +107,16 @@ create table if not exists public.reto_sesiones (
   updated_at  timestamptz not null default now()
 );
 
--- Las 13 sesiones que estaban fijas en el código, con los mismos id: lo publicado no se mueve
+-- Las sesiones del reto con las que arranca la academia (después se editan desde la app).
+-- Los id s0… son los de antes: lo que ya estaba publicado en ellas no se mueve.
 insert into public.reto_sesiones (id, orden, corto, nombre, descripcion, icono, tipo) values
-  ('s0', 0, 'Sesión 0', 'Kick off', 'Arranque del reto: cómo funciona, qué vamos a construir y qué dejar listo.', 's-0', 'kickoff'),
-  ('s1', 1, 'Sesión 1', 'Arquitectura de tu Máquina Comercial con IA', 'Las piezas de Claude (skills, plugins, artefactos y design system) y cómo se arman en una máquina comercial.', 's-base', 'clase'),
-  ('s2', 2, 'Sesión 2', 'Cerebro Comercial y Funnel Inteligente con IA', 'El camino que hace el cliente desde que te descubre hasta que compra, y dónde ayuda la IA.', 's-funnel', 'clase'),
-  ('s3', 3, 'Sesión 3', 'Sistema Creativo de Diseño Gráfico con IA', 'Piezas gráficas hechas con Claude Design y Claude Code.', 's-design', 'clase'),
-  ('s4', 4, 'Sesión 4', 'Páginas web, SEO y GEO con IA', 'Visibilidad y conversión en la nueva búsqueda: que Google y las IA te encuentren.', 's-web', 'clase'),
-  ('s5', 5, 'Sesión 5', 'Sistema de Producción Audiovisual con IA', 'Producir videos con ayuda de la inteligencia artificial.', 's-video', 'clase'),
-  ('s6', 6, 'Sesión 6', 'Máquina de Crecimiento y Contenido en Redes Sociales', 'Planeación, publicación y medición del contenido en redes.', 's-viral', 'clase'),
-  ('s7', 7, 'Sesión 7', 'Sistema de Ventas y Calificación con IA', 'Diseñar el proceso de ventas y calificar a los prospectos.', 's-1', 'clase'),
-  ('s8', 8, 'Sesión 8', 'Fuerza Comercial de Agentes de IA', 'Agentes que hacen tareas comerciales solos, sin que estés encima.', 's-agent', 'clase'),
-  ('s9', 9, 'Sesión 9', 'Empleados Digitales para Ventas', 'Asistentes de IA que atienden, responden y hacen seguimiento como parte del equipo.', 's-crm', 'clase'),
-  ('s10', 10, 'Sesión 10', 'Motor de Prospección y Adquisición de Leads con IA', 'Encontrar clientes nuevos y escribirles.', 's-prospec', 'clase'),
-  ('s11', 11, 'Sesión 11', 'Analítica de Datos e Inteligencia Comercial con IA', 'Lead scoring, dashboard de seguimiento, cierres y optimización del pipeline.', 's-dash', 'clase'),
-  ('s12', 12, 'Sesión 12', 'Pauta Digital de Alto Rendimiento con Meta Ads e IA', 'Anuncios pagados en Meta: cómo armarlos y cuánto invertir.', 's-ads', 'clase')
+  ('pre', 0, 'Antes de empezar', 'Preconfiguración', '', 's-pre', 'clase'),
+  ('s0',  1, 'Clase 00', 'Kickoff', '', 's-0', 'kickoff'),
+  ('s1',  2, 'Clase 1', 'Claude socio estratégico', '', 's-base', 'clase'),
+  ('s2',  3, 'Clase 2', 'Claude y la construcción de datos', '', 's-2', 'clase'),
+  ('s3',  4, 'Clase 3', 'Automatización de procesos', '', 's-3', 'clase'),
+  ('s4',  5, 'Clase 4', 'Claude Code', '', 's-4', 'clase'),
+  ('s5',  6, 'Clase 5', 'Presentación de proyectos', '', 's-5', 'proyecto')
 on conflict (id) do nothing;
 
 alter table public.reto_sesiones enable row level security;
@@ -129,8 +124,11 @@ drop policy if exists "reto lectura"    on public.reto_sesiones;
 drop policy if exists "reto admin crea" on public.reto_sesiones;
 drop policy if exists "reto admin edita" on public.reto_sesiones;
 drop policy if exists "reto admin borra" on public.reto_sesiones;
+-- Encendida / apagada: las apagadas solo las ve el admin (para prepararlas)
+alter table public.reto_sesiones add column if not exists visible boolean not null default true;
+
 create policy "reto lectura" on public.reto_sesiones
-  for select using ((select public.is_admin()) or (select cardinality(public.mis_etiquetas())) > 0);
+  for select using ((select public.is_admin()) or (visible and (select cardinality(public.mis_etiquetas())) > 0));
 create policy "reto admin crea" on public.reto_sesiones
   for insert with check (public.is_admin());
 create policy "reto admin edita" on public.reto_sesiones

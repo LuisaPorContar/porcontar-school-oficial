@@ -1438,3 +1438,94 @@ body.vista-clase .stream{gap:22px}
   .ini-lista .ini-fila{padding:12px 14px;gap:12px}
   .ini-crono-cab{padding:14px}
 }
+
+/* ================================================================
+   MENÚ DE SESIONES — más liviano: etiqueta amarilla, nombre normal en
+   una línea, número gris sin burbuja y candado en lo que no ha llegado.
+   El resaltado de la sesión activa se mantiene.
+   ================================================================ */
+#navSessions .nav-item{padding:9px 12px;gap:12px}
+#navSessions .nav-item>.ico{color:var(--on-night-soft);opacity:.85}
+#navSessions .nav-label em{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--pc-yellow)}
+#navSessions .nav-label b{
+  font-family:var(--font-body);font-size:14.5px;font-weight:500;color:var(--on-night);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#navSessions .count{min-width:0;padding:0;background:none;color:var(--on-night-soft);font-size:12.5px;font-weight:500;opacity:.8}
+#navSessions .count.is-hecha{background:none;color:var(--pc-yellow);font-weight:800;opacity:1}
+
+/* Activa: se mantiene el resaltado azul con resplandor */
+#navSessions .nav-item.is-active>.ico{color:#fff;opacity:1}
+#navSessions .nav-item.is-active .nav-label b{color:#fff;font-weight:600}
+#navSessions .nav-item.is-active .count{background:none;color:#fff;opacity:.9}
+
+/* Lo que todavía no llega */
+#navSessions .nav-row.is-futura .nav-item:not(.is-active) .nav-label em,
+#navSessions .nav-row.is-futura .nav-item:not(.is-active) .nav-label b,
+#navSessions .nav-row.is-futura .nav-item:not(.is-active)>.ico{color:var(--on-night-soft);opacity:.5}
+
+/* El ojito aparece solo al pasar el mouse (en táctil se queda visible) */
+#navSessions .nav-eye{opacity:0;transition:opacity .14s}
+#navSessions .nav-row:hover .nav-eye,
+#navSessions .nav-row.is-hidden .nav-eye,
+#navSessions .nav-eye:focus-visible{opacity:1}
+@media (hover:none){ #navSessions .nav-eye{opacity:.6} }
+
+/* ================================================================
+   ELEGANTE — los degradados de la marca se quedan (fondo, botones,
+   menú y el próximo encuentro); lo que baja es el peso: títulos en
+   letra normal, botones sin mayúsculas, tarjetas con borde fino y una
+   línea amarilla delgada arriba como acento.
+   ================================================================ */
+body::before{content:"";position:fixed;top:0;left:0;right:0;height:3px;background:var(--pc-yellow);z-index:95}
+
+/* Barra superior: título en letra normal */
+.topbar{padding:16px 32px}
+.topbar h1{font-size:23px;font-weight:600;text-transform:none;letter-spacing:-.01em}
+.topbar p{font-size:13px;color:var(--ink-mute)}
+
+/* Botones: con su degradado, pero sin mayúsculas */
+.btn{font-weight:600;font-size:14px}
+.btn-primary{text-transform:none;letter-spacing:0;font-size:14px;box-shadow:0 8px 20px -10px rgba(43,79,232,.65)}
+.btn-entrar{text-transform:none;letter-spacing:0}
+
+/* Tarjetas: borde fino y sombra suave */
+.card{border-radius:20px;border-color:#e6eaf1;box-shadow:0 1px 2px rgba(17,22,42,.04),0 18px 40px -36px rgba(27,51,168,.35)}
+.recurso{border-color:#e6eaf1;box-shadow:0 1px 2px rgba(17,22,42,.04)}
+.quiz-card{border-color:#e6eaf1;box-shadow:0 1px 2px rgba(17,22,42,.04)}
+
+/* Títulos en peso medio, no extra gruesos */
+.post-title{font-size:22px;font-weight:600;letter-spacing:-.01em}
+.clase-cab h2{font-size:30px;font-weight:600;letter-spacing:-.015em}
+.ini-hero h2{font-size:28px;font-weight:600}
+.ini-prox-txt h3,.ini-sigue-txt h3{font-weight:600}
+.rail-card h3,.ini-tit{font-weight:600}
+
+/* Video: sombra más suave */
+.vsl{box-shadow:0 20px 50px -40px rgba(17,22,42,.6);border-radius:20px}
+
+/* Columna derecha "El reto" */
+.rail-card h3{font-size:18px;margin-bottom:14px}
+.rail-list li button.is-on{background:#eef1fe}
+.rail-list li button.is-on .rr-txt b{color:var(--pc-blue)}
+
+/* El cronograma va primero en el inicio */
+.ini-crono{margin-bottom:16px}
+
+/* ============ ENCENDER Y APAGAR SESIONES (admin) ============ */
+.sw{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border:1px solid var(--line);border-radius:var(--r-pill);
+  background:#fff;font-size:12.5px;font-weight:600;color:var(--ink-mute);flex:none;min-width:118px}
+.sw-pista{position:relative;width:34px;height:20px;border-radius:999px;background:#d5dbe8;transition:background .16s;flex:none}
+.sw-bola{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(17,22,42,.3);transition:transform .16s}
+.sw.is-on{color:var(--pc-blue-deep);border-color:#cfd8fb}
+.sw.is-on .sw-pista{background:var(--pc-blue)}
+.sw.is-on .sw-bola{transform:translateX(14px)}
+.sw:hover{border-color:var(--pc-blue)}
+.reto-fila.is-apagada .reto-ico,.reto-fila.is-apagada .reto-txt{opacity:.45}
+
+/* En el menú del admin, la sesión apagada se ve atenuada y marcada */
+#navSessions .nav-row.is-apagada .nav-item:not(.is-active) .nav-label,
+#navSessions .nav-row.is-apagada .nav-item:not(.is-active)>.ico{opacity:.4}
+.nav-apagada{flex:none;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--on-night-soft);
+  font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
