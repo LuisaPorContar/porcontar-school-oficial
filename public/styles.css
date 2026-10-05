@@ -1620,3 +1620,7 @@ body.vista-clase .rail{top:140px}
 #navSessions .nav-item.is-active .nav-label b{font-weight:600}
 #navSessions .count{font-size:12.5px}
 .nav-item.is-active .nav-label{font-weight:600;color:#fff}
+
+/* Trabajo autónomo: letra oscura sobre el amarillo */
+.nav-item.nav-tareas .nav-label,.nav-item.nav-tareas.is-active .nav-label{color:var(--ink);font-weight:700}
+.nav-item.nav-tareas>.ico{color:var(--ink)}
