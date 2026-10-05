@@ -234,7 +234,7 @@ function cronoEditorHtml(g, crono){
         <label class="field"><span>Fin del programa</span><input type="date" id="ceFin" value="${escapeHtml(g.fecha_fin || '')}" /></label>
       </div>
       <label class="field"><span>Grupo de WhatsApp</span>
-        <input type="url" id="ceWhatsapp" maxlength="300" placeholder="https://chat.whatsapp.com/…" value="${escapeHtml(g.whatsapp_url || '')}" /></label>
+        <input type="text" inputmode="url" id="ceWhatsapp" maxlength="300" placeholder="chat.whatsapp.com/…" value="${escapeHtml(g.whatsapp_url || '')}" /></label>
 
       <h3 class="ini-tit">Sesiones</h3>
       <p class="quiz-desc">Pon la fecha de cada encuentro. La hora, la plataforma y el enlace de Meet son opcionales; lo que dejes vacío sale como «Por definir».</p>
@@ -250,7 +250,7 @@ function cronoEditorHtml(g, crono){
             <select data-ce-campo="plataforma" aria-label="Plataforma de ${escapeHtml(s.short)}">
               ${PLATAFORMAS.map(p => `<option ${(r.plataforma || 'Google Meet') === p ? 'selected' : ''}>${p}</option>`).join('')}
             </select>
-            <input type="url" data-ce-campo="enlace" placeholder="https://meet.google.com/…" value="${escapeHtml(r.enlace || '')}" aria-label="Enlace de ${escapeHtml(s.short)}" />
+            <input type="text" inputmode="url" data-ce-campo="enlace" placeholder="meet.google.com/…" value="${escapeHtml(r.enlace || '')}" aria-label="Enlace de ${escapeHtml(s.short)}" />
           </div>`;
         }).join('')}
       </div>
@@ -264,18 +264,16 @@ function cronoEditorHtml(g, crono){
 async function guardarCronograma(){
   const g = grupoInicio(); if (!g) return;
   const msg = $('#ceMsg'), btn = $('[data-ce-guardar]');
-  const wa = $('#ceWhatsapp').value.trim();
-  if (wa && !/^https:\/\//i.test(wa)) return void (msg.textContent = 'El enlace de WhatsApp debe empezar por https://');
+  // Los enlaces se aceptan como los pegues: si falta https://, se completa solo
+  const wa = enlace($('#ceWhatsapp').value);
   const ini = $('#ceInicio').value, fin = $('#ceFin').value;
   if (ini && fin && fin < ini) return void (msg.textContent = 'El fin del programa no puede ser antes del inicio.');
 
   const filas = $$('[data-ce]').map(f => {
     const v = c => $(`[data-ce-campo="${c}"]`, f).value.trim();
     return { grupo_id:g.id, sesion_id:f.dataset.ce, fecha:v('fecha') || null, hora:v('hora') || null,
-             plataforma:v('plataforma') || 'Google Meet', enlace:v('enlace') || null, updated_at:new Date().toISOString() };
+             plataforma:v('plataforma') || 'Google Meet', enlace:enlace(v('enlace')) || null, updated_at:new Date().toISOString() };
   });
-  const malo = filas.find(f => f.enlace && !/^https?:\/\//i.test(f.enlace));
-  if (malo) return void (msg.textContent = `El enlace de ${sessionOf(malo.sesion_id).short} debe empezar por https://`);
 
   btn.disabled = true; btn.textContent = 'Guardando…'; msg.textContent = '';
   try {
@@ -433,8 +431,9 @@ function grabacionesDe(sesionId){
 
 /** Saca el id de un enlace de YouTube (watch, youtu.be, shorts, embed o live) o del id suelto. */
 function idYoutube(texto){
-  const t = String(texto || '').trim();
+  let t = String(texto || '').trim();
   if (/^[A-Za-z0-9_-]{11}$/.test(t)) return t;
+  t = enlace(t);   // youtu.be/… sin https también sirve
   try {
     const u = new URL(t);
     if (u.hostname.replace(/^www\.|^m\./, '') === 'youtu.be') return u.pathname.slice(1).split('/')[0] || null;
@@ -510,7 +509,7 @@ function pintarGrabacion(forzar = false){
           ${grabAgregando ? `
             <div class="grab-form">
               <label class="field"><span>Título</span><input type="text" id="grabTitulo" maxlength="120" placeholder="Ej. Grabación de la clase · parte 1" /></label>
-              <label class="field"><span>Enlace de YouTube</span><input type="url" id="grabUrl" placeholder="https://youtu.be/…  (puede ser oculto)" /></label>
+              <label class="field"><span>Enlace de YouTube</span><input type="url" id="grabUrl" placeholder="youtu.be/…  (puede ser oculto)" /></label>
               <div class="quiz-enviar"><span class="quiz-msg" id="grabMsg"></span>
                 <button class="btn btn-primary" data-grab-guardar>Guardar para ${escapeHtml(g?.nombre || 'esta empresa')}</button></div>
             </div>` : ''}

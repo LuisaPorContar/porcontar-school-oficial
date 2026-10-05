@@ -644,6 +644,13 @@ const uid = () => 'p' + Date.now().toString(36) + Math.random().toString(36).sli
 /* ================================================================
    Utilidades
    ================================================================ */
+/** Un enlace pegado sin https:// (meet.google.com/…, chat.whatsapp.com/…) se completa solo. */
+function enlace(v){
+  v = String(v || '').trim();
+  if (!v) return '';
+  return /^https?:\/\//i.test(v) ? v : 'https://' + v.replace(/^\/+/, '');
+}
+
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
@@ -2073,13 +2080,11 @@ $$('.editor-tools [data-fmt]').forEach(b => b.addEventListener('click', () => {
 $('#btnPublish').addEventListener('click', async () => {
   const title = $('#fTitle').value.trim();
   const body  = $('#fBody').value.trim();
-  const url   = $('#fUrl').value.trim();
+  const url   = enlace($('#fUrl').value);
   const usingUrl = $('.tab.is-active').dataset.tab === 'url';
 
   if (!title && !body && !pendingFile && !(usingUrl && url))
     return void ($('#modalMsg').textContent = 'Añade al menos un título, un texto o un video.');
-  if (usingUrl && url && !/^https?:\/\//i.test(url))
-    return void ($('#modalMsg').textContent = 'El enlace debe empezar por http:// o https://');
 
   const existing = editingId ? posts.find(p => p.id === editingId) : null;
   const p = existing
@@ -3118,8 +3123,7 @@ $('#grSave').addEventListener('click', async () => {
   if (nombre.length < 2) return void (msg.textContent = 'Ponle un nombre al grupo.');
   if (!editandoGrupo && !clave) return void (msg.textContent = 'Ponle una contraseña (o toca Generar).');
   if (clave && clave.length < 6) return void (msg.textContent = 'La contraseña debe tener al menos 6 caracteres.');
-  const v = id => $('#' + id).value.trim();
-  if (v('grWhatsapp') && !/^https:\/\//i.test(v('grWhatsapp'))) return void (msg.textContent = 'El enlace de WhatsApp debe empezar por https://');
+  const v = id => id === 'grWhatsapp' ? enlace($('#' + id).value) : $('#' + id).value.trim();
   if (v('grInicio') && v('grFin') && v('grFin') < v('grInicio')) return void (msg.textContent = 'El fin del programa no puede ser antes del inicio.');
   if (v('grCEmail') && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v('grCEmail'))) return void (msg.textContent = 'Revisa el correo del contacto.');
 
