@@ -106,6 +106,12 @@ const AREAS = [
   'Analítica',
   'Agentes y automatización',
 ];
+/** Las áreas del catálogo: las de la lista más las que traigan los prompts (p. ej. los importados). */
+const areasCatalogo = () => {
+  const extra = [...new Set(skills.map(s => s.area).filter(a => a && !AREAS.includes(a)))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  return [...AREAS, ...extra];
+};
 const NIVELES = ['Básico', 'Intermedio', 'Avanzado'];
 
 /* ================================================================
@@ -1150,8 +1156,9 @@ function renderVista(){
   }
 
   if (enSkills){
-    $('#navAreas').innerHTML = ['todas', ...AREAS].map(a => {
+    $('#navAreas').innerHTML = ['todas', ...areasCatalogo()].map(a => {
       const n = a === 'todas' ? skillsVisibles.length : skillsVisibles.filter(s => s.area === a).length;
+      if (!n && a !== 'todas' && !IS_ADMIN && skillArea !== a) return '';   // al estudiante, solo áreas con prompts
       return `<button class="nav-area ${skillArea === a ? 'is-on' : ''}" data-area="${escapeHtml(a)}">
                 <span class="t">${a === 'todas' ? 'Todas las áreas' : escapeHtml(a)}</span>
                 <em>${n}</em>
@@ -1323,7 +1330,7 @@ function openSkillEditor(s = null){
   if (!IS_ADMIN) return;
   editingSkillId = s ? s.id : null;
   $('#skEdTitle').textContent = s ? 'Editar skill' : 'Nueva skill';
-  $('#skfArea').innerHTML  = AREAS.map(a => `<option>${escapeHtml(a)}</option>`).join('');
+  $('#skfArea').innerHTML  = areasCatalogo().map(a => `<option>${escapeHtml(a)}</option>`).join('');
   $('#skfLevel').innerHTML = NIVELES.map(n => `<option>${escapeHtml(n)}</option>`).join('');
   $('#skfTitle').value     = s ? s.title : '';
   $('#skfArea').value      = s ? s.area  : (skillArea === 'todas' ? AREAS[0] : skillArea);
@@ -2217,7 +2224,7 @@ function leerSkillMd(texto, archivo = ''){
   const etiquetas = meta.etiquetas || meta.tags || '';
   return {
     title:     title || (meta.name ? deNombre(meta.name) : deNombre(archivo)),
-    area:      deLista(AREAS,   meta.area),
+    area:      deLista(areasCatalogo(), meta.area),
     level:     deLista(NIVELES, meta.nivel || meta.level),
     tags:      etiquetas.replace(/^\[|\]$/g, '').split(',').map(t => t.trim().replace(/^["']|["']$/g, '')).filter(Boolean).join(', '),
     objective: obj ? obj.texto : (meta.description || ''),
