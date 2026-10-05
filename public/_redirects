@@ -1,3 +1,3 @@
 # academia.porcontar.com/admin es la misma app, en modo admin
-/admin/    /admin          301
-/admin     /index.html     200
+/admin/    /admin    301
+/admin     /         200
