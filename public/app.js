@@ -216,6 +216,7 @@ function cloudStore(){
     activo:!!r.activo, orden:r.orden || 0,
     preguntas:Array.isArray(r.preguntas) ? r.preguntas : [],
     audiencia:Array.isArray(r.audiencia) ? r.audiencia : [],
+    sesion_id:r.sesion_id || null, aprobar:r.aprobar ?? 70, intentos:r.intentos ?? 0, obligatorio:!!r.obligatorio,
   });
 
   const fromRow = r => ({
@@ -417,6 +418,8 @@ function cloudStore(){
       check(await sb.from(tablaQz).upsert({
         id:q.id, titulo:q.titulo, descripcion:q.descripcion, activo:q.activo,
         orden:q.orden, preguntas:q.preguntas, audiencia:q.audiencia || [],
+        // El quiz de cada sesión y sus reglas (supabase-fase1.sql)
+        ...(q.sesion_id ? { sesion_id:q.sesion_id, aprobar:q.aprobar ?? 70, intentos:q.intentos ?? 0, obligatorio:!!q.obligatorio } : {}),
         updated_at:new Date().toISOString(),
       }));
     },
@@ -624,6 +627,7 @@ let quizAbierto   = null;        // el quiz que se está respondiendo
 let quizElegidas  = [];          // opción marcada en cada pregunta
 let quizResultado = null;        // {puntaje, total, aciertos, correctas}
 let quizEditando  = null;        // copia que edita el admin
+let quizDesde     = null;        // la sesión desde la que se abrió el quiz (para volver a ella)
 let quizVista     = 'lista';     // lista | responder | resultado | stats | editar
 let skillArea   = 'todas';
 let editingSkillId = null;
@@ -647,6 +651,17 @@ function enlace(v){
   v = String(v || '').trim();
   if (!v) return '';
   return /^https?:\/\//i.test(v) ? v : 'https://' + v.replace(/^\/+/, '');
+}
+
+/** Pone el cursor en el primer campo de un formulario recién abierto, salvo que ya se esté
+    escribiendo en otro campo de ese mismo formulario (no se le roba el foco a nadie). */
+function enfocar(sel){
+  setTimeout(() => {
+    const el = $(sel); if (!el) return;
+    const caja = el.closest('.overlay'), activo = document.activeElement;
+    if (caja && activo && activo !== el && caja.contains(activo) && activo.matches('input, textarea, select')) return;
+    el.focus();
+  }, 40);
 }
 
 function escapeHtml(s){
@@ -843,15 +858,7 @@ function pintarNav(){
               aria-label="Ocultar ${escapeHtml(s.short)}" title="Ocultar esta clase">
         <svg class="ico"><use href="#i-eye"/></svg>
       </button>
-    </div>`).join('') + `
-    <button class="nav-item" data-view="quiz" title="Quizzes para evaluar lo aprendido">
-      <svg class="ico"><use href="#i-quiz"/></svg>
-      <span class="nav-label">
-        <em>Evaluación</em>
-        <b>Quizz</b>
-      </span>
-      <span class="count" id="countQuiz">0</span>
-    </button>`;
+    </div>`).join('');
 
   $('#fSession').innerHTML = SESSIONS
     .map(s => `<option value="${s.id}">${escapeHtml(s.title)}</option>`).join('')
@@ -1032,8 +1039,10 @@ function renderVista(){
     $('#viewTitle').textContent = 'Vocabulario y términos';
     $('#viewSubtitle').textContent = 'La guía completa de la Academia: qué significa cada término, prompts y herramientas';
   } else if (view.type === 'quiz'){
-    $('#viewTitle').textContent = 'Quizz';
-    $('#viewSubtitle').textContent = IS_ADMIN
+    // Abierto desde una clase: el título es el de esa clase
+    const sq = quizDesde ? sessionOf(quizDesde) : null;
+    $('#viewTitle').textContent = sq ? 'Quiz · ' + sq.short : 'Quizz';
+    $('#viewSubtitle').textContent = sq ? sq.name : IS_ADMIN
       ? 'Arma los quizzes y mira cuánto acertó el grupo'
       : 'Pon a prueba lo aprendido en cada clase';
   } else if (view.type === 'tareas'){
@@ -1349,7 +1358,7 @@ function openSkillEditor(s = null){
   $('#skfAudiencia').innerHTML = audienciaHtml(s ? audDe(s) : audDefecto());
   $('#skEdMsg').textContent = '';
   $('#skEdOverlay').hidden = false;
-  setTimeout(() => $('#skfTitle').focus(), 40);
+  enfocar('#skfTitle');
 }
 const closeSkillEditor = () => { $('#skEdOverlay').hidden = true; editingSkillId = null; };
 
@@ -1643,7 +1652,7 @@ function quizResponderHtml(){
   const faltan = q.preguntas.length - quizElegidas.filter(x => x !== null && x !== undefined).length;
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← Volver a los quizzes</button>
+      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
       <h2 class="quiz-titulo">${escapeHtml(q.titulo)}</h2>
       ${q.descripcion ? `<p class="quiz-desc">${escapeHtml(q.descripcion)}</p>` : ''}
       <ol class="quiz-lista">${preguntas}</ol>
@@ -1674,17 +1683,23 @@ function quizResultadoHtml(){
 
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← Volver a los quizzes</button>
+      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
       <div class="quiz-puntaje">
         <b>${r.puntaje} de ${r.total}</b>
-        <span>${porcentaje}% de aciertos</span>
+        <span>${porcentaje}% de aciertos${typeof r.aprobado === 'boolean'
+          ? ` · <strong class="${r.aprobado ? 'q-ok' : 'q-no'}">${r.aprobado ? '¡Aprobado!' : `Necesitas ${r.aprobar}% para aprobar`}</strong>` : ''}</span>
         <div class="quiz-barra"><i style="width:${porcentaje}%"></i></div>
       </div>
       <h2 class="quiz-titulo">${escapeHtml(q.titulo)}</h2>
       <ol class="quiz-lista">${detalle}</ol>
       <div class="quiz-enviar">
-        <span class="quiz-meta">Puedes repetirlo: cuenta tu último intento.</span>
-        <button class="btn btn-primary" data-quiz-abrir="${q.id}">Repetir el quiz</button>
+        ${(() => {
+          const quedan = r.intentos > 0 ? r.intentos - (r.usados || 0) : Infinity;
+          if (quedan <= 0) return `<span class="quiz-meta">Ya usaste tus ${r.intentos} intentos.</span><span></span>`;
+          return `<span class="quiz-meta">${quedan === Infinity ? 'Puedes repetirlo cuando quieras.'
+                    : `Te ${quedan === 1 ? 'queda 1 intento' : `quedan ${quedan} intentos`}.`}</span>
+                  <button class="btn btn-primary" data-quiz-abrir="${q.id}">Repetir el quiz</button>`;
+        })()}
       </div>
     </div>`;
 }
@@ -1721,7 +1736,7 @@ function quizStatsHtml(){
 
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← Volver a los quizzes</button>
+      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
       <h2 class="quiz-titulo">${escapeHtml(quiz.titulo || '')}</h2>
       ${stat.personas ? `
         <div class="quiz-cifras">
@@ -1773,8 +1788,8 @@ function quizEditorHtml(){
 
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← Volver a los quizzes</button>
-      <h2 class="quiz-titulo">Editar el quiz ${q.orden || ''}</h2>
+      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
+      <h2 class="quiz-titulo">${q.sesion_id ? `Quiz de ${escapeHtml(sessionOf(q.sesion_id).title)}` : `Editar el quiz ${q.orden || ''}`}</h2>
       <label class="field"><span>Título</span>
         <input type="text" id="quizTitulo" maxlength="150" value="${escapeHtml(q.titulo)}" placeholder="Ej. Quiz 1 · Funnel inteligente con IA" />
       </label>
@@ -1785,6 +1800,18 @@ function quizEditorHtml(){
         <input type="checkbox" id="quizActivo" ${q.activo ? 'checked' : ''} />
         <span>Publicado: los estudiantes lo ven y pueden responderlo</span>
       </label>
+      ${q.sesion_id ? `
+      <div class="quiz-reglas">
+        <label class="field"><span>% para aprobar</span>
+          <input type="number" id="quizAprobar" min="0" max="100" value="${q.aprobar ?? 70}" /></label>
+        <label class="field"><span>Intentos por persona</span>
+          <input type="number" id="quizIntentos" min="0" max="50" value="${q.intentos ?? 0}" />
+          <small>0 = sin límite</small></label>
+        <label class="check quiz-oblig">
+          <input type="checkbox" id="quizOblig" ${q.obligatorio ? 'checked' : ''} />
+          <span>Obligatorio: cuenta para completar la clase</span>
+        </label>
+      </div>` : ''}
       <div class="field quiz-aud">
         <span>¿Quién lo ve?</span>
         <div class="aud" id="quizAud">${audienciaHtml(audDe(q))}</div>
@@ -2015,7 +2042,7 @@ function openComposer(post = null){
   else { $('#fileChip').hidden = true; $('#dropzone').hidden = false; }
 
   $('#overlay').hidden = false;
-  setTimeout(() => $('#fTitle').focus(), 40);
+  enfocar('#fTitle');
 }
 function closeComposer(){
   $('#overlay').hidden = true;
@@ -2478,6 +2505,7 @@ $('#posts').addEventListener('click', async e => {
 
   if (e.target.closest('[data-quiz-volver]')){
     await cargarQuizzes().catch(err => console.warn(err));
+    if (quizDesde){ const s = quizDesde; quizDesde = null; return setView('session', s); }
     verQuizzes();
     return;
   }
@@ -2565,6 +2593,8 @@ $('#posts').addEventListener('input', e => {
   if (!quizEditando) return;
   if (t.id === 'quizTitulo'){ quizEditando.titulo = t.value; return; }
   if (t.id === 'quizDesc'){ quizEditando.descripcion = t.value; return; }
+  if (t.id === 'quizAprobar'){ quizEditando.aprobar = Math.max(0, Math.min(100, parseInt(t.value, 10) || 0)); return; }
+  if (t.id === 'quizIntentos'){ quizEditando.intentos = Math.max(0, Math.min(50, parseInt(t.value, 10) || 0)); return; }
   if (t.dataset.quizTexto !== undefined){ quizEditando.preguntas[+t.dataset.quizTexto].text = t.value; return; }
   if (t.dataset.quizOpcionEdit !== undefined){
     const [i, j] = t.dataset.quizOpcionEdit.split('-').map(Number);
@@ -2580,6 +2610,7 @@ $('#posts').addEventListener('change', e => {
     return;
   }
   if (t.id === 'quizActivo' && quizEditando){ quizEditando.activo = t.checked; return; }
+  if (t.id === 'quizOblig' && quizEditando){ quizEditando.obligatorio = t.checked; return; }
   if (t.dataset.quizCorrecta !== undefined && quizEditando){
     quizEditando.preguntas[+t.dataset.quizCorrecta].correctIndex = +t.value;
     render();
@@ -2622,8 +2653,9 @@ async function guardarQuiz(){
   try {
     await store.saveQuiz(q);
     await cargarQuizzes();
+    toast(q.activo ? 'Quiz guardado y publicado' : 'Quiz guardado como borrador');
+    if (quizDesde){ const s = quizDesde; quizDesde = null; return setView('session', s); }
     verQuizzes();
-    toast('Quiz guardado');
   } catch (err){
     console.error(err);
     msg.textContent = errorMsg(err);
@@ -3081,7 +3113,7 @@ function abrirGrupoForm(g = null){
 
   $('#grMsg').textContent = '';
   $('#grOverlay').hidden = false;
-  setTimeout(() => $('#grNombre').focus(), 40);
+  enfocar('#grNombre');
 }
 const cerrarGrupoForm = () => { $('#grOverlay').hidden = true; editandoGrupo = null; logoNuevo = null; };
 

@@ -346,7 +346,7 @@ function abrirSesionForm(s = null){
       <svg class="ico"><use href="#${ic}"/></svg></label>`).join('');
   $('#seMsg').textContent = '';
   $('#seOverlay').hidden = false;
-  setTimeout(() => $('#seNombre').focus(), 40);
+  enfocar('#seNombre');
 }
 const cerrarSesionForm = () => { $('#seOverlay').hidden = true; editandoSesion = null; };
 $('#seClose').addEventListener('click', cerrarSesionForm);
@@ -761,6 +761,8 @@ function claseHtml(lista){
       </div>
       <div class="recursos">${recursos}</div>
 
+      ${quizClaseHtml(s)}
+
       <nav class="clase-nav">
         ${ant ? `<button class="btn" data-clase-ir="${ant.id}"><svg class="ico ico-izq"><use href="#i-flecha"/></svg> ${escapeHtml(ant.short)}</button>` : '<span></span>'}
         ${sig ? `<button class="btn" data-clase-ir="${sig.id}">${escapeHtml(sig.short)} <svg class="ico"><use href="#i-flecha"/></svg></button>` : ''}
@@ -823,12 +825,15 @@ function retoRailHtml(){
   return SESSIONS.map(s => {
     const r = crono.get(s.id);
     const grabs = PERFIL ? GRABS.filter(g => g.sesion_id === s.id) : [];
-    const vista = grabs.length > 0 && grabs.every(g => progresoVideo[g.id]?.completado);
+    const qz = PERFIL ? quizDeSesion(s.id) : null;
+    const faltaQuiz = !!(qz && qz.obligatorio && !qz.aprobado);
+    const vista = grabs.length > 0 && grabs.every(g => progresoVideo[g.id]?.completado) && !faltaQuiz;
     const futura = r?.fecha && momentoDe(r).getTime() + 2 * 36e5 >= ahora;
     const actual = view.type === 'session' && view.id === s.id;
     const estado = vista ? 'Vista'
       : futura ? 'El ' + new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'long' }) + (r.hora ? ' · ' + horaTxt(r) : '')
-      : grabs.length ? 'Te falta ver la grabación'
+      : grabs.some(g => !progresoVideo[g.id]?.completado) ? 'Te falta ver la grabación'
+      : faltaQuiz ? 'Te falta el quiz'
       : s.name;
     const ico = vista ? 'i-check' : futura ? 'i-cal' : 'i-play';
     return `
@@ -872,3 +877,96 @@ async function alternarSesion(id){
       ? 'Falta volver a correr supabase-fase1.sql en Supabase (agrega el botón de encendido)' : errorMsg(err));
   }
 }
+
+
+/* ================================================================
+   EL QUIZ DE CADA CLASE
+   Uno por sesión. El admin lo configura desde la clase (preguntas, % para
+   aprobar, intentos y si es obligatorio); la base cuenta los intentos y
+   califica. El estudiante lo hace desde la misma clase.
+   ================================================================ */
+const quizDeSesion = id => quizzes.find(q => q.sesion_id === id);
+
+function quizClaseHtml(s){
+  const q = quizDeSesion(s.id);
+  if (!IS_ADMIN){
+    if (!q) return '';
+    const quedan = q.intentos > 0 ? q.intentos - (q.mis_intentos || 0) : Infinity;
+    const estado = q.aprobado ? `<span class="qc-estado is-ok"><svg class="ico"><use href="#i-check"/></svg> Aprobado${q.ultimo_pct != null ? ' · ' + q.ultimo_pct + '%' : ''}</span>`
+      : q.mis_intentos ? `<span class="qc-estado">Último intento: ${q.ultimo_pct ?? 0}%${quedan !== Infinity ? ` · te ${quedan === 1 ? 'queda 1 intento' : 'quedan ' + Math.max(0, quedan) + ' intentos'}` : ''}</span>` : '';
+    const boton = quedan <= 0
+      ? `<button class="btn" disabled>Sin intentos</button>`
+      : `<button class="btn ${q.aprobado ? '' : 'btn-primary'}" data-qc-hacer="${s.id}">${q.aprobado ? 'Repetir' : q.mis_intentos ? 'Intentar de nuevo' : 'Hacer el quiz'} <svg class="ico"><use href="#i-flecha"/></svg></button>`;
+    return `
+      <section class="quiz-clase ${q.aprobado ? 'is-ok' : ''}">
+        <span class="qc-ico"><svg class="ico"><use href="#i-quiz"/></svg></span>
+        <div class="qc-txt">
+          <b>Quiz de la clase ${q.obligatorio ? '<span class="qc-tag">Obligatorio</span>' : ''}</b>
+          <small>${q.preguntas} ${q.preguntas === 1 ? 'pregunta' : 'preguntas'} · ${q.aprobar}% para aprobar · ${q.intentos ? q.intentos + (q.intentos === 1 ? ' intento' : ' intentos') : 'intentos sin límite'}</small>
+          ${estado}
+        </div>
+        ${boton}
+      </section>`;
+  }
+  // Admin: el estado del quiz de la clase y sus accesos
+  if (!q) return `
+    <section class="quiz-clase is-vacio">
+      <span class="qc-ico"><svg class="ico"><use href="#i-quiz"/></svg></span>
+      <div class="qc-txt"><b>Quiz de la clase</b><small>Esta clase todavía no tiene quiz.</small></div>
+      <button class="btn btn-primary" data-qc-config="${s.id}"><svg class="ico"><use href="#i-plus"/></svg> Crear quiz</button>
+    </section>`;
+  const n = (q.preguntas || []).length;
+  return `
+    <section class="quiz-clase">
+      <span class="qc-ico"><svg class="ico"><use href="#i-quiz"/></svg></span>
+      <div class="qc-txt">
+        <b>${escapeHtml(q.titulo || 'Quiz de la clase')} <span class="qc-tag ${q.activo ? 'is-on' : 'is-borrador'}">${q.activo ? 'Publicado' : 'Borrador'}</span>${q.obligatorio ? ' <span class="qc-tag">Obligatorio</span>' : ''}</b>
+        <small>${n} ${n === 1 ? 'pregunta' : 'preguntas'} · ${q.aprobar}% para aprobar · ${q.intentos ? q.intentos + ' intentos' : 'intentos sin límite'}</small>
+        ${audTagHtml(q)}
+      </div>
+      <div class="qc-acc">
+        <button class="btn" data-qc-stats="${s.id}">Resultados</button>
+        <button class="btn btn-primary" data-qc-config="${s.id}"><svg class="ico"><use href="#i-edit"/></svg> Configurar</button>
+      </div>
+    </section>`;
+}
+
+/** Abre el quiz de una sesión para responderlo, configurarlo o ver sus resultados. */
+async function abrirQuizSesion(sesionId, modo){
+  const q = quizDeSesion(sesionId);
+  try {
+    quizDesde = sesionId; quizResultado = null;
+    if (modo === 'editar'){
+      if (q){
+        const full = await store.getQuiz(q.id);
+        quizEditando = { ...full, preguntas:(full.preguntas || []).map(x => ({ ...x, options:[...x.options] })) };
+      } else {
+        const s = sessionOf(sesionId);
+        quizEditando = { id:'qz-' + sesionId, titulo:'Quiz · ' + s.name, descripcion:'', activo:false,
+                         orden:SESSIONS.findIndex(x => x.id === sesionId), preguntas:[], audiencia:[],
+                         sesion_id:sesionId, aprobar:70, intentos:3, obligatorio:true };
+      }
+      if (!quizEditando.preguntas.length) quizEditando.preguntas.push(preguntaVacia());
+      quizVista = 'editar';
+    } else if (modo === 'stats'){
+      quizAbierto = q.id;
+      estadisticas = await store.quizStats();
+      quizVista = 'stats';
+    } else {
+      quizAbierto = await store.getQuiz(q.id);
+      quizElegidas = quizAbierto.preguntas.map(() => null);
+      quizVista = 'responder';
+    }
+    view = { type:'quiz', id:null };
+    render();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  } catch (err){ quizDesde = null; toast(errorMsg(err)); }
+}
+
+$('#posts').addEventListener('click', e => {
+  if (view.type !== 'session') return;
+  const t = sel => e.target.closest(sel);
+  if (t('[data-qc-hacer]'))  return abrirQuizSesion(t('[data-qc-hacer]').dataset.qcHacer, 'responder');
+  if (t('[data-qc-config]')) return abrirQuizSesion(t('[data-qc-config]').dataset.qcConfig, 'editar');
+  if (t('[data-qc-stats]'))  return abrirQuizSesion(t('[data-qc-stats]').dataset.qcStats, 'stats');
+});

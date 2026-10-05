@@ -375,6 +375,118 @@ begin
 end;
 $$;
 
+-- 7b) Un quiz por sesión, con sus reglas -------------------------------
+-- aprobar: % mínimo · intentos: máximo por persona (0 = sin límite) · obligatorio: se marca en la clase
+alter table public.quizzes
+  add column if not exists sesion_id   text references public.reto_sesiones(id) on delete cascade,
+  add column if not exists aprobar     int  not null default 70 check (aprobar between 0 and 100),
+  add column if not exists intentos    int  not null default 0  check (intentos between 0 and 50),
+  add column if not exists obligatorio boolean not null default false;
+create unique index if not exists quizzes_una_por_sesion on public.quizzes (sesion_id) where sesion_id is not null;
+
+-- Los cuatro quizzes generales vacíos de antes ya no se usan
+delete from public.quizzes q
+ where q.id in ('q1', 'q2', 'q3', 'q4') and q.sesion_id is null
+   and jsonb_array_length(q.preguntas) = 0
+   and not exists (select 1 from public.quiz_resultados r where r.quiz_id = q.id);
+
+-- Lo que ve el estudiante: los quizzes publicados de sus sesiones, con su propio avance
+drop function if exists public.quizzes_publicos();
+create or replace function public.quizzes_publicos()
+returns table (id text, titulo text, descripcion text, preguntas int, sesion_id text,
+               aprobar int, intentos int, obligatorio boolean,
+               mis_intentos int, ultimo_pct int, aprobado boolean)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select q.id, q.titulo, q.descripcion, jsonb_array_length(q.preguntas), q.sesion_id,
+         q.aprobar, q.intentos, q.obligatorio,
+         (select count(*)::int from public.quiz_resultados r where r.quiz_id = q.id and r.email = public.mi_email()),
+         (select (r.puntaje * 100 / nullif(r.total, 0))::int from public.quiz_resultados r
+           where r.quiz_id = q.id and r.email = public.mi_email() order by r.created_at desc limit 1),
+         coalesce((select bool_or(r.puntaje * 100 >= q.aprobar * r.total) from public.quiz_resultados r
+                    where r.quiz_id = q.id and r.email = public.mi_email()), false)
+    from public.quizzes q
+   where q.activo
+     and jsonb_array_length(q.preguntas) > 0
+     and public.puede_ver(q.audiencia)
+     and (public.is_admin() or public.mi_email() is not null)
+   order by q.orden, q.id;
+$$;
+
+-- Responder: respeta los intentos y dice si aprobó. La corrección sigue en el servidor.
+create or replace function public.responder_quiz(p_id text, p_respuestas jsonb)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  correo    text := public.mi_email();
+  quien     text;
+  fila      public.quizzes;
+  total     int;
+  aciertos  jsonb;
+  puntaje   int;
+  usados    int;
+begin
+  if correo is null or cardinality(public.mis_etiquetas()) = 0 then
+    raise exception 'Tu sesión terminó. Vuelve a entrar.';
+  end if;
+  if jsonb_typeof(coalesce(p_respuestas, 'null'::jsonb)) <> 'array' then
+    raise exception 'Respuestas no válidas';
+  end if;
+
+  select * into fila from public.quizzes where id = p_id;
+  if not found or not fila.activo or jsonb_array_length(fila.preguntas) = 0
+     or not public.puede_ver(fila.audiencia) then
+    raise exception 'Ese quiz no está disponible';
+  end if;
+
+  select count(*) into usados from public.quiz_resultados where quiz_id = fila.id and email = correo;
+  if fila.intentos > 0 and usados >= fila.intentos then
+    raise exception 'Ya usaste tus % intentos de este quiz.', fila.intentos;
+  end if;
+
+  total := jsonb_array_length(fila.preguntas);
+  if jsonb_array_length(p_respuestas) <> total then
+    raise exception 'Respondiste % de % preguntas.', jsonb_array_length(p_respuestas), total;
+  end if;
+
+  select coalesce(jsonb_agg(case when (p->>'correctIndex')::int
+                                  = nullif(p_respuestas -> (n::int - 1), 'null'::jsonb)::text::int
+                            then 1 else 0 end order by n), '[]'::jsonb)
+    into aciertos
+    from jsonb_array_elements(fila.preguntas) with ordinality as t(p, n);
+  select coalesce(sum(v::text::int), 0) into puntaje from jsonb_array_elements(aciertos) as v;
+
+  select coalesce(nullif(nombre, ''), correo) into quien
+    from public.miembros where email = correo order by (nombre = ''), id limit 1;
+
+  insert into public.quiz_resultados (quiz_id, persona, nombre, email, puntaje, total, respuestas, aciertos)
+  values (fila.id, correo, coalesce(quien, correo), correo, puntaje, total, p_respuestas, aciertos);
+  insert into public.actividad (email, dia) values (correo, public.hoy()) on conflict do nothing;
+
+  return jsonb_build_object(
+    'puntaje', puntaje,
+    'total', total,
+    'aciertos', aciertos,
+    'aprobar', fila.aprobar,
+    'aprobado', puntaje * 100 >= fila.aprobar * total,
+    'intentos', fila.intentos,
+    'usados', usados + 1,
+    'correctas', (select coalesce(jsonb_agg((p->>'correctIndex')::int order by n), '[]'::jsonb)
+                    from jsonb_array_elements(fila.preguntas) with ordinality as t(p, n))
+  );
+end;
+$$;
+
+grant execute on function public.quizzes_publicos()          to anon, authenticated;
+grant execute on function public.responder_quiz(text, jsonb) to anon, authenticated;
+
 -- 7) Logos: el admin los sube a la carpeta logos/ del bucket ----------
 update storage.buckets
    set allowed_mime_types = array['video/mp4','video/webm','video/quicktime','video/x-m4v',

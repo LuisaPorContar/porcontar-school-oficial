@@ -1624,3 +1624,42 @@ body.vista-clase .rail{top:140px}
 /* Trabajo autónomo: letra oscura sobre el amarillo */
 .nav-item.nav-tareas .nav-label,.nav-item.nav-tareas.is-active .nav-label{color:var(--ink);font-weight:700}
 .nav-item.nav-tareas>.ico{color:var(--ink)}
+
+/* ============ QUIZ DE LA CLASE ============ */
+.quiz-clase{
+  display:flex;align-items:center;gap:16px;padding:18px 20px;border-radius:18px;
+  background:linear-gradient(180deg,#f3f5ff,#edf1fe);border:1px solid #d7defb;
+}
+.quiz-clase.is-ok{background:linear-gradient(180deg,#f2fbf5,#ecf8f0);border-color:#cbeed6}
+.quiz-clase.is-vacio{background:rgba(255,255,255,.6);border-style:dashed;border-color:#c6d0ea}
+.qc-ico{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--pc-blue);
+  box-shadow:0 4px 12px -6px rgba(43,79,232,.5)}
+.qc-ico .ico{width:22px;height:22px}
+.quiz-clase.is-ok .qc-ico{color:#1f9d55}
+.qc-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.qc-txt b{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:var(--font-display);font-size:16px;font-weight:600}
+.qc-txt small{font-size:13px;color:var(--ink-mute)}
+.qc-tag{padding:2px 9px;border-radius:999px;background:var(--pc-blue);color:#fff;font-family:var(--font-display);
+  font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.qc-tag.is-on{background:#1f9d55}
+.qc-tag.is-borrador{background:#e3e8f2;color:var(--ink-soft)}
+.qc-estado{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--pc-blue-deep)}
+.qc-estado.is-ok{color:#1f9d55}
+.qc-estado .ico{width:15px;height:15px}
+.qc-acc{display:flex;gap:8px;flex-wrap:wrap;flex:none}
+.quiz-clase .btn .ico{width:16px;height:16px}
+.quiz-clase .tag-aud{align-self:flex-start;margin-top:4px}
+
+/* Reglas del quiz en el editor */
+.quiz-reglas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 4px;padding:14px;border-radius:14px;background:var(--paper-2);border:1px solid var(--line)}
+.quiz-reglas small{font-size:11.5px;color:var(--ink-mute)}
+.quiz-oblig{grid-column:1 / -1}
+.q-ok{color:var(--pc-yellow)}
+.q-no{color:#ffb4a8}
+
+@media (max-width:600px){
+  .quiz-clase{flex-wrap:wrap}
+  .quiz-clase>.btn,.qc-acc{width:100%}
+  .quiz-clase>.btn{justify-content:center}
+  .quiz-reglas{grid-template-columns:1fr}
+}
