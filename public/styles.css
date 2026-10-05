@@ -1541,3 +1541,32 @@ body::before{content:"";position:fixed;top:0;left:0;right:0;height:3px;backgroun
 .btn-peligro:hover{background:#a5301f;border-color:#a5301f}
 .gr-borrar{margin-left:auto;color:var(--ink-mute)}
 .gr-borrar:hover{color:#c0392b;background:#fdeeeb}
+
+/* ============ ¿QUIÉN LO VE? — pastillas con marca ============ */
+.aud{gap:12px;padding:16px;border-radius:16px;background:linear-gradient(180deg,#f7f9fe,#f2f5fc);border-color:#e3e9f6}
+.aud-resumen{display:flex;align-items:center;gap:7px;font-size:13.5px}
+.aud-resumen .ico{width:16px;height:16px;color:var(--pc-blue)}
+.aud-ops{display:flex;flex-wrap:wrap;gap:8px}
+.field .aud-op,.aud-op{
+  position:relative;display:inline-flex;align-items:center;gap:9px;padding:7px 14px 7px 8px;margin:0;
+  border:1.5px solid #e1e6f0;border-radius:999px;background:#fff;cursor:pointer;white-space:nowrap;
+  font-size:13.5px;font-weight:500;color:var(--ink);transition:border-color .14s,background .14s,box-shadow .14s;
+}
+.aud-op:hover{border-color:#b9c6f5}
+/* La casilla real queda oculta: se ve la marca redonda */
+.field .aud-op input,.aud-op input{position:absolute;opacity:0;width:1px;height:1px;padding:0;margin:0;pointer-events:none}
+.aud-check{flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid #c9d1e3;display:grid;place-items:center;background:#fff;transition:all .14s}
+.aud-check svg{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.aud-av{flex:none;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;overflow:hidden;position:relative;
+  background:var(--pc-blue);color:#fff;font-family:var(--font-display);font-size:10px;font-weight:700}
+.aud-av.is-b2c{background:var(--claude)}
+.aud-av.has-logo{background:#fff;border:1px solid var(--line)}
+.aud-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:2px;background:#fff}
+.aud-txt{display:inline-flex;align-items:baseline;gap:6px}
+.aud-txt em{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink-mute)}
+.aud-op:has(input:checked){border-color:var(--pc-blue);background:#eef1fe;box-shadow:0 0 0 3px rgba(43,79,232,.08)}
+.aud-op:has(input:checked) .aud-check{background:var(--pc-blue);border-color:var(--pc-blue)}
+.aud-op:has(input:checked) .aud-check svg{opacity:1}
+.aud-op:has(input:checked) .aud-txt{color:var(--pc-blue-deep);font-weight:600}
+.aud-op:has(input:focus-visible){box-shadow:0 0 0 3px var(--pc-blue-tint)}
+.aud-sep{margin:2px 0 -2px}

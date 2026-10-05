@@ -761,24 +761,31 @@ const audTagHtml = x => IS_ADMIN && audDe(x).length
 
 /** Selector de audiencia: casillas; sin marcar ninguna, lo ven todos. */
 function audienciaHtml(aud = []){
-  const op = (valor, texto, extra = '') => `
+  const marca = '<span class="aud-check"><svg viewBox="0 0 24 24"><path d="m6 12.5 4 4 8-9"/></svg></span>';
+  const op = (valor, texto, av = '', sub = '') => `
     <label class="aud-op">
       <input type="checkbox" data-aud value="${escapeHtml(valor)}" ${aud.includes(valor) ? 'checked' : ''} />
-      <span>${texto}</span>${extra}
+      ${marca}${av}
+      <span class="aud-txt">${texto}${sub ? `<em>${sub}</em>` : ''}</span>
     </label>`;
   const grupos = GRUPOS.slice().sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'));
   // Un grupo borrado que siga en la lista se muestra para poder quitarlo
   const huerfanos = aud.filter(v => !v.startsWith('tipo:') && !grupoPorId(v));
+  const avGrupo = g => g.logo_url
+    ? `<span class="aud-av has-logo"><img src="${escapeHtml(g.logo_url)}" alt="" onerror="this.remove()" /></span>`
+    : `<span class="aud-av ${g.tipo === 'b2c' ? 'is-b2c' : ''}">${escapeHtml(iniciales(g.nombre))}</span>`;
   return `
-    <p class="aud-resumen">Lo ven: <b>${escapeHtml(audienciaTxt(aud))}</b></p>
+    <p class="aud-resumen"><svg class="ico"><use href="#i-eye"/></svg> Lo ven: <b>${escapeHtml(audienciaTxt(aud))}</b></p>
     <div class="aud-ops">
-      ${op(AUD_B2B, 'Todas las empresas <em>B2B</em>')}
-      ${op(AUD_B2C, 'Todas las cohortes <em>B2C</em>')}
-      ${grupos.length ? '<span class="aud-sep">O solo estos grupos</span>' : ''}
-      ${grupos.map(g => op(g.id, escapeHtml(g.nombre),
-          `<em class="aud-tipo">${g.tipo === 'b2b' ? 'Empresa' : 'Cohorte'}${g.vigente === false ? ' · sin acceso' : ''}</em>`)).join('')}
-      ${huerfanos.map(v => op(v, 'Grupo eliminado')).join('')}
+      ${op(AUD_B2B, 'Todas las empresas', '', 'B2B')}
+      ${op(AUD_B2C, 'Todas las cohortes', '', 'B2C')}
     </div>
+    ${grupos.length || huerfanos.length ? `
+      <span class="aud-sep">O solo estos grupos</span>
+      <div class="aud-ops">
+        ${grupos.map(g => op(g.id, escapeHtml(g.nombre), avGrupo(g), g.vigente === false ? 'Sin acceso' : '')).join('')}
+        ${huerfanos.map(v => op(v, 'Grupo eliminado')).join('')}
+      </div>` : ''}
     <p class="aud-nota">${gruposFalla
       ? escapeHtml(gruposFalla)
       : grupos.length
