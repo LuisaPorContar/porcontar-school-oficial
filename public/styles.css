@@ -1695,3 +1695,17 @@ body.vista-clase .rail{top:140px}
   background:none;color:var(--ink-mute);display:grid;place-items:center;cursor:pointer}
 .ojo-btn:hover{background:var(--paper-2);color:var(--pc-blue)}
 .ojo-btn .ico{width:18px;height:18px}
+
+/* ============ FICHA DE LA EMPRESA EN SU ESPACIO (admin) ============ */
+.ini-hero .ce-ficha{flex-basis:100%;display:flex;flex-direction:column;gap:12px;padding-top:16px;margin-top:4px;border-top:1px solid var(--line)}
+.cef-fila{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ce-meta{font-size:13.5px;color:var(--ink-soft)}
+.ce-datos{display:flex;flex-wrap:wrap;gap:8px 20px}
+.ce-dato{display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--ink)}
+.ce-dato .ico{width:16px;height:16px;color:var(--pc-blue);flex:none}
+.ce-dato a{color:var(--pc-blue-deep);text-decoration:none}
+.ce-dato a:hover{text-decoration:underline}
+.ce-vacio{font-size:13.5px;color:var(--ink-mute)}
+.ce-acc{display:flex;gap:8px;flex-wrap:wrap}
+.ce-acc .btn{padding:8px 14px;font-size:13.5px}
+.ce-acc .ico{width:16px;height:16px}

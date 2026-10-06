@@ -96,11 +96,12 @@ function inicioHtml(){
             <span><b>${vistas} de ${grabsG.length}</b> ${grabsG.length === 1 ? 'grabación vista' : 'grabaciones vistas'}</span></div>` : ''}
       </div>
       <div class="ini-hero-acc">
-        ${g.whatsapp_url ? `<a class="btn btn-wa" href="${escapeHtml(g.whatsapp_url)}" target="_blank" rel="noopener">
+        ${!IS_ADMIN && g.whatsapp_url ? `<a class="btn btn-wa" href="${escapeHtml(g.whatsapp_url)}" target="_blank" rel="noopener">
             <svg class="ico"><use href="#i-wa"/></svg> Unirme al grupo de WhatsApp</a>` : ''}
         ${IS_ADMIN ? `<button class="btn ${inicioEditando ? '' : 'btn-primary'}" data-ini-editar>
             <svg class="ico"><use href="#i-edit"/></svg> ${inicioEditando ? 'Cancelar' : 'Editar cronograma'}</button>` : ''}
       </div>
+      ${IS_ADMIN ? contactoEmpresaHtml(g) : ''}
     </section>`;
 
   const selector = !IS_ADMIN && mios.length > 1 ? `
@@ -1150,3 +1151,47 @@ document.addEventListener('click', e => {
 });
 ponerOjos();
 new MutationObserver(() => ponerOjos()).observe(document.body, { childList:true, subtree:true });
+
+/* ================================================================
+   FICHA DE LA EMPRESA EN SU ESPACIO (admin): contacto y accesos rápidos
+   para editarla, cambiar su contraseña, dar acceso a personas y copiar
+   el mensaje de bienvenida, sin ir al menú de Empresas y cohortes.
+   ================================================================ */
+function contactoEmpresaHtml(g){
+  const e = estadoGrupo(g);
+  const dato = (ico, html) => html ? `<span class="ce-dato"><svg class="ico"><use href="#${ico}"/></svg>${html}</span>` : '';
+  const contacto = [g.contacto_nombre, g.contacto_cargo].filter(Boolean).map(escapeHtml).join(' · ');
+  const datos = [
+    dato('i-users', contacto),
+    dato('i-feed', g.contacto_email ? `<a href="mailto:${escapeHtml(g.contacto_email)}">${escapeHtml(g.contacto_email)}</a>` : ''),
+    dato('i-wa', g.contacto_telefono ? `<a href="https://wa.me/${escapeHtml(g.contacto_telefono.replace(/[^\d]/g, ''))}" target="_blank" rel="noopener">${escapeHtml(g.contacto_telefono)}</a>` : ''),
+    dato('i-wa', g.whatsapp_url ? `<a href="${escapeHtml(g.whatsapp_url)}" target="_blank" rel="noopener">Grupo de WhatsApp</a>` : ''),
+  ].join('');
+  return `
+    <div class="ce-ficha">
+      <div class="cef-fila">
+        <span class="gr-estado ${e.cls}">${escapeHtml(e.txt)}</span>
+        <span class="ce-meta"><b>${g.miembros ?? 0}</b>${g.plazas ? ` de ${g.plazas} plazas` : ` ${g.miembros === 1 ? 'persona' : 'personas'}`} · <b>${g.han_entrado ?? 0}</b> ya entraron</span>
+      </div>
+      <div class="ce-datos">${datos || '<span class="ce-vacio">Sin datos de contacto: agrégalos en «Editar empresa».</span>'}</div>
+      <div class="ce-acc">
+        <button class="btn" data-emp-editar="${g.id}"><svg class="ico"><use href="#i-lock"/></svg> Editar empresa y contraseña</button>
+        <button class="btn" data-emp-personas="${g.id}"><svg class="ico"><use href="#i-users"/></svg> Personas</button>
+        <button class="btn" data-emp-bienvenida="${g.id}"><svg class="ico"><use href="#i-copy"/></svg> Copiar bienvenida</button>
+      </div>
+    </div>`;
+}
+
+$('#posts').addEventListener('click', async e => {
+  if (view.type !== 'inicio' || !IS_ADMIN) return;
+  const t = sel => e.target.closest(sel);
+  if (t('[data-emp-editar]')) return abrirGrupoForm(grupoPorId(t('[data-emp-editar]').dataset.empEditar));
+  if (t('[data-emp-personas]')){ resultadoAlta = ''; miembrosFiltro = ''; return setView('grupos', t('[data-emp-personas]').dataset.empPersonas); }
+  if (t('[data-emp-bienvenida]')){
+    const g = grupoPorId(t('[data-emp-bienvenida]').dataset.empBienvenida);
+    try {
+      await navigator.clipboard.writeText(mensajeBienvenida(g));
+      toast(claveReciente[g.id] ? 'Mensaje copiado, con la contraseña' : 'Mensaje copiado: completa la contraseña antes de enviarlo');
+    } catch { toast('El navegador no dejó copiar'); }
+  }
+});
