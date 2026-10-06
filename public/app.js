@@ -669,7 +669,7 @@ function enlace(v){
 function enfocar(sel){
   setTimeout(() => {
     const el = $(sel); if (!el) return;
-    const caja = el.closest('.overlay'), activo = document.activeElement;
+    const caja = el.closest('.overlay, .login'), activo = document.activeElement;
     if (caja && activo && activo !== el && caja.contains(activo) && activo.matches('input, textarea, select')) return;
     el.focus();
   }, 40);
@@ -3517,7 +3517,7 @@ function mostrarLogin(msg = ''){
   $('#login').hidden = false;
   document.body.classList.add('con-login');
   $('#loginMsg').textContent = msg;
-  setTimeout(() => $('#loginEmail').focus(), 40);
+  enfocar('#loginEmail');
 }
 
 /** Entrada de admin (en /admin): correo y contraseña. «Primera vez u olvidé mi contraseña»
@@ -3551,7 +3551,7 @@ function pintarEntradaAdmin(){
     ? '<a href="#" data-modo-llave="0">Ya tengo contraseña: entrar</a>'
     : '<a href="#" data-modo-llave="1">¿Primera vez o se te olvidó la contraseña?</a> · <a href="/">Ir como estudiante</a>';
   $('#loginMsg').textContent = '';
-  setTimeout(() => $('#loginEmail').focus(), 60);
+  enfocar('#loginEmail');
 }
 document.addEventListener('click', e => {
   const a = e.target.closest('[data-modo-llave]'); if (!a) return;
