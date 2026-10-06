@@ -2962,7 +2962,7 @@ function grupoDetalleHtml(){
         </div>
         <div class="quiz-acciones">
           <button class="btn" data-gr-editar="${g.id}"><svg class="ico"><use href="#i-edit"/></svg> Editar grupo</button>
-          <button class="btn" data-gr-bienvenida="${g.id}"><svg class="ico"><use href="#i-copy"/></svg> Copiar mensaje de bienvenida</button>
+          <a class="btn" href="${escapeHtml(gmailBienvenida(g))}" target="_blank" rel="noopener"><svg class="ico"><use href="#i-mail"/></svg> Enviar bienvenida por Gmail</a>
           <button class="btn" data-gr-panel="${g.id}"><svg class="ico"><use href="#i-chart"/></svg> Ver panel</button>
         </div>
       </div>

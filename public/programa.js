@@ -89,8 +89,8 @@ function inicioHtml(){
       <div class="ini-hero-txt">
         <span class="gr-tipo">${g.tipo === 'b2c' ? 'Cohorte' : 'Empresa'}</span>
         <h2>${IS_ADMIN ? escapeHtml(g.nombre) : `Hola${nombre ? ', ' + escapeHtml(nombre) : ''}`}</h2>
-        <p>${IS_ADMIN ? 'Así ve el inicio esta empresa.' : `Tu programa con <b>${escapeHtml(g.nombre)}</b>`}
-           ${rangoTxt(g.fecha_inicio, g.fecha_fin) ? ` · ${escapeHtml(rangoTxt(g.fecha_inicio, g.fecha_fin))}` : ''}</p>
+        ${IS_ADMIN ? resumenEmpresaHtml(g) : `<p>Tu programa con <b>${escapeHtml(g.nombre)}</b>
+           ${rangoTxt(g.fecha_inicio, g.fecha_fin) ? ` · ${escapeHtml(rangoTxt(g.fecha_inicio, g.fecha_fin))}` : ''}</p>`}
         ${!IS_ADMIN && grabsG.length ? `
           <div class="ini-avance"><div class="quiz-barra"><i style="width:${pct(vistas, grabsG.length)}%"></i></div>
             <span><b>${vistas} de ${grabsG.length}</b> ${grabsG.length === 1 ? 'grabación vista' : 'grabaciones vistas'}</span></div>` : ''}
@@ -99,9 +99,9 @@ function inicioHtml(){
         ${!IS_ADMIN && g.whatsapp_url ? `<a class="btn btn-wa" href="${escapeHtml(g.whatsapp_url)}" target="_blank" rel="noopener">
             <svg class="ico"><use href="#i-wa"/></svg> Unirme al grupo de WhatsApp</a>` : ''}
         ${IS_ADMIN ? `<button class="btn ${inicioEditando ? '' : 'btn-primary'}" data-ini-editar>
-            <svg class="ico"><use href="#i-edit"/></svg> ${inicioEditando ? 'Cancelar' : 'Editar cronograma'}</button>` : ''}
+            <svg class="ico"><use href="#i-edit"/></svg> ${inicioEditando ? 'Cancelar' : 'Editar cronograma'}</button>
+          ${gestionarEmpresaHtml(g)}` : ''}
       </div>
-      ${IS_ADMIN ? contactoEmpresaHtml(g) : ''}
     </section>`;
 
   const selector = !IS_ADMIN && mios.length > 1 ? `
@@ -1157,41 +1157,70 @@ new MutationObserver(() => ponerOjos()).observe(document.body, { childList:true,
    para editarla, cambiar su contraseña, dar acceso a personas y copiar
    el mensaje de bienvenida, sin ir al menú de Empresas y cohortes.
    ================================================================ */
-function contactoEmpresaHtml(g){
+/** Bajo el nombre de la empresa: una línea con lo esencial y el contacto, discreto. */
+function resumenEmpresaHtml(g){
   const e = estadoGrupo(g);
-  const dato = (ico, html) => html ? `<span class="ce-dato"><svg class="ico"><use href="#${ico}"/></svg>${html}</span>` : '';
-  const contacto = [g.contacto_nombre, g.contacto_cargo].filter(Boolean).map(escapeHtml).join(' · ');
-  const datos = [
-    dato('i-users', contacto),
-    dato('i-feed', g.contacto_email ? `<a href="mailto:${escapeHtml(g.contacto_email)}">${escapeHtml(g.contacto_email)}</a>` : ''),
-    dato('i-wa', g.contacto_telefono ? `<a href="https://wa.me/${escapeHtml(g.contacto_telefono.replace(/[^\d]/g, ''))}" target="_blank" rel="noopener">${escapeHtml(g.contacto_telefono)}</a>` : ''),
-    dato('i-wa', g.whatsapp_url ? `<a href="${escapeHtml(g.whatsapp_url)}" target="_blank" rel="noopener">Grupo de WhatsApp</a>` : ''),
-  ].join('');
+  const partes = [
+    rangoTxt(g.fecha_inicio, g.fecha_fin),
+    g.plazas ? `${g.miembros ?? 0} de ${g.plazas} plazas` : `${g.miembros ?? 0} ${g.miembros === 1 ? 'persona' : 'personas'}`,
+    `${g.han_entrado ?? 0} ${g.han_entrado === 1 ? 'ya entró' : 'ya entraron'}`,
+  ].filter(Boolean).map(escapeHtml);
+  // El estado solo se muestra cuando pide atención: vence pronto, venció o está inactiva
+  const aviso = e.cls !== 'is-on' ? `<span class="gr-estado ${e.cls}">${escapeHtml(e.txt)}</span>` : '';
+  const quien = [g.contacto_nombre, g.contacto_cargo].filter(Boolean).map(escapeHtml).join(', ');
+  const tel = (g.contacto_telefono || '').replace(/[^\d]/g, '');
   return `
-    <div class="ce-ficha">
-      <div class="cef-fila">
-        <span class="gr-estado ${e.cls}">${escapeHtml(e.txt)}</span>
-        <span class="ce-meta"><b>${g.miembros ?? 0}</b>${g.plazas ? ` de ${g.plazas} plazas` : ` ${g.miembros === 1 ? 'persona' : 'personas'}`} · <b>${g.han_entrado ?? 0}</b> ya entraron</span>
-      </div>
-      <div class="ce-datos">${datos || '<span class="ce-vacio">Sin datos de contacto: agrégalos en «Editar empresa».</span>'}</div>
-      <div class="ce-acc">
-        <button class="btn" data-emp-editar="${g.id}"><svg class="ico"><use href="#i-lock"/></svg> Editar empresa y contraseña</button>
-        <button class="btn" data-emp-personas="${g.id}"><svg class="ico"><use href="#i-users"/></svg> Personas</button>
-        <button class="btn" data-emp-bienvenida="${g.id}"><svg class="ico"><use href="#i-copy"/></svg> Copiar bienvenida</button>
+    <p class="re-linea">${aviso}${partes.join(' · ')}</p>
+    ${quien || g.contacto_email || tel ? `
+    <p class="re-contacto">
+      <span>Contacto: ${quien ? `<b>${quien}</b>` : 'sin nombre'}</span>
+      ${g.contacto_email ? `<a class="re-ico" href="mailto:${escapeHtml(g.contacto_email)}" title="Escribir a ${escapeHtml(g.contacto_email)}" aria-label="Correo"><svg class="ico"><use href="#i-mail"/></svg></a>` : ''}
+      ${tel ? `<a class="re-ico" href="https://wa.me/${escapeHtml(tel)}" target="_blank" rel="noopener" title="WhatsApp ${escapeHtml(g.contacto_telefono)}" aria-label="WhatsApp"><svg class="ico"><use href="#i-wa"/></svg></a>` : ''}
+    </p>` : ''}`;
+}
+
+/** "Gestionar": lo que se hace de vez en cuando con la empresa, en un menú y no a la vista. */
+function gestionarEmpresaHtml(g){
+  return `
+    <a class="icon-btn btn-correo" href="${escapeHtml(gmailBienvenida(g))}" target="_blank" rel="noopener"
+       title="Enviar la bienvenida por Gmail${g.contacto_email ? ' a ' + escapeHtml(g.contacto_email) : ''}" aria-label="Enviar la bienvenida por Gmail">
+      <svg class="ico"><use href="#i-mail"/></svg></a>
+    <div class="gestionar">
+      <button class="btn" data-gestionar aria-haspopup="menu" aria-expanded="false">Gestionar <svg class="ico"><use href="#i-chev"/></svg></button>
+      <div class="cfg-menu gestionar-menu" role="menu" hidden>
+        <button role="menuitem" data-emp-editar="${g.id}"><svg class="ico"><use href="#i-lock"/></svg>
+          <span><b>Editar empresa y contraseña</b><em>Logo, contacto, fechas y acceso</em></span></button>
+        <button role="menuitem" data-emp-personas="${g.id}"><svg class="ico"><use href="#i-users"/></svg>
+          <span><b>Personas</b><em>Dar acceso, responsables y bajas</em></span></button>
+        ${g.whatsapp_url ? `<a role="menuitem" href="${escapeHtml(g.whatsapp_url)}" target="_blank" rel="noopener"><svg class="ico"><use href="#i-wa"/></svg>
+          <span><b>Grupo de WhatsApp</b><em>Abrir el grupo de la empresa</em></span></a>` : ''}
       </div>
     </div>`;
 }
+
+// Abrir y cerrar el menú "Gestionar"
+document.addEventListener('click', e => {
+  const menu = $('.gestionar-menu'); if (!menu) return;
+  const btn = e.target.closest('[data-gestionar]');
+  if (btn){ menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', !menu.hidden); return; }
+  if (!e.target.closest('.gestionar-menu') || e.target.closest('[role="menuitem"]')){
+    menu.hidden = true; $('[data-gestionar]')?.setAttribute('aria-expanded', 'false');
+  }
+});
 
 $('#posts').addEventListener('click', async e => {
   if (view.type !== 'inicio' || !IS_ADMIN) return;
   const t = sel => e.target.closest(sel);
   if (t('[data-emp-editar]')) return abrirGrupoForm(grupoPorId(t('[data-emp-editar]').dataset.empEditar));
   if (t('[data-emp-personas]')){ resultadoAlta = ''; miembrosFiltro = ''; return setView('grupos', t('[data-emp-personas]').dataset.empPersonas); }
-  if (t('[data-emp-bienvenida]')){
-    const g = grupoPorId(t('[data-emp-bienvenida]').dataset.empBienvenida);
-    try {
-      await navigator.clipboard.writeText(mensajeBienvenida(g));
-      toast(claveReciente[g.id] ? 'Mensaje copiado, con la contraseña' : 'Mensaje copiado: completa la contraseña antes de enviarlo');
-    } catch { toast('El navegador no dejó copiar'); }
-  }
 });
+
+/** Gmail con un correo nuevo: para el contacto de la empresa, con el asunto y la bienvenida escritos. */
+function gmailBienvenida(g){
+  const q = new URLSearchParams({
+    view:'cm', fs:'1', to:g.contacto_email || '',
+    su:`Tu acceso a la Academia de PorContar${g.tipo === 'b2b' ? ' · ' + g.nombre : ''}`,
+    body:mensajeBienvenida(g),
+  });
+  return 'https://mail.google.com/mail/?' + q.toString();
+}

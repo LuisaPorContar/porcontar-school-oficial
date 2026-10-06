@@ -1709,3 +1709,25 @@ body.vista-clase .rail{top:140px}
 .ce-acc{display:flex;gap:8px;flex-wrap:wrap}
 .ce-acc .btn{padding:8px 14px;font-size:13.5px}
 .ce-acc .ico{width:16px;height:16px}
+
+/* ============ FICHA DE LA EMPRESA, MÁS LIVIANA ============ */
+.re-linea{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 0;font-size:14px;color:var(--ink-soft)}
+.re-contacto{display:flex;align-items:center;gap:6px;margin:2px 0 0;font-size:13.5px;color:var(--ink-mute)}
+.re-contacto b{color:var(--ink-soft);font-weight:600}
+.re-ico{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;color:var(--pc-blue)}
+.re-ico:hover{background:var(--pc-blue-tint)}
+.re-ico .ico{width:16px;height:16px}
+.ini-hero-acc{flex-direction:row;align-items:center;gap:8px}
+.gestionar{position:relative}
+.gestionar>.btn .ico{width:15px;height:15px}
+.gestionar-menu{right:0;top:48px;width:300px;padding:6px}
+.gestionar-menu a{display:flex;align-items:flex-start;gap:11px;padding:10px;border-radius:10px;text-decoration:none;color:inherit}
+.gestionar-menu a:hover{background:var(--paper-2)}
+.gestionar-menu a .ico{margin-top:2px;color:var(--pc-blue)}
+.gestionar-menu a b{display:block;font-family:var(--font-display);font-size:14px;font-weight:600}
+.gestionar-menu a em{display:block;font-style:normal;font-size:12px;color:var(--ink-mute)}
+@media (max-width:600px){ .ini-hero-acc{width:100%} .gestionar-menu{left:0;right:auto;width:min(300px,86vw)} }
+
+/* Enviar la bienvenida por Gmail */
+.btn-correo{width:42px;height:42px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--pc-blue)}
+.btn-correo:hover{border-color:var(--pc-blue);background:var(--pc-blue-tint)}
