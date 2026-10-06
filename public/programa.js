@@ -1042,6 +1042,7 @@ $('#posts').addEventListener('click', async e => {
     const email = $('#admEmail').value.trim(), nombre = $('#admNombre').value.trim(), clave = $('#admClave').value.trim();
     const msg = $('#admMsg');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return void (msg.textContent = 'Escribe un correo válido.');
+    if (!/@porcontar\.com$/i.test(email)) return void (msg.textContent = 'Solo correos @porcontar.com pueden ser admin.');
     if (clave.length < 8) return void (msg.textContent = 'La contraseña temporal debe tener al menos 8 caracteres (o toca Generar).');
     try {
       await store.adminAgregar(email, nombre, clave);

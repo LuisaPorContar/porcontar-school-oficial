@@ -29,6 +29,13 @@ create table if not exists public.admin_sesiones (
   vence       timestamptz not null default now() + interval '7 days'
 );
 
+-- Solo correos del dominio @porcontar.com pueden ser admin (también lo exige la tabla)
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'admins_solo_porcontar') then
+    alter table public.admins add constraint admins_solo_porcontar check (email ~ '@porcontar\.com$');
+  end if;
+end $$;
+
 alter table public.admins         enable row level security;
 alter table public.admin_sesiones enable row level security;
 -- Sin policies: solo se tocan con las funciones de abajo.
@@ -119,6 +126,11 @@ begin
     return jsonb_build_object('error', 'Demasiados intentos seguidos. Espera 15 minutos.');
   end if;
 
+  -- Fuera del dominio: el mismo mensaje que una contraseña mala (no se da pista)
+  if correo !~ '@porcontar\.com$' then
+    return jsonb_build_object('error', 'El correo o la contraseña no coinciden.');
+  end if;
+
   select * into fila from public.admins where email = correo and activo;
   if found and fila.clave_hash is null then
     return jsonb_build_object('primera_vez', true);
@@ -157,6 +169,9 @@ begin
   end if;
   if correo !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
     return jsonb_build_object('error', 'Escribe un correo válido.');
+  end if;
+  if correo !~ '@porcontar\.com$' then
+    return jsonb_build_object('error', 'Solo correos @porcontar.com pueden ser admin.');
   end if;
   if char_length(coalesce(p_clave, '')) < 8 then
     return jsonb_build_object('error', 'La contraseña debe tener al menos 8 caracteres.');
@@ -255,6 +270,7 @@ declare
 begin
   if not public.is_admin() then raise exception 'sin permiso'; end if;
   if correo !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'Escribe un correo válido.'; end if;
+  if correo !~ '@porcontar\.com$' then raise exception 'Solo correos @porcontar.com pueden ser admin.'; end if;
   if char_length(coalesce(p_clave, '')) < 8 then raise exception 'La contraseña temporal debe tener al menos 8 caracteres.'; end if;
   insert into public.admins (email, nombre, clave_hash, activo)
   values (correo, left(btrim(coalesce(p_nombre, '')), 80), extensions.crypt(p_clave, extensions.gen_salt('bf', 10)), true)

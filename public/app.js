@@ -3566,6 +3566,7 @@ $('#loginForm').addEventListener('submit', async e => {
     const email = $('#loginEmail').value.trim(), clave = $('#loginClave').value;
     const msg = $('#loginMsg'), btn = $('#loginBtn'), texto = btn.textContent;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return void (msg.textContent = 'Escribe tu correo completo.');
+    if (!/@porcontar\.com$/i.test(email)) return void (msg.textContent = 'El acceso de admin es solo para correos @porcontar.com.');
     if (!clave) return void (msg.textContent = 'Escribe la contraseña.');
     if (modoLlave && clave.length < 8) return void (msg.textContent = 'La contraseña nueva debe tener al menos 8 caracteres.');
     if (modoLlave && !$('#loginLlave').value.trim()) return void (msg.textContent = 'Escribe la llave de emergencia.');
