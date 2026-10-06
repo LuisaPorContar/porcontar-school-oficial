@@ -145,7 +145,7 @@ function inicioHtml(){
   const continua = pendiente ? `
     <section class="card ini-sigue">
       <button class="ini-sigue-mini" data-ini-ver="${pendiente.s.id}" aria-label="Continuar ${escapeHtml(pendiente.s.title)}">
-        <img src="https://i.ytimg.com/vi/${escapeHtml(pendiente.g.youtube_id)}/hqdefault.jpg" alt="" loading="lazy" />
+        ${pendiente.g.youtube_id ? `<img src="https://i.ytimg.com/vi/${escapeHtml(pendiente.g.youtube_id)}/hqdefault.jpg" alt="" loading="lazy" />` : ''}
         <span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
       </button>
       <div class="ini-sigue-txt">
@@ -448,6 +448,33 @@ function idYoutube(texto){
   return null;
 }
 
+/** Saca el id de un archivo de Google Drive (file/d/ID, open?id=ID, uc?id=ID). */
+function idDrive(texto){
+  try {
+    const u = new URL(enlace(texto));
+    if (!/(^|\.)drive\.google\.com$|(^|\.)docs\.google\.com$/.test(u.hostname)) return null;
+    const m = u.pathname.match(/\/file\/d\/([A-Za-z0-9_-]{10,80})/);
+    const id = m ? m[1] : u.searchParams.get('id');
+    return id && /^[A-Za-z0-9_-]{10,80}$/.test(id) ? id : null;
+  } catch { return null; }
+}
+
+/** Grabación de Drive: con el reproductor de Google; el estudiante la marca vista a mano. */
+function driveHtml(g){
+  const vista = progresoVideo[g.id]?.completado;
+  return `
+    <div class="vsl vsl-drive">
+      <iframe src="https://drive.google.com/file/d/${escapeHtml(g.drive_id)}/preview" allow="autoplay; fullscreen" allowfullscreen
+              title="${escapeHtml(g.titulo || 'Grabación de la clase')}"></iframe>
+    </div>
+    ${PERFIL ? `
+    <div class="grab-visto">
+      <span>${vista ? 'Ya marcaste esta grabación como vista.' : '¿Terminaste la grabación? Márcala para que cuente en tu avance.'}</span>
+      <button class="visto ${vista ? 'is-on' : ''}" data-grab-visto="${g.id}" ${vista ? 'disabled' : ''}>
+        <svg class="ico"><use href="#i-check"/></svg>${vista ? 'Vista' : 'Marcar como vista'}</button>
+    </div>` : IS_ADMIN ? `<p class="grab-nota-drive">Grabación de Google Drive: el estudiante la marca como vista a mano.</p>` : ''}`;
+}
+
 function destruirReproductor(){
   if (!vsl) return;
   clearInterval(vsl.reloj); clearInterval(vsl.reporte);
@@ -494,7 +521,7 @@ function pintarGrabacion(forzar = false){
   const g = grupoPorId(vistaComo);
   caja.innerHTML = `
     <section class="grab">
-      ${sel ? reproductorHtml(sel) : `<div class="vsl vsl-vacio"><div><svg class="ico"><use href="#i-play"/></svg>
+      ${sel ? (sel.drive_id ? driveHtml(sel) : reproductorHtml(sel)) : `<div class="vsl vsl-vacio"><div><svg class="ico"><use href="#i-play"/></svg>
           <b>${escapeHtml(g?.nombre || 'Esta empresa')} todavía no tiene grabación en esta clase</b>
           <span>Agrégala con el botón de abajo: se ve solo en este espacio.</span></div></div>`}
       ${lista.length > 1 ? `<div class="grab-partes">${lista.map((x, i) => `
@@ -511,17 +538,18 @@ function pintarGrabacion(forzar = false){
           ${grabAgregando ? `
             <div class="grab-form">
               <label class="field"><span>Título</span><input type="text" id="grabTitulo" maxlength="120" placeholder="Ej. Grabación de la clase · parte 1" /></label>
-              <label class="field"><span>Enlace de YouTube</span><input type="url" id="grabUrl" placeholder="youtu.be/…  (puede ser oculto)" /></label>
+              <label class="field"><span>Enlace de YouTube o de Google Drive</span><input type="text" inputmode="url" id="grabUrl" placeholder="youtu.be/… (oculto)  ·  drive.google.com/file/d/…" />
+                <small class="gr-nota">YouTube: sin poder adelantar y se marca vista sola. Drive (repeticiones de Meet): compártelo como «cualquier persona con el enlace»; el estudiante la marca vista a mano.</small></label>
               <div class="quiz-enviar"><span class="quiz-msg" id="grabMsg"></span>
                 <button class="btn btn-primary" data-grab-guardar>Guardar para ${escapeHtml(g?.nombre || 'esta empresa')}</button></div>
             </div>` : ''}
           ${lista.length ? `<ul class="grab-admin">${lista.map(x => `
-            <li><span>${escapeHtml(x.titulo || 'Sin título')} <small>youtu.be/${escapeHtml(x.youtube_id)}</small></span>
+            <li><span>${escapeHtml(x.titulo || 'Sin título')} <small>${x.drive_id ? 'Google Drive' : 'youtu.be/' + escapeHtml(x.youtube_id)}</small></span>
               <button class="icon-btn" data-grab-borrar="${x.id}" title="Quitar esta grabación" aria-label="Quitar ${escapeHtml(x.titulo || 'grabación')}">
                 <svg class="ico"><use href="#i-trash"/></svg></button></li>`).join('')}</ul>` : ''}
         </div>` : ''}
     </section>`;
-  if (sel) prepararReproductor(sel);
+  if (sel && !sel.drive_id) prepararReproductor(sel);
 }
 
 function reproductorHtml(g){
@@ -645,6 +673,21 @@ window.addEventListener('pagehide', () => {
 
 /* ---------- Interacciones ---------- */
 $('#grabacion').addEventListener('click', async e => {
+  // Drive: marcar la grabación como vista (cuenta una reproducción y la deja completa)
+  const visto = e.target.closest('[data-grab-visto]');
+  if (visto){
+    const id = visto.dataset.grabVisto;
+    visto.disabled = true;
+    try {
+      await store.registrarVideo(id, 'inicio', 0, 0);
+      const r = await store.registrarVideo(id, 'fin', 0, 0);
+      progresoVideo[id] = { ...(progresoVideo[id] || {}), ...r };
+      toast('¡Clase vista! Quedó registrada en tu avance');
+      pintarGrabacion(true);
+      render();
+    } catch (err){ visto.disabled = false; toast(errorMsg(err)); }
+    return;
+  }
   const ver = e.target.closest('[data-grab-ver]');
   if (ver){ grabElegida[view.id] = ver.dataset.grabVer; return pintarGrabacion(); }
   if (e.target.closest('[data-grab-agregar]')){
@@ -655,11 +698,12 @@ $('#grabacion').addEventListener('click', async e => {
   if (e.target.closest('[data-grab-guardar]')){
     const msg = $('#grabMsg'), btn = $('[data-grab-guardar]');
     const yt = idYoutube($('#grabUrl').value);
-    if (!yt) return void (msg.textContent = 'Pega el enlace del video de YouTube (puede ser oculto).');
+    const dr = yt ? null : idDrive($('#grabUrl').value);
+    if (!yt && !dr) return void (msg.textContent = 'Pega el enlace del video de YouTube (puede ser oculto) o de Google Drive.');
     const n = grabacionesDe(view.id).length;
     const g = { id:'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), grupo_id:vistaComo,
                 sesion_id:view.id, titulo:$('#grabTitulo').value.trim() || (n ? `Parte ${n + 1}` : 'Grabación de la clase'),
-                youtube_id:yt, orden:n };
+                youtube_id:yt || null, drive_id:dr || null, orden:n };
     btn.disabled = true; btn.textContent = 'Guardando…';
     try {
       await store.guardarGrabacion(g);

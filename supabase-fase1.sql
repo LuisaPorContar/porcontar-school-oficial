@@ -169,6 +169,18 @@ create table if not exists public.grabaciones (
 );
 create index if not exists grabaciones_grupo_idx on public.grabaciones (grupo_id, sesion_id, orden);
 
+-- También de Google Drive (las repeticiones de Meet quedan ahí): una grabación
+-- es de YouTube o de Drive, nunca de las dos. Las de Drive se marcan vistas a mano.
+alter table public.grabaciones
+  add column if not exists drive_id text check (drive_id ~ '^[A-Za-z0-9_-]{10,80}$');
+alter table public.grabaciones alter column youtube_id drop not null;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'grabaciones_una_fuente') then
+    alter table public.grabaciones add constraint grabaciones_una_fuente
+      check ((youtube_id is not null) <> (drive_id is not null));
+  end if;
+end $$;
+
 alter table public.grabaciones enable row level security;
 drop policy if exists "grabaciones lectura" on public.grabaciones;
 drop policy if exists "grabaciones admin"   on public.grabaciones;
