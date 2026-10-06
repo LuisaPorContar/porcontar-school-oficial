@@ -3109,16 +3109,16 @@ function mensajeBienvenida(g){
 /* ---------- Formulario del grupo ---------- */
 function abrirGrupoForm(g = null){
   editandoGrupo = g;
-  $('#grTitle').textContent = g ? 'Editar grupo' : 'Nuevo grupo';
+  $('#grTitle').textContent = g ? g.nombre : 'Nuevo grupo';
   $('#grNombre').value = g ? g.nombre : '';
   $('#grTipo').value   = g ? g.tipo : 'b2b';
   $('#grVence').value  = g?.vence_el || '';
   $('#grClave').value  = '';
-  $('#grClave').placeholder = g ? 'Déjala vacía para no cambiarla' : 'Mínimo 6 caracteres';
-  $('#grClaveLbl').textContent = g ? 'Nueva contraseña (opcional)' : 'Contraseña del grupo';
-  $('#grClaveNota').textContent = g
-    ? 'Si la cambias, todas las personas del grupo salen y vuelven a entrar con la nueva. La anterior deja de servir.'
-    : 'Todas las personas del grupo entran con su correo y esta contraseña.';
+  $('#grClave').placeholder = g ? 'Sin cambios' : 'Mínimo 6 caracteres';
+  $('#grClaveLbl').textContent = g ? 'Nueva contraseña' : 'Contraseña';
+  // El aviso solo aparece cuando de verdad se está cambiando
+  $('#grClaveNota').textContent = 'Al guardar, todos entran de nuevo con esta contraseña.';
+  $('#grClaveNota').hidden = true;
   $('#grActivo').checked = g ? g.activo : true;
 
   // Ficha
@@ -3132,6 +3132,7 @@ function abrirGrupoForm(g = null){
 
   $('#grMsg').textContent = '';
   $('#grOverlay').hidden = false;
+  $('#grOverlay .aj-cuerpo').scrollTop = 0;
   enfocar('#grNombre');
 }
 const cerrarGrupoForm = () => { $('#grOverlay').hidden = true; editandoGrupo = null; logoNuevo = null; };
@@ -3163,7 +3164,10 @@ $('#grGenerar').addEventListener('click', () => {
   const abc = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   const azar = crypto.getRandomValues(new Uint32Array(8));
   $('#grClave').value = 'PC-' + [...azar].map(n => abc[n % abc.length]).join('');
+  avisoClave();
 });
+const avisoClave = () => { $('#grClaveNota').hidden = !(editandoGrupo && $('#grClave').value.trim()); };
+$('#grClave').addEventListener('input', avisoClave);
 
 $('#grSave').addEventListener('click', async () => {
   const nombre = $('#grNombre').value.trim();

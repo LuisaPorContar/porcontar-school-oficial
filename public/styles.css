@@ -1731,3 +1731,47 @@ body.vista-clase .rail{top:140px}
 /* Enviar la bienvenida por Gmail */
 .btn-correo{width:42px;height:42px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--pc-blue)}
 .btn-correo:hover{border-color:var(--pc-blue);background:var(--pc-blue-tint)}
+
+/* ============ FICHA DE LA EMPRESA · estilo página de ajustes ============ */
+.modal-ajustes{width:min(600px,100%);background:#f7f8fb}
+.aj-cab{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 6px}
+.aj-cab h2{font-size:19px;font-weight:700;letter-spacing:-.01em}
+.aj-cuerpo{padding:6px 24px 22px;overflow-y:auto}
+.aj-tit{margin:18px 0 8px 4px;font-size:13px;font-weight:600;color:var(--ink-soft)}
+.aj-caja{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.aj-fila{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  min-height:52px;padding:8px 16px;border-top:1px solid #eef1f6;margin:0}
+.aj-caja>.aj-fila:first-child{border-top:0}
+.aj-fila>span:first-child{font-size:14px;color:var(--ink);flex:none}
+.aj-fila input:not([type=checkbox]):not([type=file]),.aj-fila select{
+  width:min(280px,58%);padding:8px 10px;border:1px solid transparent;border-radius:9px;
+  background:var(--paper-2);font:inherit;font-size:14px;color:var(--ink);text-align:right;outline:none}
+.aj-fila select{text-align:left;cursor:pointer}
+.aj-fila input:hover,.aj-fila select:hover{border-color:var(--line)}
+.aj-fila input:focus,.aj-fila select:focus{border-color:var(--pc-blue);background:#fff;text-align:left}
+.aj-fila input::placeholder{color:#b3bacb}
+.aj-clave{display:flex;align-items:center;gap:8px;width:min(280px,58%)}
+.aj-clave input{flex:1;width:auto!important;min-width:0}
+.aj-clave .ojo{position:static}
+.aj-caja>.gr-nota{display:block;margin:0;padding:0 16px 10px;font-size:12px;color:#b46a00;text-align:right}
+.aj-logo{padding:14px 16px}
+.aj-logo .gr-logo-prev{width:56px;height:56px;border-radius:14px}
+.aj-logo-acc{display:flex;gap:8px}
+.aj-switch{position:relative;width:42px;height:24px;flex:none}
+.aj-switch input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:1}
+.aj-switch i{position:absolute;inset:0;border-radius:99px;background:#d6dbe6;transition:background .15s}
+.aj-switch i::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(17,22,42,.25);transition:transform .15s}
+.aj-switch input:checked+i{background:var(--pc-blue)}
+.aj-switch input:checked+i::after{transform:translateX(18px)}
+.aj-switch input:focus-visible+i{outline:2px solid var(--pc-blue);outline-offset:2px}
+.aj-pie{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;
+  border-top:1px solid var(--line);background:#fff}
+.aj-pie>div{display:flex;gap:8px;margin-left:auto}
+@media (max-width:560px){
+  .aj-cab,.aj-cuerpo,.aj-pie{padding-left:16px;padding-right:16px}
+  .aj-fila{flex-wrap:wrap}
+  .aj-fila input:not([type=checkbox]):not([type=file]),.aj-fila select,.aj-clave{width:100%;text-align:left}
+}
+.modal-ajustes .btn-mini{padding:7px 13px;font-size:13px}
+.modal-ajustes .aj-pie .btn{padding:9px 18px;font-size:14px}

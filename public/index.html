@@ -459,84 +459,67 @@
 
 <!-- ============ EMPRESA O COHORTE (admin) ============ -->
 <div class="overlay" id="grOverlay" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="grTitle">
-    <header class="modal-head">
+  <div class="modal modal-ajustes" role="dialog" aria-modal="true" aria-labelledby="grTitle">
+    <header class="aj-cab">
       <h2 id="grTitle">Nuevo grupo</h2>
       <button class="icon-btn" id="grClose" aria-label="Cerrar">
         <svg class="ico"><use href="#i-close"/></svg>
       </button>
     </header>
 
-    <div class="modal-body">
-      <label class="field">
-        <span>Nombre</span>
-        <input type="text" id="grNombre" maxlength="120" placeholder="Ej. Bancolombia · Equipo comercial" />
-      </label>
-
-      <div class="field-row">
-        <label class="field">
-          <span>Tipo</span>
+    <div class="aj-cuerpo">
+      <!-- Como una página de ajustes: bloques con título y una fila por dato -->
+      <p class="aj-tit">Empresa</p>
+      <div class="aj-caja">
+        <div class="aj-fila aj-logo">
+          <span class="gr-logo-prev" id="grLogoPrev"></span>
+          <div class="aj-logo-acc">
+            <label class="btn btn-mini gr-csv">Cambiar logo
+              <input type="file" id="grLogo" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden /></label>
+            <button type="button" class="btn btn-mini" id="grLogoQuitar" hidden>Quitar</button>
+          </div>
+        </div>
+        <label class="aj-fila"><span>Nombre</span><input type="text" id="grNombre" maxlength="120" placeholder="Bancolombia" /></label>
+        <label class="aj-fila"><span>Tipo</span>
           <select id="grTipo">
             <option value="b2b">Empresa (B2B)</option>
             <option value="b2c">Cohorte (B2C)</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Acceso hasta (incluido)</span>
-          <input type="date" id="grVence" />
-        </label>
+          </select></label>
+        <label class="aj-fila"><span>Sector</span><input type="text" id="grSector" maxlength="80" placeholder="Salud" /></label>
+        <label class="aj-fila"><span>NIT</span><input type="text" id="grNit" maxlength="40" placeholder="900.123.456-7" /></label>
       </div>
 
-      <div class="field">
-        <span id="grClaveLbl">Contraseña del grupo</span>
-        <div class="gr-clave">
-          <input type="text" id="grClave" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Mínimo 6 caracteres" />
-          <button type="button" class="btn" id="grGenerar">Generar</button>
-        </div>
-        <small class="gr-nota" id="grClaveNota">Todas las personas del grupo entran con su correo y esta contraseña.</small>
+      <p class="aj-tit">Acceso</p>
+      <div class="aj-caja">
+        <div class="aj-fila"><span id="grClaveLbl">Contraseña</span>
+          <span class="aj-clave">
+            <input type="text" id="grClave" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Mínimo 6 caracteres" />
+            <button type="button" class="btn btn-mini" id="grGenerar">Generar</button>
+          </span></div>
+        <small class="gr-nota" id="grClaveNota" hidden></small>
+        <label class="aj-fila"><span>Acceso hasta</span><input type="date" id="grVence" /></label>
+        <label class="aj-fila"><span>Plazas</span><input type="number" id="grPlazas" min="0" max="999999" placeholder="25" /></label>
+        <label class="aj-fila"><span>Activo</span>
+          <span class="aj-switch"><input type="checkbox" id="grActivo" checked /><i></i></span></label>
       </div>
 
-      <label class="check">
-        <input type="checkbox" id="grActivo" checked />
-        <span>Activo: las personas del grupo pueden entrar</span>
-      </label>
-
-      <!-- Ficha de la empresa -->
-      <p class="gr-seccion">Ficha</p>
-      <div class="gr-logo">
-        <span class="gr-logo-prev" id="grLogoPrev"></span>
-        <div>
-          <label class="btn gr-csv"><svg class="ico"><use href="#i-upload"/></svg> Subir logo
-            <input type="file" id="grLogo" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden /></label>
-          <button type="button" class="btn" id="grLogoQuitar" hidden>Quitar</button>
-          <small class="gr-nota">PNG, JPG, WebP o SVG, hasta 2 MB. Se ve en su espacio y en el inicio de sus estudiantes.</small>
-        </div>
-      </div>
-      <div class="field-row">
-        <label class="field"><span>NIT</span><input type="text" id="grNit" maxlength="40" placeholder="900.123.456-7" /></label>
-        <label class="field"><span>Sector</span><input type="text" id="grSector" maxlength="80" placeholder="Banca, retail, salud…" /></label>
-      </div>
-      <div class="field-row">
-        <label class="field"><span>Plazas contratadas</span><input type="number" id="grPlazas" min="0" max="999999" placeholder="25" /></label>
-        <label class="field"><span>Grupo de WhatsApp</span><input type="text" inputmode="url" id="grWhatsapp" maxlength="300" placeholder="chat.whatsapp.com/…" /></label>
-      </div>
-      <div class="field-row">
-        <label class="field"><span>Inicio del programa</span><input type="date" id="grInicio" /></label>
-        <label class="field"><span>Fin del programa</span><input type="date" id="grFin" /></label>
+      <p class="aj-tit">Programa</p>
+      <div class="aj-caja">
+        <label class="aj-fila"><span>Inicio</span><input type="date" id="grInicio" /></label>
+        <label class="aj-fila"><span>Fin</span><input type="date" id="grFin" /></label>
+        <label class="aj-fila"><span>Grupo de WhatsApp</span><input type="text" inputmode="url" id="grWhatsapp" maxlength="300" placeholder="chat.whatsapp.com/…" /></label>
       </div>
 
-      <p class="gr-seccion">Contacto en la empresa</p>
-      <div class="field-row">
-        <label class="field"><span>Nombre</span><input type="text" id="grCNombre" maxlength="120" placeholder="Quien coordina el programa" /></label>
-        <label class="field"><span>Cargo</span><input type="text" id="grCCargo" maxlength="120" placeholder="Gerente de talento" /></label>
-      </div>
-      <div class="field-row">
-        <label class="field"><span>Correo</span><input type="email" id="grCEmail" maxlength="160" placeholder="contacto@empresa.com" /></label>
-        <label class="field"><span>Teléfono</span><input type="tel" id="grCTel" maxlength="40" placeholder="+57 300 000 0000" /></label>
+      <p class="aj-tit">Contacto en la empresa</p>
+      <div class="aj-caja">
+        <label class="aj-fila"><span>Nombre</span><input type="text" id="grCNombre" maxlength="120" placeholder="Laura Gómez" /></label>
+        <label class="aj-fila"><span>Cargo</span><input type="text" id="grCCargo" maxlength="120" placeholder="Gerente de talento" /></label>
+        <label class="aj-fila"><span>Correo</span><input type="email" id="grCEmail" maxlength="160" placeholder="laura@empresa.com" /></label>
+        <label class="aj-fila"><span>Teléfono</span><input type="tel" id="grCTel" maxlength="40" placeholder="+57 300 000 0000" /></label>
       </div>
     </div>
 
-    <footer class="modal-foot">
+    <footer class="aj-pie">
       <span class="modal-msg" id="grMsg"></span>
       <div>
         <button class="btn" id="grCancel">Cancelar</button>
