@@ -308,6 +308,66 @@ grant execute on function public.admins_lista()                           to ano
 grant execute on function public.admin_agregar(text, text, text)          to anon, authenticated;
 grant execute on function public.admin_activar(text, boolean)             to anon, authenticated;
 
+-- Guardar una empresa o cohorte. Si se le pone una contraseña nueva, se cierran
+-- las sesiones abiertas de sus personas: para seguir dentro deben entrar con la
+-- nueva (si no, la contraseña vieja seguiría "funcionando" en quien ya entró).
+create or replace function public.admin_guardar_grupo(
+  p_id uuid, p_nombre text, p_tipo text, p_clave text, p_vence date, p_activo boolean)
+returns uuid
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  nuevo_id uuid;
+  clave    text := coalesce(p_clave, '');
+begin
+  if not public.is_admin() then
+    raise exception 'sin permiso';
+  end if;
+  if char_length(btrim(coalesce(p_nombre, ''))) < 2 then
+    raise exception 'Ponle un nombre al grupo.';
+  end if;
+  if p_tipo not in ('b2b', 'b2c') then
+    raise exception 'Tipo de grupo no válido';
+  end if;
+  if clave <> '' and char_length(clave) < 6 then
+    raise exception 'La contraseña debe tener al menos 6 caracteres.';
+  end if;
+
+  if p_id is null then
+    if clave = '' then
+      raise exception 'Ponle una contraseña al grupo.';
+    end if;
+    insert into public.grupos (nombre, tipo, clave_hash, vence_el, activo)
+    values (btrim(p_nombre), p_tipo, extensions.crypt(clave, extensions.gen_salt('bf', 10)),
+            p_vence, coalesce(p_activo, true))
+    returning id into nuevo_id;
+    return nuevo_id;
+  end if;
+
+  update public.grupos
+     set nombre = btrim(p_nombre), tipo = p_tipo, vence_el = p_vence,
+         activo = coalesce(p_activo, activo),
+         clave_hash = case when clave = '' then clave_hash
+                           else extensions.crypt(clave, extensions.gen_salt('bf', 10)) end,
+         updated_at = now()
+   where id = p_id;
+  if not found then
+    raise exception 'Ese grupo no existe';
+  end if;
+
+  if clave <> '' then
+    delete from public.sesiones s
+     using public.miembros m
+     where m.grupo_id = p_id and s.email = m.email;
+  end if;
+  return p_id;
+end;
+$$;
+grant execute on function public.admin_guardar_grupo(uuid, text, text, text, date, boolean) to anon, authenticated;
+
 notify pgrst, 'reload schema';
 
 -- Comprobación

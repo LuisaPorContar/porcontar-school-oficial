@@ -3117,7 +3117,7 @@ function abrirGrupoForm(g = null){
   $('#grClave').placeholder = g ? 'Déjala vacía para no cambiarla' : 'Mínimo 6 caracteres';
   $('#grClaveLbl').textContent = g ? 'Nueva contraseña (opcional)' : 'Contraseña del grupo';
   $('#grClaveNota').textContent = g
-    ? 'Si la cambias, quienes ya entraron siguen dentro; la nueva sirve para entrar desde ahora.'
+    ? 'Si la cambias, todas las personas del grupo salen y vuelven a entrar con la nueva. La anterior deja de servir.'
     : 'Todas las personas del grupo entran con su correo y esta contraseña.';
   $('#grActivo').checked = g ? g.activo : true;
 
