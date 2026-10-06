@@ -1119,3 +1119,34 @@ $('#posts').addEventListener('click', async e => {
     } catch (err){ msg.textContent = errorMsg(err); }
   }
 });
+
+/* ================================================================
+   OJITO EN LAS CONTRASEÑAS: muestra u oculta lo que se escribe.
+   Se pone solo a cualquier campo de contraseña, también a los que
+   aparecen después (entrada de admin, cambiar contraseña…).
+   ================================================================ */
+function ponerOjos(raiz = document){
+  raiz.querySelectorAll('input[type="password"]:not([data-ojo])').forEach(inp => {
+    inp.dataset.ojo = '1';
+    const caja = document.createElement('span');
+    caja.className = 'clave-ojo';
+    inp.parentNode.insertBefore(caja, inp);
+    caja.appendChild(inp);
+    caja.insertAdjacentHTML('beforeend',
+      '<button type="button" class="ojo-btn" data-ojo-btn aria-label="Mostrar la contraseña" title="Mostrar la contraseña">' +
+      '<svg class="ico"><use href="#i-eye"/></svg></button>');
+  });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ojo-btn]'); if (!b) return;
+  e.preventDefault();
+  const inp = b.parentNode.querySelector('input');
+  const ver = inp.type === 'password';
+  inp.type = ver ? 'text' : 'password';
+  b.querySelector('use').setAttribute('href', ver ? '#i-eye-off' : '#i-eye');
+  b.setAttribute('aria-label', ver ? 'Ocultar la contraseña' : 'Mostrar la contraseña');
+  b.title = b.getAttribute('aria-label');
+  inp.focus();
+});
+ponerOjos();
+new MutationObserver(() => ponerOjos()).observe(document.body, { childList:true, subtree:true });
