@@ -491,7 +491,8 @@ function cloudStore(){
         id:q.id, titulo:q.titulo, descripcion:q.descripcion, activo:q.activo,
         orden:q.orden, preguntas:q.preguntas, audiencia:q.audiencia || [],
         // El quiz de cada sesión y sus reglas (supabase-fase1.sql)
-        ...(q.sesion_id ? { sesion_id:q.sesion_id, aprobar:q.aprobar ?? 70, intentos:q.intentos ?? 0, obligatorio:!!q.obligatorio } : {}),
+        ...(q.sesion_id ? { sesion_id:q.sesion_id } : {}),
+        ...(q.sesion_id || String(q.id).startsWith('qz-curso-') ? { aprobar:q.aprobar ?? 70, intentos:q.intentos ?? 0, obligatorio:!!q.obligatorio } : {}),
         updated_at:new Date().toISOString(),
       }));
     },
@@ -518,6 +519,37 @@ function cloudStore(){
     },
 
     /* ---------- Catálogo de skills ---------- */
+    // Cursos a tu ritmo (supabase-cursos.sql)
+    async cursos(){
+      const { data, error } = await sb.from('cursos').select('*').order('orden', { ascending:true });
+      if (error) throw error;
+      return data.map(r => ({ id:r.id, orden:r.orden || 0, titulo:r.titulo, descripcion:r.descripcion || '', area:r.area || '', nivel:r.nivel || 'Básico',
+                              instructor:r.instructor || '', portada_url:r.portada_url || null, visible:r.visible !== false,
+                              audiencia:Array.isArray(r.audiencia) ? r.audiencia : [] }));
+    },
+    async capsulas(){
+      const { data, error } = await sb.from('cursos_capsulas').select('*').order('orden', { ascending:true });
+      if (error) throw error;
+      return data.map(r => ({ id:r.id, curso_id:r.curso_id, orden:r.orden || 0, seccion:r.seccion || '', titulo:r.titulo, resumen:r.resumen || '',
+                              video_url:r.video_url || null, duracion:r.duracion || '', recursos:Array.isArray(r.recursos) ? r.recursos : [], visible:r.visible !== false }));
+    },
+    async guardarCurso(c){
+      check(await sb.from('cursos').upsert({ id:c.id, orden:c.orden, titulo:c.titulo, descripcion:c.descripcion || '', area:c.area || '', nivel:c.nivel,
+        instructor:c.instructor || '', portada_url:c.portada_url || null, visible:c.visible !== false, audiencia:c.audiencia || [], updated_at:new Date().toISOString() }));
+    },
+    async borrarCurso(id){ check(await sb.from('cursos').delete().eq('id', id)); },
+    async guardarCapsulas(lista){
+      if (!lista.length) return;
+      check(await sb.from('cursos_capsulas').upsert(lista.map(k => ({ id:k.id, curso_id:k.curso_id, orden:k.orden, seccion:k.seccion || '', titulo:k.titulo,
+        resumen:k.resumen || '', video_url:k.video_url || null, duracion:k.duracion || '', recursos:k.recursos || [], visible:k.visible !== false,
+        updated_at:new Date().toISOString() }))));
+    },
+    async borrarCapsula(id){ check(await sb.from('cursos_capsulas').delete().eq('id', id)); },
+    misCapsulas:        async ()     => (await rpc('mis_capsulas')) || [],
+    marcarCapsula:      (id, vista)  => rpc('marcar_capsula', { p_id:id, p_vista:vista }),
+    capsulaComentarios: async id     => (await rpc('capsula_comentarios', { p_id:id })) || [],
+    capsulaComentar:    (id, texto)  => rpc('capsula_comentar', { p_id:id, p_texto:texto }),
+    capsulaBorrarComentario: id      => rpc('capsula_borrar_comentario', { p_id:id }),
     // Trabajo autónomo editable y ajustes generales (supabase-tareas.sql)
     async tareas(){
       const { data, error } = await sb.from('tareas').select('*').order('orden', { ascending:true });
@@ -578,6 +610,8 @@ function localStore(){
     adminActivar:soloNube, adminCambiarClave:soloNube,
     comunidadFeed:soloNube, comunidadPublicar:soloNube, comunidadBorrar:soloNube, comunidadFijar:soloNube,
     comunidadGustar:soloNube, comunidadComentarios:soloNube, comunidadComentar:soloNube,
+    cursos:soloNube, capsulas:soloNube, guardarCurso:soloNube, borrarCurso:soloNube, guardarCapsulas:soloNube, borrarCapsula:soloNube,
+    misCapsulas:soloNube, marcarCapsula:soloNube, capsulaComentarios:soloNube, capsulaComentar:soloNube, capsulaBorrarComentario:soloNube,
     comunidadBorrarComentario:soloNube, comunidadGrupo:soloNube, comunidadVotar:soloNube,
     comunidadGustarComentario:soloNube, comunidadSubir:soloNube,
     fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
@@ -1033,7 +1067,8 @@ function pintarNav(){
   });
   // Sin preguntas frecuentes no hay dónde preguntar: la tarjeta de preguntas tampoco se muestra
   $('#railPregunta').style.display = extraApagado('faq') ? 'none' : '';
-  const cursos = $('#subnav [data-sub="tuto"]'); if (cursos) cursos.hidden = !IS_ADMIN && extraApagado('tuto');
+  const sinCursos = typeof CURSOS === 'undefined' || CURSOS === null;      // sin el módulo, «Cursos» son los tutoriales
+  const cursos = $('#subnav [data-sub="cursos"]'); if (cursos) cursos.hidden = sinCursos && !IS_ADMIN && extraApagado('tuto');
   const comu = $('#subnav [data-sub="comunidad"]');
   if (comu){ comu.hidden = !CLOUD || (!IS_ADMIN && extraApagado('comunidad')); comu.classList.toggle('is-off', IS_ADMIN && extraApagado('comunidad')); }
   $('#navSessions').innerHTML = SESSIONS.map(s => `
@@ -1096,7 +1131,9 @@ function buildNav(){
   });
 }
 
+let yaNavego = false;   // la persona ya eligió adónde ir (aunque la academia siga cargando)
 function setView(type, id){
+  yaNavego = true;
   view = { type, id: id || null };
   clearInterval(panelTimer);
   if (typeof grabAgregando !== 'undefined') grabAgregando = false;
@@ -1236,11 +1273,17 @@ function renderVista(){
     $('#viewSubtitle').textContent = 'La guía completa de la Academia: qué significa cada término, prompts y herramientas';
   } else if (view.type === 'quiz'){
     // Abierto desde una clase: el título es el de esa clase
-    const sq = quizDesde ? sessionOf(quizDesde) : null;
-    $('#viewTitle').textContent = sq ? 'Quiz · ' + sq.short : 'Quizz';
+    const delCurso = String(quizDesde || '').startsWith('curso:') ? cursoPorId(quizDesde.slice(6)) : null;
+    const sq = delCurso ? { short:'Examen', name:delCurso.titulo } : quizDesde ? sessionOf(quizDesde) : null;
+    $('#viewTitle').textContent = delCurso ? 'Examen del curso' : sq ? 'Quiz · ' + sq.short : 'Quizz';
     $('#viewSubtitle').textContent = sq ? sq.name : IS_ADMIN
       ? 'Arma los quizzes y mira cuánto acertó el grupo'
       : 'Pon a prueba lo aprendido en cada clase';
+  } else if (view.type === 'cursos' || view.type === 'curso' || view.type === 'capsula'){
+    const k = view.type === 'capsula' ? capsulaPorId(view.id) : null;
+    const c = view.type === 'curso' ? cursoPorId(view.id) : k ? cursoPorId(k.curso_id) : null;
+    $('#viewTitle').textContent = 'Cursos';
+    $('#viewSubtitle').textContent = c ? c.titulo : 'Aprende a tu ritmo, cápsula por cápsula';
   } else if (view.type === 'extras'){
     $('#viewTitle').textContent = 'Extras';
     $('#viewSubtitle').textContent = 'Enciende o apaga lo que la gente ve en general';
@@ -1286,7 +1329,8 @@ function renderVista(){
   }
 
   // Menú de atajos: marca el que corresponde a la vista abierta
-  $$('#subnav [data-sub]').forEach(b => b.classList.toggle('is-on', b.dataset.sub === view.type));
+  $$('#subnav [data-sub]').forEach(b => b.classList.toggle('is-on', b.dataset.sub === view.type
+    || (b.dataset.sub === 'cursos' && ['curso', 'capsula', 'tuto'].includes(view.type) && (view.type !== 'tuto' || typeof CURSOS === 'undefined' || CURSOS === null))));
 
   // Mientras se busca en todas las clases, ninguna queda marcada en el menú
   $$('.nav-item').forEach(b => b.classList.toggle('is-active',
@@ -1363,9 +1407,11 @@ function renderVista(){
   const tareasNativas = enTareas && typeof TAREAS !== 'undefined' && TAREAS !== null;   // la checklist de la base (si no, la página de antes)
   const enInicio  = view.type === 'inicio';
   const enComunidad = view.type === 'comunidad';
+  const enCursos = ['cursos', 'curso', 'capsula'].includes(view.type);
   // Las clases del body van todas aquí: cada vista sale antes con su return
   document.body.classList.toggle('vista-skills', enSkills);
-  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio || enComunidad || tareasNativas);
+  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio || enComunidad || tareasNativas || enCursos);
+  document.body.classList.toggle('vista-capsula', view.type === 'capsula');
   document.body.classList.toggle('vista-gestion', enGestion);
   document.body.classList.toggle('vista-resumen', enResumen || enConfig || (enTareas && !tareasNativas));
   const skillsVisibles = vis(skills);
@@ -1382,6 +1428,12 @@ function renderVista(){
   }
   if (enInicio){
     $('#posts').innerHTML = inicioHtml();
+    return;
+  }
+  if (enCursos){
+    const escrito = $('.cu-comentar input')?.value || '';       // un repintado no borra el comentario a medio escribir
+    $('#posts').innerHTML = view.type === 'cursos' ? cursosHtml() : view.type === 'curso' ? cursoHtml() : capsulaHtml();
+    if (escrito && $('.cu-comentar input')) $('.cu-comentar input').value = escrito;
     return;
   }
   if (enComunidad){
@@ -1874,7 +1926,7 @@ function quizResponderHtml(){
   const faltan = q.preguntas.length - quizElegidas.filter(x => x !== null && x !== undefined).length;
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
+      <button class="btn quiz-volver" data-quiz-volver>← ${String(quizDesde || '').startsWith('curso:') ? 'Volver al curso' : quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
       <h2 class="quiz-titulo">${escapeHtml(q.titulo)}</h2>
       ${q.descripcion ? `<p class="quiz-desc">${escapeHtml(q.descripcion)}</p>` : ''}
       <ol class="quiz-lista">${preguntas}</ol>
@@ -1905,7 +1957,7 @@ function quizResultadoHtml(){
 
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
+      <button class="btn quiz-volver" data-quiz-volver>← ${String(quizDesde || '').startsWith('curso:') ? 'Volver al curso' : quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
       <div class="quiz-puntaje">
         <b>${r.puntaje} de ${r.total}</b>
         <span>${porcentaje}% de aciertos${typeof r.aprobado === 'boolean'
@@ -1958,7 +2010,7 @@ function quizStatsHtml(){
 
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
+      <button class="btn quiz-volver" data-quiz-volver>← ${String(quizDesde || '').startsWith('curso:') ? 'Volver al curso' : quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
       <h2 class="quiz-titulo">${escapeHtml(quiz.titulo || '')}</h2>
       ${stat.personas ? `
         <div class="quiz-cifras">
@@ -2010,8 +2062,8 @@ function quizEditorHtml(){
 
   return `
     <div class="card quiz-responder">
-      <button class="btn quiz-volver" data-quiz-volver>← ${quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
-      <h2 class="quiz-titulo">${q.sesion_id ? `Quiz de ${escapeHtml(sessionOf(q.sesion_id).title)}` : `Editar el quiz ${q.orden || ''}`}</h2>
+      <button class="btn quiz-volver" data-quiz-volver>← ${String(quizDesde || '').startsWith('curso:') ? 'Volver al curso' : quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
+      <h2 class="quiz-titulo">${String(q.id).startsWith('qz-curso-') ? 'Examen del curso' : q.sesion_id ? `Quiz de ${escapeHtml(sessionOf(q.sesion_id).title)}` : `Editar el quiz ${q.orden || ''}`}</h2>
       <label class="field"><span>Título</span>
         <input type="text" id="quizTitulo" maxlength="150" value="${escapeHtml(q.titulo)}" placeholder="Ej. Quiz 1 · Funnel inteligente con IA" />
       </label>
@@ -2022,7 +2074,7 @@ function quizEditorHtml(){
         <input type="checkbox" id="quizActivo" ${q.activo ? 'checked' : ''} />
         <span>Publicado: los estudiantes lo ven y pueden responderlo</span>
       </label>
-      ${q.sesion_id ? `
+      ${q.sesion_id || String(q.id).startsWith('qz-curso-') ? `
       <div class="quiz-reglas">
         <label class="field"><span>% para aprobar</span>
           <input type="number" id="quizAprobar" min="0" max="100" value="${q.aprobar ?? 70}" /></label>
@@ -2567,7 +2619,9 @@ document.addEventListener('keydown', e => {
 // Menú de atajos: Cursos → tutoriales, Clases en vivo → cronograma
 $('#subnav').addEventListener('click', e => {
   const b = e.target.closest('[data-sub]');
-  if (b) setView(b.dataset.sub);
+  if (!b) return;
+  // «Cursos» abre el catálogo; mientras la base no tenga el módulo, sigue llevando a los tutoriales
+  setView(b.dataset.sub === 'cursos' && (typeof CURSOS === 'undefined' || CURSOS === null) ? 'tuto' : b.dataset.sub);
 });
 $('#btnMenu').addEventListener('click', () => $('#sidebar').classList.toggle('is-open'));
 
@@ -2740,7 +2794,7 @@ $('#posts').addEventListener('click', async e => {
 
   if (e.target.closest('[data-quiz-volver]')){
     await cargarQuizzes().catch(err => console.warn(err));
-    if (quizDesde){ const s = quizDesde; quizDesde = null; return setView('session', s); }
+    if (quizDesde){ const s = quizDesde; quizDesde = null; return s.startsWith('curso:') ? setView('curso', s.slice(6)) : setView('session', s); }
     verQuizzes();
     return;
   }
@@ -2889,7 +2943,7 @@ async function guardarQuiz(){
     await store.saveQuiz(q);
     await cargarQuizzes();
     toast(q.activo ? 'Quiz guardado y publicado' : 'Quiz guardado como borrador');
-    if (quizDesde){ const s = quizDesde; quizDesde = null; return setView('session', s); }
+    if (quizDesde){ const s = quizDesde; quizDesde = null; return s.startsWith('curso:') ? setView('curso', s.slice(6)) : setView('session', s); }
     verQuizzes();
   } catch (err){
     console.error(err);
@@ -3895,6 +3949,7 @@ $('#loginForm').addEventListener('submit', async e => {
       fase1 = true;
     } catch (err){ console.warn("Fase 1 no disponible (falta supabase-fase1.sql):", err); }
     if (CLOUD && typeof cargarTareasYAjustes === 'function') await cargarTareasYAjustes();
+    if (CLOUD && typeof cargarCursos === 'function') await cargarCursos();
     pintarNav();
 
     posts = await store.list();
@@ -3932,6 +3987,7 @@ $('#loginForm').addEventListener('submit', async e => {
   if (!CLOUD) console.warn('Muro en modo local: falta SUPABASE_ANON_KEY en config.js');
   // Lo primero que se ve es el inicio con el cronograma; sin él, la primera clase no oculta
   const inicio = SESSIONS.find(s => !isHidden(s.id)) || SESSIONS[0];
-  view = fase1 || !inicio ? { type:'inicio', id:null } : { type:'session', id:inicio.id };
+  // Si la persona ya se movió mientras cargaba, se respeta dónde está; si no, arranca en el inicio
+  if (!yaNavego) view = fase1 || !inicio ? { type:'inicio', id:null } : { type:'session', id:inicio.id };
   render();
 })();
