@@ -343,6 +343,60 @@ notify pgrst, 'reload schema';
 -- enlace de video), encuestas, respuestas a comentarios y «Me gusta»
 -- en los comentarios. Se puede correr varias veces.
 -- ================================================================
+-- La foto de cada persona del equipo: sale en la lista de administradoras, en su cuenta y en la comunidad
+alter table public.admins add column if not exists foto_url text;
+
+create or replace function public.admin_foto(p_email text, p_url text)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  u text := nullif(btrim(coalesce(p_url, '')), '');
+begin
+  if not public.is_admin() then
+    raise exception 'sin permiso';
+  end if;
+  if u is not null and (u !~ '^(https://|http://localhost[:/])[^\s<>"]+$' or char_length(u) > 600) then
+    raise exception 'Esa dirección de foto no es válida.';
+  end if;
+  update public.admins set foto_url = u where email = lower(btrim(coalesce(p_email, '')));
+  if not found then
+    raise exception 'Esa cuenta no existe.';
+  end if;
+end;
+$$;
+grant execute on function public.admin_foto(text, text) to anon, authenticated;
+
+create or replace function public.admin_perfil()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object('email', a.email, 'nombre', a.nombre, 'foto', a.foto_url)
+    from public.admins a where a.email = public.admin_email();
+$$;
+
+create or replace function public.admins_lista()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then raise exception 'sin permiso'; end if;
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+            'email', a.email, 'nombre', a.nombre, 'activo', a.activo, 'ultimo_acceso', a.ultimo_acceso,
+            'tiene_clave', a.clave_hash is not null, 'soy_yo', a.email = public.admin_email(), 'foto', a.foto_url)
+          order by a.created_at), '[]'::jsonb) from public.admins a);
+end;
+$$;
+
 alter table public.comunidad_posts
   add column if not exists adjuntos jsonb not null default '[]'::jsonb,   -- [{tipo, url, nombre}]
   add column if not exists encuesta jsonb;                                -- {opciones:[texto…]} o null
@@ -423,12 +477,14 @@ begin
       from (
         select p.id, p.autor_nombre as autor, p.autor_grupo as grupo, p.es_admin, p.titulo, p.texto,
                p.fijado, p.created_at, p.adjuntos,
+               (select a.foto_url from public.admins a where p.es_admin and a.email = p.autor_email) as foto,
                public.comunidad_encuesta_de(p.id, p.encuesta, yo->>'email') as encuesta,
                (select count(*) from public.comunidad_likes l where l.post_id = p.id) as likes,
                exists (select 1 from public.comunidad_likes l where l.post_id = p.id and l.email = yo->>'email') as me_gusta,
                (select count(*) from public.comunidad_comentarios c where c.post_id = p.id) as comentarios,
                -- Lo último que respondió el equipo, para mostrarlo sin abrir los comentarios
-               (select jsonb_build_object('autor', c.autor_nombre, 'texto', c.texto, 'created_at', c.created_at)
+               (select jsonb_build_object('autor', c.autor_nombre, 'texto', c.texto, 'created_at', c.created_at,
+                         'foto', (select a.foto_url from public.admins a where a.email = c.autor_email))
                   from public.comunidad_comentarios c
                  where c.post_id = p.id and c.es_admin and not p.es_admin
                  order by c.created_at desc limit 1) as respuesta_equipo,
@@ -548,6 +604,7 @@ begin
     select coalesce(jsonb_agg(jsonb_build_object(
              'id', c.id, 'padre_id', c.padre_id, 'autor', c.autor_nombre, 'grupo', c.autor_grupo, 'es_admin', c.es_admin,
              'texto', c.texto, 'created_at', c.created_at, 'mio', c.autor_email = yo->>'email',
+             'foto', (select a.foto_url from public.admins a where c.es_admin and a.email = c.autor_email),
              'likes', (select count(*) from public.comunidad_com_likes l where l.comentario_id = c.id),
              'me_gusta', exists (select 1 from public.comunidad_com_likes l where l.comentario_id = c.id and l.email = yo->>'email'))
              order by c.created_at), '[]'::jsonb)

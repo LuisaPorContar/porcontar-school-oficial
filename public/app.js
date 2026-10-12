@@ -320,6 +320,16 @@ function cloudStore(){
     adminPerfil:  ()           => rpc('admin_perfil'),
     salirAdmin:   ()           => rpc('salir_admin'),
     adminsLista:  async ()     => (await rpc('admins_lista')) || [],
+    /** Sube la foto de alguien del equipo y la deja en su cuenta. */
+    async adminFoto(email, file){
+      const ext = (file.name.match(/\.(\w+)$/) || [, 'jpg'])[1].toLowerCase();
+      const path = `equipo/${email.split('@')[0].replace(/[^\w.-]+/g, '_')}-${Date.now().toString(36)}.${ext}`;
+      const { error } = await sb.storage.from(bucket).upload(path, file, { upsert:true, contentType:file.type, cacheControl:'31536000' });
+      if (error) throw error;
+      const url = sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+      await rpc('admin_foto', { p_email:email, p_url:url });
+      return url;
+    },
     adminAgregar: (email, nombre, clave) => rpc('admin_agregar', { p_email:email, p_nombre:nombre, p_clave:clave }),
     adminActivar: (email, activo)        => rpc('admin_activar', { p_email:email, p_activo:activo }),
     adminCambiarClave: (actual, nueva)   => rpc('admin_cambiar_clave', { p_actual:actual, p_nueva:nueva }),
@@ -538,7 +548,7 @@ function localStore(){
     async marcarVisto(){},
     panel:soloNube, grupos:soloNube, guardarGrupo:soloNube, borrarGrupo:soloNube,
     miembros:soloNube, agregarMiembros:soloNube, actualizarMiembro:soloNube, quitarMiembro:soloNube,
-    adminPerfil:async () => null, salirAdmin:async () => {}, adminsLista:soloNube, adminAgregar:soloNube,
+    adminPerfil:async () => null, salirAdmin:async () => {}, adminsLista:soloNube, adminFoto:soloNube, adminAgregar:soloNube,
     adminActivar:soloNube, adminCambiarClave:soloNube,
     comunidadFeed:soloNube, comunidadPublicar:soloNube, comunidadBorrar:soloNube, comunidadFijar:soloNube,
     comunidadGustar:soloNube, comunidadComentarios:soloNube, comunidadComentar:soloNube,
@@ -2506,6 +2516,11 @@ $('#search').addEventListener('input', e => {
 });
 
 let modoAplicado = false;
+/** El círculo de quien entró: su foto si es del equipo y la tiene; si no, sus iniciales. */
+const avatarYo = av => IS_ADMIN && ADMIN_PERFIL?.foto
+  ? `<span class="yo-av is-admin con-foto"><img src="${escapeHtml(ADMIN_PERFIL.foto)}" alt="" /></span>`
+  : `<span class="yo-av ${IS_ADMIN ? 'is-admin' : ''}">${escapeHtml(av)}</span>`;
+
 function applyMode(){
   if (modoAplicado) return;
   modoAplicado = true;
@@ -2554,13 +2569,13 @@ function applyMode(){
   cuenta.className = 'cuenta';
   cuenta.innerHTML = `
     <button class="cuenta-btn" data-cfg aria-haspopup="menu" aria-expanded="false" title="Tu cuenta">
-      <span class="yo-av ${IS_ADMIN ? 'is-admin' : ''}">${escapeHtml(av)}</span>
+      ${avatarYo(av)}
       <span class="yo-txt"><b>${escapeHtml(nombre)}</b><em>${escapeHtml(sub)}</em></span>
       <svg class="ico cuenta-chev"><use href="#i-chev"/></svg>
     </button>
     <div class="cfg-menu" role="menu" hidden>
       <div class="cuenta-cab">
-        <span class="yo-av ${IS_ADMIN ? 'is-admin' : ''}">${escapeHtml(av)}</span>
+        ${avatarYo(av)}
         <span><b>${escapeHtml(nombre)}</b>${IS_ADMIN ? '<em>Administración de la Academia</em>'
           : nombre !== PERFIL.email ? `<em>${escapeHtml(PERFIL.email)}</em>` : ''}
           ${IS_ADMIN ? '' : PERFIL.grupos.map(g => `<span class="gr-tipo">${escapeHtml(g.nombre)}</span>`).join(' ')}</span>
@@ -3048,7 +3063,7 @@ function gruposHtml(){
   const b2b = GRUPOS.filter(g => g.tipo === 'b2b').length, b2c = GRUPOS.length - b2b;
   const cabecera = `
     <div class="sk-head">
-      <span class="sk-label">${b2b} ${b2b === 1 ? 'empresa' : 'empresas'} · ${b2c} ${b2c === 1 ? 'cohorte' : 'cohortes'}</span>
+      <span></span>
       <button class="btn btn-primary" data-gr-nuevo><svg class="ico"><use href="#i-plus"/></svg> Nuevo grupo</button>
     </div>`;
   if (!GRUPOS.length) return cabecera + `
@@ -3058,26 +3073,25 @@ function gruposHtml(){
       <p>Crea la primera con <b>Nuevo grupo</b>: un nombre, una contraseña y hasta cuándo tiene acceso. Después pegas los correos.</p>
     </div>`;
 
-  return cabecera + `<div class="quiz-grid">${GRUPOS.map(g => {
+  // Una fila por grupo: el nombre abre sus personas; a la derecha, lo demás en íconos
+  return cabecera + `<div class="gr-filas">${GRUPOS.map(g => {
     const e = estadoGrupo(g);
     return `
-    <article class="quiz-card gr-card ${g.vigente ? '' : 'is-off'}">
-      <div class="gr-top">
-        <span class="gr-tipo">${tipoTxt(g)}</span>
-        <span class="gr-estado ${e.cls}">${escapeHtml(e.txt)}</span>
-      </div>
-      <div class="gr-nombre">${typeof logoHtml === 'function' ? logoHtml(g) : ''}<h3>${escapeHtml(g.nombre)}</h3></div>
-      <p class="quiz-meta"><b>${g.miembros}</b>${g.plazas ? ` de ${g.plazas}` : ''} ${g.plazas ? 'plazas' : g.miembros === 1 ? 'persona' : 'personas'} ·
-         <b>${g.han_entrado}</b> ya ${g.han_entrado === 1 ? 'entró' : 'entraron'} ·
-         <b>${g.responsables}</b> ${g.responsables === 1 ? 'responsable' : 'responsables'}</p>
-      <div class="quiz-acciones">
-        <button class="btn btn-primary" data-gr-abrir="${g.id}">Personas</button>
-        <button class="btn" data-gr-editar="${g.id}">Editar</button>
-        <button class="btn" data-gr-panel="${g.id}">Panel</button>
-        <button class="icon-btn gr-borrar" data-gr-borrar="${g.id}" title="Eliminar ${escapeHtml(g.nombre)}" aria-label="Eliminar ${escapeHtml(g.nombre)}">
-          <svg class="ico"><use href="#i-trash"/></svg></button>
-      </div>
-    </article>`;
+    <div class="gr-card gr-fila ${g.vigente ? '' : 'is-off'}">
+      <button class="gr-fila-abrir" data-gr-abrir="${g.id}" title="Ver las personas de ${escapeHtml(g.nombre)}">
+        ${typeof logoHtml === 'function' ? logoHtml(g) : ''}
+        <span class="gr-fila-txt"><b>${escapeHtml(g.nombre)}</b>
+          <em>${g.formato === 'corto' ? 'Bootcamp o charla' : g.tipo === 'b2c' ? 'Cohorte' : 'Empresa'} ·
+            ${g.miembros}${g.plazas ? ` de ${g.plazas}` : ''} ${g.plazas ? 'plazas' : g.miembros === 1 ? 'persona' : 'personas'} ·
+            ${g.han_entrado} ya ${g.han_entrado === 1 ? 'entró' : 'entraron'}</em></span>
+        <span class="gr-fila-estado ${e.cls}">${escapeHtml(e.txt)}</span>
+      </button>
+      <span class="gr-fila-acc">
+        <button class="icon-btn" data-gr-editar="${g.id}" title="Editar" aria-label="Editar ${escapeHtml(g.nombre)}"><svg class="ico"><use href="#i-edit"/></svg></button>
+        <button class="icon-btn" data-gr-panel="${g.id}" title="Panel de avance" aria-label="Panel de ${escapeHtml(g.nombre)}"><svg class="ico"><use href="#i-chart"/></svg></button>
+        <button class="icon-btn gr-borrar" data-gr-borrar="${g.id}" title="Eliminar" aria-label="Eliminar ${escapeHtml(g.nombre)}"><svg class="ico"><use href="#i-trash"/></svg></button>
+      </span>
+    </div>`;
   }).join('')}</div>`;
 }
 

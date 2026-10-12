@@ -36,8 +36,10 @@ async function cargarComunidad(){
 }
 
 const comuYo = () => IS_ADMIN ? (ADMIN_PERFIL?.nombre || 'PorContar') : (PERFIL?.nombre || PERFIL?.email || '');
-const comuAvatar = (nombre, admin) =>
-  `<span class="cm-av ${admin ? 'es-equipo' : ''}">${escapeHtml(iniciales((nombre || '?').split('@')[0]))}</span>`;
+const comuAvatar = (nombre, admin, foto) => foto
+  ? `<span class="cm-av con-foto"><img src="${escapeHtml(foto)}" alt="" /></span>`
+  : `<span class="cm-av ${admin ? 'es-equipo' : ''}">${escapeHtml(iniciales((nombre || '?').split('@')[0]))}</span>`;
+const comuMiFoto = () => IS_ADMIN ? ADMIN_PERFIL?.foto : null;
 /** Texto del usuario: seguro, con saltos de línea y enlaces que se pueden tocar. */
 const comuTexto = t => escapeHtml(t)
   .replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, '<a href="$1" target="_blank" rel="noopener nofollow">$1</a>')
@@ -84,7 +86,7 @@ function comunidadHtml(){
     <h3>La comunidad todavía no está activa</h3><p>${COMU.falla}</p></div></div>`;
   const crear = `
     <button class="card cm-crear" data-cm-crear>
-      ${comuAvatar(comuYo(), IS_ADMIN)}
+      ${comuAvatar(comuYo(), IS_ADMIN, comuMiFoto())}
       <span>Crear una publicación</span>
       <i>${comuIco('i-plus')}</i>
     </button>`;
@@ -96,7 +98,7 @@ function comunidadHtml(){
 function comuComentarioHtml(c, hijos){
   return `
     <div class="cm-com ${c.es_admin ? 'es-equipo' : ''}" data-cm-com="${c.id}">
-      ${comuAvatar(c.autor, c.es_admin)}
+      ${comuAvatar(c.autor, c.es_admin, c.foto)}
       <div class="cm-com-col">
         <div class="cm-com-caja">
           <div class="cm-firma">${comuFirma(c)}</div>
@@ -122,7 +124,7 @@ function comuPostHtml(p){
   return `
   <article class="card cm-post" data-cm-post="${p.id}">
     <header class="cm-cab">
-      ${comuAvatar(p.autor, p.es_admin)}
+      ${comuAvatar(p.autor, p.es_admin, p.foto)}
       <div class="cm-firma">${comuFirma(p)}</div>
       <div class="cm-ops">
         ${p.fijado ? `<span class="cm-fijada">${comuIco('i-pin')} Fijada</span>` : ''}
@@ -145,7 +147,7 @@ function comuPostHtml(p){
     </div>
     ${!abierto && re ? `
     <button class="cm-resp-equipo" data-cm-comentarios>
-      ${comuAvatar(re.autor, true)}
+      ${comuAvatar(re.autor, true, re.foto)}
       <span><span class="cm-firma">${comuFirma({ ...re, es_admin:true })}</span>
         <span class="cm-texto">${escapeHtml(re.texto.length > 200 ? re.texto.slice(0, 200).replace(/\s+\S*$/, '') + '…' : re.texto)}</span></span>
     </button>` : ''}
@@ -155,7 +157,7 @@ function comuPostHtml(p){
              : '<p class="cm-cargando">Cargando comentarios…</p>'}
       ${a ? `<p class="cm-respondiendo">Respondiendo a <b>${escapeHtml(a.autor)}</b> <button data-cm-no-responder aria-label="Dejar de responder">${comuIco('i-close')}</button></p>` : ''}
       <form class="cm-responder" data-cm-form>
-        ${comuAvatar(comuYo(), IS_ADMIN)}
+        ${comuAvatar(comuYo(), IS_ADMIN, comuMiFoto())}
         <input type="text" maxlength="2000" placeholder="${a ? 'Escribe tu respuesta' : 'Escribe un comentario'}" value="${escapeHtml(COMU.respuestas[p.id] || '')}" />
         <button class="btn btn-primary" type="submit">Enviar</button>
       </form>
@@ -470,7 +472,7 @@ $('#posts').addEventListener('submit', async e => {
     input.value = ''; COMU.respuestas[id] = ''; delete COMU.respondeA[id];
     COMU.comentarios[id] = await store.comunidadComentarios(id);
     p.comentarios = COMU.comentarios[id].length;
-    if (IS_ADMIN && !p.es_admin) p.respuesta_equipo = { autor:comuYo(), texto, created_at:new Date().toISOString() };
+    if (IS_ADMIN && !p.es_admin) p.respuesta_equipo = { autor:comuYo(), texto, created_at:new Date().toISOString(), foto:comuMiFoto() };
     pintarComunidad();
     enfocar(`[data-cm-post="${id}"] .cm-responder input`);
   } catch (err){ toast(errorMsg(err)); btn.disabled = false; }

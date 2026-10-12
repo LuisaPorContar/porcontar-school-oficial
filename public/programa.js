@@ -1124,7 +1124,12 @@ function adminsHtml(){
       <h3 class="ini-tit">Cuentas con acceso a /admin</h3>
       <div class="adm-lista">${ADMINS.map(a => `
         <div class="adm-fila ${a.activo ? '' : 'is-off'}">
-          <span class="yo-av is-admin">${escapeHtml(iniciales(a.nombre || a.email))}</span>
+          <label class="adm-foto" title="Cambiar la foto">
+            <input type="file" accept="image/png,image/jpeg,image/webp" data-adm-foto="${escapeHtml(a.email)}" hidden />
+            ${a.foto ? `<span class="yo-av is-admin con-foto"><img src="${escapeHtml(a.foto)}" alt="" /></span>`
+                     : `<span class="yo-av is-admin">${escapeHtml(iniciales(a.nombre || a.email))}</span>`}
+            <i><svg class="ico"><use href="#i-imagen"/></svg></i>
+          </label>
           <span class="adm-txt"><b>${escapeHtml(a.nombre || a.email)}${a.soy_yo ? ' <em class="adm-tu">Tú</em>' : ''}</b>
             <small>${escapeHtml(a.email)} · ${a.ultimo_acceso ? 'último ingreso: ' + haceTxt(a.ultimo_acceso).toLowerCase() : 'no ha entrado'}</small></span>
           ${a.soy_yo ? '<span class="adm-nota">Tu cuenta</span>' : `
@@ -1138,10 +1143,10 @@ function adminsHtml(){
       <p class="quiz-desc">Ponle una contraseña temporal y compártesela por un canal privado. Entra por <b>${escapeHtml(location.origin)}/admin</b> y después la cambia aquí mismo.</p>
       <div class="field-row">
         <label class="field"><span>Nombre</span><input type="text" id="admNombre" maxlength="80" placeholder="Luisa" /></label>
-        <label class="field"><span>Correo</span><input type="email" id="admEmail" maxlength="160" placeholder="nombre@porcontar.com" /></label>
+        <label class="field"><span>Correo</span><input type="email" id="admEmail" maxlength="160" placeholder="nombre@porcontar.com" autocomplete="off" /></label>
       </div>
       <div class="field"><span>Contraseña temporal</span>
-        <div class="gr-clave"><input type="text" id="admClave" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Mínimo 8 caracteres" />
+        <div class="gr-clave"><input type="text" id="admClave" name="clave-temporal-nueva" maxlength="60" autocomplete="new-password" data-lpignore="true" data-1p-ignore spellcheck="false" placeholder="Mínimo 8 caracteres" />
           <button type="button" class="btn" data-adm-generar>Generar</button></div></div>
       <div class="quiz-enviar"><span class="quiz-msg" id="admMsg"></span>
         <button class="btn btn-primary" data-adm-agregar><svg class="ico"><use href="#i-plus"/></svg> Dar acceso de admin</button></div>
@@ -1309,3 +1314,26 @@ function gmailBienvenida(g){
   });
   return 'https://mail.google.com/mail/?' + q.toString();
 }
+
+/* Foto de cada administradora: se elige tocando su círculo en la lista */
+$('#posts').addEventListener('change', async e => {
+  const inp = e.target.closest('[data-adm-foto]'); if (!inp) return;
+  const f = inp.files[0]; inp.value = '';
+  if (!f) return;
+  if (!/^image\/(png|jpe?g|webp)$/.test(f.type)) return toast('La foto debe ser PNG, JPG o WebP.');
+  if (f.size > 5 * 1048576) return toast('La foto pesa más de 5 MB.');
+  toast('Subiendo la foto…');
+  try {
+    const url = await store.adminFoto(inp.dataset.admFoto, f);
+    if (ADMIN_PERFIL && ADMIN_PERFIL.email === inp.dataset.admFoto){
+      ADMIN_PERFIL.foto = url;
+      $$('.cuenta .yo-av').forEach(x => { x.outerHTML = avatarYo(''); });
+    }
+    await cargarAdmins();
+    toast('Foto guardada');
+    render();
+  } catch (err){
+    console.error(err);
+    toast(/admin_foto|schema cache/i.test(err.message || '') ? 'Falta volver a correr supabase-comunidad.sql en Supabase.' : errorMsg(err));
+  }
+});

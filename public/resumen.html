@@ -798,6 +798,25 @@ details[open] summary{border-bottom-color:var(--g-linea) !important}
 .g-enlace{display:inline-block;margin:2px 0 14px;font-weight:600;font-size:14.5px;color:var(--pc-blue);text-decoration:none}
 .g-enlace:hover{text-decoration:underline}
 .section h3,.section h4:not(.g-acc h4){margin:26px 0 12px !important}
+/* ---------- diccionario: lectura corrida, sin cajas ---------- */
+.g-ent{padding:14px 0;border-top:1px solid var(--g-linea);scroll-margin-top:96px}
+.g-ent:first-child{border-top:0;padding-top:4px}
+.g-ent-t{font-family:'Poppins',sans-serif;font-weight:600;font-size:16px !important;line-height:1.3;color:var(--ink) !important;margin:0 0 5px !important}
+.g-ent-t em{font-style:normal;font-family:'Hanken Grotesk',sans-serif;font-weight:400;font-size:13.5px;color:var(--ink-soft);margin-left:6px}
+.g-ent-c{color:var(--ink-soft);font-size:15.5px;line-height:1.65}
+.g-ent-c > :last-child{margin-bottom:0}
+.g-ent-c p,.g-ent-c li,.g-ent-c div,.g-ent-c span{color:var(--ink-soft) !important}
+.g-ent-c b,.g-ent-c strong,.g-ent-c h4,.g-ent-c h5{color:var(--ink) !important}
+.g-ent-c .stack-question{font-style:italic;margin-bottom:6px}
+.g-ent-c .stack-example{display:block;margin-top:8px;background:var(--g-suave) !important;border-left:3px solid var(--g-linea) !important;border-radius:0 8px 8px 0;padding:8px 14px;color:var(--ink) !important;font-style:italic}
+.g-ent.nav-flash{animation:none;background:linear-gradient(90deg,#FFF7A8,transparent 70%);background-size:100% 100%;transition:background 1.6s}
+.section h3{margin:34px 0 8px !important;padding-bottom:8px;border-bottom:2px solid var(--ink);font-size:18px !important;scroll-margin-top:96px}
+.g-indice{display:flex;flex-wrap:wrap;gap:6px 8px;margin:4px 0 6px}
+.g-indice button{border:1px solid var(--g-linea);background:#fff;border-radius:999px;padding:6px 13px;font:inherit;font-size:13.5px;color:var(--ink);cursor:pointer}
+.g-indice button:hover{border-color:var(--ink)}
+.timeline-strip .g-ent{display:flex;gap:14px;align-items:baseline;padding:8px 0}
+.timeline-strip .g-ent-t{margin:0 !important;min-width:108px}
+.timeline-strip .g-ent-c p{margin:0}
 @media (max-width:640px){
   .model-grid{grid-template-columns:1fr !important}
   .g-top-in{padding:12px 16px 10px}
@@ -847,6 +866,7 @@ details[open] summary{border-bottom-color:var(--g-linea) !important}
   <h2>¿Qué es <span class="u-claude">Claude</span> y cuántos tipos hay?</h2>
   <p class="section-intro"><span class="u-claude" style="font-weight:700;">Claude</span> es el asistente de inteligencia artificial de Anthropic: conversa, escribe, analiza documentos y ejecuta tareas cuando se conecta a herramientas externas. No es un solo producto. Según el tipo de entregable que necesites, existe una versión distinta pensada para eso.</p>
 
+  <h3>Historia</h3>
   <div class="timeline-strip">
     <div class="tl-item"><span class="tl-year">2023</span><p>Anthropic lanza la primera versión del chat al público.</p></div>
     <div class="tl-item"><span class="tl-year">2024</span><p>Llegan los modelos Haiku, Sonnet y Opus — cada uno para un nivel distinto de tarea.</p></div>
@@ -914,7 +934,7 @@ details[open] summary{border-bottom-color:var(--g-linea) !important}
   </div>
 
   <h3 style="font-size:19px;margin-bottom:6px;margin-top:38px;">Qué se puede hacer en cada módulo</h3>
-  <p class="section-intro" style="margin-bottom:22px;">Los tres funcionan distinto y sirven para cosas distintas. Elegí la pestaña para ver qué se puede hacer en cada uno.</p>
+  <p class="section-intro" style="margin-bottom:22px;">Los tres funcionan distinto y sirven para cosas distintas.</p>
 
   <div class="practices-tabs">
     <button class="ptab active" onclick="switchPractice('chat', this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="13" rx="3"/><path d="M8 17l-1.6 3.3 4.3-2.3"/></svg> Claude Chat</button>
@@ -5277,6 +5297,18 @@ document.addEventListener('DOMContentLoaded', function(){
       d.appendChild(c);
       return d;
     };
+    // Entrada de diccionario: el término en negrita y su explicación debajo, sin cajas ni clics
+    const entrada = (titulo, nota, nodos, id) => {
+      const d = document.createElement('div');
+      d.className = 'g-ent';
+      if (id) d.id = id;
+      d.innerHTML = '<h4 class="g-ent-t">' + esc(titulo) + (nota ? ' <em>' + esc(nota) + '</em>' : '') + '</h4>';
+      const c = document.createElement('div');
+      c.className = 'g-ent-c';
+      nodos.forEach(n => c.appendChild(n));
+      d.appendChild(c);
+      return d;
+    };
     const convertir = (sel, tituloSel, o) => {
       o = o || {};
       document.querySelectorAll(sel).forEach(el => {
@@ -5289,7 +5321,7 @@ document.addEventListener('DOMContentLoaded', function(){
         const id = (t && t.id) || el.id || '';
         [t, numEl, notaEl].forEach(x => x && x.remove());
         if (o.quitar) el.querySelectorAll(o.quitar).forEach(x => x.remove());
-        const d = fila(titulo, nota, [...el.childNodes], id);
+        const d = (o.plegable ? fila : entrada)(titulo, nota, [...el.childNodes], id);
         if (o.despues) o.despues(el, d);
         el.replaceWith(d);
       });
@@ -5303,9 +5335,9 @@ document.addEventListener('DOMContentLoaded', function(){
     convertir('.pf-item', '.pf-title', { num:'.pf-num' });
     convertir('.auto-col', 'h4', { num:'.ac-tag' });
     convertir('.dark-panel', 'h4');
-    convertir('.code-card', null, { titulo:'Ver el prompt para copiar' });
+    convertir('.code-card', null, { titulo:'Ver el prompt para copiar', plegable:true });
     convertir('#automatizar .legend-grid > .legend-item', 'b', { despues:(el, d) => {
-      const n = d.querySelector('.example-box').firstChild;     // «— el nombre corto…»: sobra la raya
+      const n = d.querySelector('.g-ent-c').firstChild;     // «— el nombre corto…»: sobra la raya
       if (n && n.nodeType === 3) n.textContent = n.textContent.replace(/^\s*[—–-]\s*/, '').replace(/^./, c => c.toUpperCase());
     } });
     // Los enlaces: la fila explica qué es y adentro va el botón para abrirlo
@@ -5313,7 +5345,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const a = document.createElement('a');
       a.className = 'g-enlace'; a.href = el.href; a.target = '_blank'; a.rel = 'noopener';
       a.textContent = 'Abrir ' + el.hostname.replace(/^www\./, '') + ' ↗';
-      d.querySelector('.example-box').appendChild(a);
+      d.querySelector('.g-ent-c').appendChild(a);
     } });
     // La hoja de ejemplo, con su pie
     document.querySelectorAll('.sheet-mock').forEach(el => {
@@ -5327,11 +5359,22 @@ document.addEventListener('DOMContentLoaded', function(){
       tabs.querySelectorAll('.ptab').forEach(tab => {
         const clave = ((tab.getAttribute('onclick') || '').match(/'([\w-]+)'/) || [])[1];
         const panel = clave && document.getElementById('panel-' + clave);
-        if (panel) panel.replaceWith(fila(clean(tab.textContent), '', [...panel.childNodes], panel.id));
+        if (panel) panel.replaceWith(entrada(clean(tab.textContent), '', [...panel.childNodes], panel.id));
       });
       tabs.remove();
     });
     document.querySelectorAll('.car-arrow, .car-dots').forEach(x => x.remove());
+
+    // «En esta página»: los apartados de cada tema, para saltar directo
+    secciones.forEach(sec => {
+      const hs = [...sec.querySelectorAll('h3')].filter(h => h.id && !h.closest('details'));
+      if (hs.length < 2) return;
+      const nav = document.createElement('nav');
+      nav.className = 'g-indice';
+      nav.innerHTML = hs.map(h => '<button type="button" data-ir="' + h.id + '">' + esc(clean(h.textContent)) + '</button>').join('');
+      const intro = sec.querySelector('.section-intro');
+      (intro || sec.querySelector('h2')).after(nav);
+    });
   }
   acordeones();
 
@@ -5416,7 +5459,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (el === sec){ window.scrollTo(0, 0); return; }
     // Se abre la fila donde está y las que la contienen
     for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
-    const caja = el.closest('details') || el;
+    const caja = el.closest('details, .g-ent') || el;
     setTimeout(() => {
       const y = caja.getBoundingClientRect().top + window.scrollY - 96;
       window.scrollTo(0, Math.max(0, y));
