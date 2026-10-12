@@ -1853,3 +1853,7 @@ body.vista-clase .rail{top:140px}
 .ce-fila.is-quitar input[data-ce-campo="nombre"]{text-decoration:line-through}
 .ce-fila.is-quitar [data-ce-quitar]{color:#c0392b}
 .ce-agregar{margin-top:10px}
+
+/* Logo del menú: pequeño y a la derecha */
+.sidebar .brand{align-items:flex-end;padding:14px 0 12px}
+.sidebar .brand .logo{width:58px}
