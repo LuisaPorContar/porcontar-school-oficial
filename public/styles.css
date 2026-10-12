@@ -1834,3 +1834,22 @@ body.vista-clase .rail{top:140px}
 .subnav button.is-off{opacity:.45}
 @media (max-width:560px){ .cm-post{padding:16px 16px 6px} .cm-acc button{padding:9px 10px} }
 .subnav [hidden]{display:none !important}
+
+/* El interruptor de visible/oculta siempre por encima del cuerpo atenuado de la tarjeta (si no, el clic no le llega) */
+.sk-switch{z-index:2}
+
+/* Franja del espacio de trabajo: una línea discreta en vez del bloque amarillo */
+.espacio-aviso{padding:8px 14px;border-radius:12px;background:#fff;border:1px solid var(--line);color:var(--ink-soft);font-size:13px;gap:9px}
+.espacio-aviso .ico{width:15px;height:15px;color:var(--ink-mute)}
+.espacio-aviso b{color:var(--ink);font-weight:600}
+.espacio-aviso button{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--pc-blue);cursor:pointer;white-space:nowrap}
+.espacio-aviso button:hover{text-decoration:underline}
+@media (max-width:600px){ .espacio-aviso button{width:auto} }
+
+/* Cronograma de un bootcamp: nombre editable, quitar y agregar sesiones */
+.ce-ses-edit{display:flex;align-items:center;gap:4px}
+.ce-ses-edit input{flex:1;min-width:0}
+.ce-fila.is-quitar{opacity:.45}
+.ce-fila.is-quitar input[data-ce-campo="nombre"]{text-decoration:line-through}
+.ce-fila.is-quitar [data-ce-quitar]{color:#c0392b}
+.ce-agregar{margin-top:10px}

@@ -690,7 +690,7 @@ details[open] .cat-caret{transform:rotate(45deg);}
   --on-night-soft:#5B6479;
   --shadow-card:none;
   --shadow-btn:none;
-  --maxw:820px;
+  --maxw:1080px;
 }
 html{scroll-behavior:auto;}
 body{background:#fff;font-size:15.5px;}
@@ -780,6 +780,24 @@ section.section [style*="background:#F"],section.section [style*="background:#E"
 .model-grid{grid-template-columns:repeat(2,1fr) !important}
 body.g-home .back-top{display:none !important}
 .back-top{background:#fff !important;color:var(--ink) !important;border:1px solid var(--g-linea) !important;box-shadow:none !important}
+/* ---------- todo en filas que se abren ---------- */
+.vocab-grid,.model-grid,.timeline-strip,.carousel-wrap,.car-track,.stack-wrap,.prompt-flow,.links-grid,.auto-cols,.tech-grid,
+#automatizar .legend-grid{display:block !important;overflow:visible !important;padding:0 !important;margin-left:0 !important;margin-right:0 !important}
+details,details.g-acc,details.tech-acc,details.cat-acc{border:1px solid var(--g-linea) !important;border-radius:14px !important;background:#fff !important;margin:0 0 10px !important;box-shadow:none !important;width:auto !important;max-width:none !important}
+details summary{font-family:'Poppins',sans-serif;font-weight:600;font-size:15.5px;color:var(--ink) !important}
+details[open] summary{border-bottom-color:var(--g-linea) !important}
+.g-acc summary em{font-style:normal;font-family:'Hanken Grotesk',sans-serif;font-weight:400;font-size:13.5px;color:var(--ink-soft);margin-left:8px}
+.g-acc .example-box{padding:16px 20px 6px;color:var(--ink-soft);font-size:15px;line-height:1.65}
+.g-acc .example-box p,.g-acc .example-box li{color:var(--ink-soft) !important}
+.g-acc .example-box b,.g-acc .example-box strong,.g-acc .example-box h4{color:var(--ink) !important}
+.g-acc .example-box > :last-child{margin-bottom:14px}
+.g-acc .example-box > div,.g-acc .ppanel{display:block}
+.g-acc .stack-question{font-style:italic}
+.g-acc .stack-example{display:block;background:var(--g-suave) !important;border-left:3px solid var(--g-linea) !important;border-radius:0 8px 8px 0;padding:9px 14px;color:var(--ink) !important;font-style:italic}
+.g-acc .code-head{border-radius:10px 10px 0 0}
+.g-enlace{display:inline-block;margin:2px 0 14px;font-weight:600;font-size:14.5px;color:var(--pc-blue);text-decoration:none}
+.g-enlace:hover{text-decoration:underline}
+.section h3,.section h4:not(.g-acc h4){margin:26px 0 12px !important}
 @media (max-width:640px){
   .model-grid{grid-template-columns:1fr !important}
   .g-top-in{padding:12px 16px 10px}
@@ -5243,6 +5261,80 @@ document.addEventListener('DOMContentLoaded', function(){
     return n ? { nombre:n, texto:d, hay:norm(n + ' ' + d), nn:norm(n) } : null;
   }).filter(Boolean);
 
+  /* ---------- todo el contenido, en filas que se abren ----------
+     Cada tarjeta (término, modelo, paso, enlace…) pasa a ser una fila con su título
+     y un «＋»: se ve la lista completa de un vistazo y se abre solo lo que interesa.
+     Va después de armar el índice: la fila hereda el id de su título, así la búsqueda la encuentra. */
+  function acordeones(){
+    const fila = (titulo, nota, nodos, id) => {
+      const d = document.createElement('details');
+      d.className = 'g-acc';
+      if (id) d.id = id;
+      d.innerHTML = '<summary><span>' + esc(titulo) + (nota ? ' <em>' + esc(nota) + '</em>' : '') + '</span><span class="plus">＋</span></summary>';
+      const c = document.createElement('div');
+      c.className = 'example-box';
+      nodos.forEach(n => c.appendChild(n));
+      d.appendChild(c);
+      return d;
+    };
+    const convertir = (sel, tituloSel, o) => {
+      o = o || {};
+      document.querySelectorAll(sel).forEach(el => {
+        const t = tituloSel ? el.querySelector(tituloSel) : null;
+        if (tituloSel && !t) return;
+        const numEl = o.num ? el.querySelector(o.num) : null;
+        const notaEl = o.nota ? el.querySelector(o.nota) : null;
+        const titulo = (numEl ? clean(numEl.textContent) + ' · ' : '') + (t ? clean(t.textContent) : o.titulo);
+        const nota = notaEl ? clean(notaEl.textContent) : '';
+        const id = (t && t.id) || el.id || '';
+        [t, numEl, notaEl].forEach(x => x && x.remove());
+        if (o.quitar) el.querySelectorAll(o.quitar).forEach(x => x.remove());
+        const d = fila(titulo, nota, [...el.childNodes], id);
+        if (o.despues) o.despues(el, d);
+        el.replaceWith(d);
+      });
+    };
+
+    convertir('.tl-item', '.tl-year');
+    convertir('.model-card', '.model-name');
+    convertir('.car-card', 'h4', { quitar:'.cc-icon' });
+    convertir('.vocab-card', '.vc-term', { nota:'.vc-tag' });
+    convertir('.stack-card', 'h4', { num:'.stack-num' });
+    convertir('.pf-item', '.pf-title', { num:'.pf-num' });
+    convertir('.auto-col', 'h4', { num:'.ac-tag' });
+    convertir('.dark-panel', 'h4');
+    convertir('.code-card', null, { titulo:'Ver el prompt para copiar' });
+    convertir('#automatizar .legend-grid > .legend-item', 'b', { despues:(el, d) => {
+      const n = d.querySelector('.example-box').firstChild;     // «— el nombre corto…»: sobra la raya
+      if (n && n.nodeType === 3) n.textContent = n.textContent.replace(/^\s*[—–-]\s*/, '').replace(/^./, c => c.toUpperCase());
+    } });
+    // Los enlaces: la fila explica qué es y adentro va el botón para abrirlo
+    convertir('a.link-card', '.lc-name', { quitar:'.lc-url', despues:(el, d) => {
+      const a = document.createElement('a');
+      a.className = 'g-enlace'; a.href = el.href; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = 'Abrir ' + el.hostname.replace(/^www\./, '') + ' ↗';
+      d.querySelector('.example-box').appendChild(a);
+    } });
+    // La hoja de ejemplo, con su pie
+    document.querySelectorAll('.sheet-mock').forEach(el => {
+      const pie = el.nextElementSibling && el.nextElementSibling.matches('.sheet-caption') ? el.nextElementSibling : null;
+      const d = fila('Ejemplo: así se ve en una hoja de cálculo', '', []);
+      el.replaceWith(d);
+      d.querySelector('.example-box').append(el, ...(pie ? [pie] : []));
+    });
+    // Las pestañas pasan a ser una fila por módulo
+    document.querySelectorAll('.practices-tabs').forEach(tabs => {
+      tabs.querySelectorAll('.ptab').forEach(tab => {
+        const clave = ((tab.getAttribute('onclick') || '').match(/'([\w-]+)'/) || [])[1];
+        const panel = clave && document.getElementById('panel-' + clave);
+        if (panel) panel.replaceWith(fila(clean(tab.textContent), '', [...panel.childNodes], panel.id));
+      });
+      tabs.remove();
+    });
+    document.querySelectorAll('.car-arrow, .car-dots').forEach(x => x.remove());
+  }
+  acordeones();
+
   /* ---------- portada ---------- */
   $('gTemas').innerHTML = TEMAS.map(t => '<a href="#' + t.id + '"><b>' + esc(t.titulo) + '</b><span>' + esc(t.desc) + '</span></a>').join('');
   $('gChips').innerHTML = MAS_BUSCADO.map(t => '<button type="button" data-chip="' + esc(t) + '">' + esc(t) + '</button>').join('');
@@ -5322,13 +5414,9 @@ document.addEventListener('DOMContentLoaded', function(){
                           (sig ? '<button type="button" data-ir="' + sig.id + '"><em>Siguiente</em><b>' + esc(sig.titulo) + '</b></button>' : '<i></i>');
 
     if (el === sec){ window.scrollTo(0, 0); return; }
-    const det = el.closest('details'); if (det) det.open = true;
-    const panel = el.closest('.ppanel');
-    if (panel && !panel.classList.contains('active')){
-      const tab = document.querySelector('.ptab[onclick*="' + panel.id.replace('panel-', '') + '"]');
-      if (tab) tab.click();
-    }
-    const caja = el.closest('.link-card, .vocab-card, .tech-card, .pf-item, .model-card, .cat-acc, .car-card, .stack-card') || el;
+    // Se abre la fila donde está y las que la contienen
+    for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    const caja = el.closest('details') || el;
     setTimeout(() => {
       const y = caja.getBoundingClientRect().top + window.scrollY - 96;
       window.scrollTo(0, Math.max(0, y));

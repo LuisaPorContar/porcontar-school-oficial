@@ -2907,9 +2907,8 @@ function refrescarVerComo(){
   aviso.hidden = !g;
   if (g) aviso.innerHTML = `
     <svg class="ico"><use href="#i-lock"/></svg>
-    <span>Estás en el espacio de <b>${escapeHtml(g.nombre)}</b>: ves el contenido general más el exclusivo
-      (con candado). Lo que publiques aquí lo ve solo ${escapeHtml(g.nombre)}.</span>
-    <button class="btn" data-espacio-principal>Volver al Principal</button>`;
+    <span>Espacio de <b>${escapeHtml(g.nombre)}</b> · lo que publiques aquí lo ve solo este grupo</span>
+    <button data-espacio-principal>Volver al Principal</button>`;
 }
 
 /** Cambia de espacio de trabajo y lo recuerda en este navegador. */

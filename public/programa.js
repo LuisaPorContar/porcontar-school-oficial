@@ -251,6 +251,43 @@ function inicioPrincipalHtml(){
 }
 
 /** Admin: el cronograma de la empresa para editar, sesión por sesión. */
+/** Una fila del editor del cronograma. En un bootcamp o charla (propias = true) el nombre
+    de la sesión se escribe ahí mismo y la sesión se puede quitar; las del reto son fijas. */
+function ceFilaHtml(s, r, propias, nueva){
+  return `
+          <div class="ce-fila" data-ce="${s.id}" ${nueva ? 'data-ce-nueva' : ''}>
+            ${propias ? `<span class="ce-ses ce-ses-edit">
+                <input type="text" data-ce-campo="nombre" maxlength="120" placeholder="Nombre de la sesión" value="${escapeHtml(s.name)}" aria-label="Nombre de la sesión" />
+                <button type="button" class="icon-btn" data-ce-quitar title="Quitar esta sesión" aria-label="Quitar esta sesión"><svg class="ico"><use href="#i-trash"/></svg></button>
+              </span>`
+              : `<span class="ce-ses"><em>${escapeHtml(s.short)}</em>${escapeHtml(s.name)}</span>`}
+            <input type="date" data-ce-campo="fecha" value="${escapeHtml(r.fecha || '')}" aria-label="Fecha" />
+            <input type="time" data-ce-campo="hora" value="${escapeHtml((r.hora || '').slice(0, 5))}" aria-label="Hora" />
+            <select data-ce-campo="plataforma" aria-label="Plataforma">
+              ${PLATAFORMAS.map(p => `<option ${(r.plataforma || 'Google Meet') === p ? 'selected' : ''}>${p}</option>`).join('')}
+            </select>
+            <input type="text" inputmode="url" data-ce-campo="enlace" placeholder="meet.google.com/…" value="${escapeHtml(r.enlace || '')}" aria-label="Enlace" />
+          </div>`;
+}
+/** Agrega una fila vacía al editor (la sesión se crea al guardar). */
+function ceAgregarFila(){
+  const id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+  $('.ce-tabla').insertAdjacentHTML('beforeend', ceFilaHtml({ id, name:'', short:'' }, {}, true, true));
+  $(`[data-ce="${id}"] [data-ce-campo="nombre"]`).focus();
+}
+/** Marca o desmarca una sesión para quitarla al guardar. Las nuevas simplemente se van. */
+function ceQuitarFila(fila){
+  if (fila.hasAttribute('data-ce-nueva')) return fila.remove();
+  const id = fila.dataset.ce;
+  const nPosts = posts.filter(p => p.session === id).length;
+  if (nPosts && !fila.classList.contains('is-quitar'))
+    return toast(`Esa sesión tiene ${nPosts} ${nPosts === 1 ? 'publicación' : 'publicaciones'}: bórralas o muévelas primero.`);
+  const quitar = fila.classList.toggle('is-quitar');
+  $$('input, select', fila).forEach(c => { c.disabled = quitar; });
+  $('[data-ce-quitar]', fila).title = quitar ? 'No quitarla' : 'Quitar esta sesión';
+  if (quitar) toast('Se quitará al guardar, con su grabación. Tócala de nuevo para conservarla.');
+}
+
 function cronoEditorHtml(g, crono){
   return `
     <section class="card ini-editor">
@@ -263,23 +300,12 @@ function cronoEditorHtml(g, crono){
         <input type="text" inputmode="url" id="ceWhatsapp" maxlength="300" placeholder="chat.whatsapp.com/…" value="${escapeHtml(g.whatsapp_url || '')}" /></label>
 
       <h3 class="ini-tit">Sesiones</h3>
-      <p class="quiz-desc">Pon la fecha de cada encuentro. La hora, la plataforma y el enlace de Meet son opcionales; lo que dejes vacío sale como «Por definir».</p>
+      <p class="quiz-desc">${g.formato === 'corto' ? 'Agrega las sesiones que necesites y ponles fecha.' : 'Pon la fecha de cada encuentro.'} Lo que dejes vacío sale como «Por definir».</p>
       <div class="ce-tabla">
         <div class="ce-cab"><span>Sesión</span><span>Fecha</span><span>Hora</span><span>Plataforma</span><span>Enlace</span></div>
-        ${SESSIONS.map(s => {
-          const r = crono.get(s.id) || {};
-          return `
-          <div class="ce-fila" data-ce="${s.id}">
-            <span class="ce-ses"><em>${escapeHtml(s.short)}</em>${escapeHtml(s.name)}</span>
-            <input type="date" data-ce-campo="fecha" value="${escapeHtml(r.fecha || '')}" aria-label="Fecha de ${escapeHtml(s.short)}" />
-            <input type="time" data-ce-campo="hora" value="${escapeHtml((r.hora || '').slice(0, 5))}" aria-label="Hora de ${escapeHtml(s.short)}" />
-            <select data-ce-campo="plataforma" aria-label="Plataforma de ${escapeHtml(s.short)}">
-              ${PLATAFORMAS.map(p => `<option ${(r.plataforma || 'Google Meet') === p ? 'selected' : ''}>${p}</option>`).join('')}
-            </select>
-            <input type="text" inputmode="url" data-ce-campo="enlace" placeholder="meet.google.com/…" value="${escapeHtml(r.enlace || '')}" aria-label="Enlace de ${escapeHtml(s.short)}" />
-          </div>`;
-        }).join('')}
+        ${SESSIONS.map(s => ceFilaHtml(s, crono.get(s.id) || {}, g.formato === 'corto')).join('')}
       </div>
+      ${g.formato === 'corto' ? `<button class="btn ce-agregar" data-ce-agregar><svg class="ico"><use href="#i-plus"/></svg> Agregar sesión</button>` : ''}
       <div class="quiz-enviar">
         <span class="quiz-msg" id="ceMsg"></span>
         <button class="btn btn-primary" data-ce-guardar>Guardar cronograma</button>
@@ -295,7 +321,25 @@ async function guardarCronograma(){
   const ini = $('#ceInicio').value, fin = $('#ceFin').value;
   if (ini && fin && fin < ini) return void (msg.textContent = 'El fin del programa no puede ser antes del inicio.');
 
-  const filas = $$('[data-ce]').map(f => {
+  // Bootcamp o charla: las sesiones se crean, renombran y quitan desde aquí
+  const propias = g.formato === 'corto';
+  const nuevas = [], cambiadas = [], quitadas = [];
+  if (propias){
+    let orden = Math.max(-1, ...SESSIONS.map(x => x.orden || 0));
+    for (const f of $$('[data-ce]')){
+      const id = f.dataset.ce, s = SESSIONS.find(x => x.id === id);
+      if (f.classList.contains('is-quitar')){ quitadas.push(id); continue; }
+      const nombre = $('[data-ce-campo="nombre"]', f).value.trim();
+      if (!nombre){ $('[data-ce-campo="nombre"]', f).focus(); return void (msg.textContent = 'Ponle un nombre a cada sesión (o quítala).'); }
+      if (!s){
+        const n = SESSIONS.length + nuevas.length + 1;
+        nuevas.push({ id, orden:++orden, short:`Sesión ${n}`, name:nombre, desc:'', tipo:'clase', icon:'s-1',
+                      visible:true, grupoId:g.id, title:`Sesión ${n}. ${nombre}` });
+      } else if (nombre !== s.name) cambiadas.push({ ...s, name:nombre, title:`${s.short}. ${nombre}` });
+    }
+  }
+
+  const filas = $$('[data-ce]:not(.is-quitar)').map(f => {
     const v = c => $(`[data-ce-campo="${c}"]`, f).value.trim();
     return { grupo_id:g.id, sesion_id:f.dataset.ce, fecha:v('fecha') || null, hora:v('hora') || null,
              plataforma:v('plataforma') || 'Google Meet', enlace:enlace(v('enlace')) || null, updated_at:new Date().toISOString() };
@@ -305,6 +349,16 @@ async function guardarCronograma(){
   try {
     // Solo viajan las sesiones con algo escrito o que ya tenían fila (para poder vaciarlas)
     const previas = cronoDe(g.id);
+    if (nuevas.length || cambiadas.length){
+      await store.guardarSesiones([...nuevas, ...cambiadas]);      // antes del cronograma: sus filas apuntan a la sesión
+      SESSIONS = [...SESSIONS.map(x => cambiadas.find(c => c.id === x.id) || x), ...nuevas];
+    }
+    for (const id of quitadas){
+      await store.borrarSesion(id);
+      SESSIONS = SESSIONS.filter(x => x.id !== id);
+      GRABS = GRABS.filter(x => x.sesion_id !== id);
+    }
+    if (propias) pintarNav();
     await store.guardarCronograma(filas.filter(f => f.fecha || f.hora || f.enlace || previas.has(f.sesion_id)));
     await store.fichaGrupo(g.id, { ...fichaDe(g), whatsapp_url:wa, fecha_inicio:ini, fecha_fin:fin });
     CRONO = await store.cronograma();
@@ -766,6 +820,8 @@ $('#posts').addEventListener('click', e => {
     if (grp){ inicioGrupoId = grp.dataset.iniGrupo; return render(); }
     if (e.target.closest('[data-ini-editar]')){ inicioEditando = !inicioEditando; return render(); }
     if (e.target.closest('[data-ce-guardar]')) return guardarCronograma();
+    if (e.target.closest('[data-ce-agregar]')) return ceAgregarFila();
+    if (e.target.closest('[data-ce-quitar]')) return ceQuitarFila(e.target.closest('[data-ce]'));
     if (e.target.closest('[data-reto-nueva]')) return abrirSesionForm();
   }
   if (view.type === 'reto'){
