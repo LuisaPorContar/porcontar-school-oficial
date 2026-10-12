@@ -2008,3 +2008,32 @@ body.vista-clase .rail{top:140px}
 .gr-fila-acc{display:flex;gap:2px;padding-right:10px;flex:none}
 .gr-fila .gr-borrar{margin:0;position:static}
 @media (max-width:640px){ .gr-fila-estado{display:none} }
+
+/* «Quién lo ve» como desplegable: cerrado muestra los elegidos con su logo */
+.aud{padding:0;background:none;border:0;gap:0}
+.aud-dd{border:1px solid var(--line);border-radius:14px;background:#fff}
+.aud-dd[open]{border-color:#c9d3f7;box-shadow:0 0 0 3px rgba(43,79,232,.07)}
+.aud-dd summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;min-height:48px}
+.aud-dd summary::-webkit-details-marker{display:none}
+.aud-dd summary>.ico{width:16px;height:16px;color:var(--ink-mute);flex:none}
+.aud-dd .aud-chev{transition:transform .15s}
+.aud-dd[open] .aud-chev{transform:rotate(180deg)}
+.aud-resumen{flex:1;min-width:0;margin:0;display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-soft)}
+.aud-resumen>span{flex:none}
+.aud-resumen b{display:flex;flex-wrap:wrap;gap:6px;font-weight:500;color:var(--ink);min-width:0}
+.aud-todos{color:var(--ink)}
+.aud-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 4px;border-radius:99px;background:#eef1fe;color:var(--pc-blue-deep);font-size:13px;font-weight:600}
+.aud-chip:not(:has(.aud-av)){padding-left:10px}
+.aud-chip .aud-av{width:20px;height:20px;border-radius:50%;font-size:9px}
+.aud-panel{border-top:1px solid var(--line);padding:10px}
+.aud-buscar{width:100%;margin-bottom:8px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:14px;outline:none}
+.aud-buscar:focus{border-color:var(--pc-blue)}
+.aud-lista{display:flex;flex-direction:column;gap:2px;max-height:248px;overflow-y:auto}
+.aud-lista .aud-op{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:10px;background:none;box-shadow:none;cursor:pointer}
+.aud-lista .aud-op[hidden]{display:none}
+.aud-lista .aud-op:hover{background:var(--paper-2)}
+.aud-lista .aud-op:has(input:checked){background:#eef1fe;box-shadow:none}
+.aud-lista .aud-op input{position:absolute;opacity:0;pointer-events:none}
+.aud-lista .aud-txt{flex:1;min-width:0}
+.aud-lista .aud-check{margin-left:auto}
+.aud-panel .aud-nota{margin:8px 4px 2px}

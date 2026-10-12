@@ -913,37 +913,53 @@ const audTagHtml = x => IS_ADMIN && audDe(x).length
        <svg class="ico"><use href="#i-lock"/></svg>${escapeHtml(audienciaTxt(audDe(x)))}</span>` : '';
 
 /** Selector de audiencia: casillas; sin marcar ninguna, lo ven todos. */
+/* El selector de «quién lo ve»: cerrado muestra los elegidos (con su logo); al abrirlo
+   sale la lista para marcar varios, con buscador cuando hay muchas empresas. */
+const audAv = g => g.logo_url
+  ? `<span class="aud-av has-logo"><img src="${escapeHtml(g.logo_url)}" alt="" onerror="this.remove()" /></span>`
+  : `<span class="aud-av ${g.tipo === 'b2c' ? 'is-b2c' : ''}">${escapeHtml(iniciales(g.nombre))}</span>`;
+/** Los elegidos, como fichas con logo. */
+function audChipsHtml(aud){
+  if (!aud.length) return '<span class="aud-todos">Todos los grupos</span>';
+  return aud.map(v => {
+    const g = grupoPorId(v);
+    return `<span class="aud-chip">${g ? audAv(g) : ''}${escapeHtml(v === AUD_B2B ? 'Todas las empresas' : v === AUD_B2C ? 'Todas las cohortes' : g?.nombre || 'Grupo eliminado')}</span>`;
+  }).join('');
+}
 function audienciaHtml(aud = []){
   const marca = '<span class="aud-check"><svg viewBox="0 0 24 24"><path d="m6 12.5 4 4 8-9"/></svg></span>';
   const op = (valor, texto, av = '', sub = '') => `
     <label class="aud-op">
       <input type="checkbox" data-aud value="${escapeHtml(valor)}" ${aud.includes(valor) ? 'checked' : ''} />
-      ${marca}${av}
+      ${av}
       <span class="aud-txt">${texto}${sub ? `<em>${sub}</em>` : ''}</span>
+      ${marca}
     </label>`;
   const grupos = GRUPOS.slice().sort((a,b) => a.nombre.localeCompare(b.nombre, 'es'));
   // Un grupo borrado que siga en la lista se muestra para poder quitarlo
   const huerfanos = aud.filter(v => !v.startsWith('tipo:') && !grupoPorId(v));
-  const avGrupo = g => g.logo_url
-    ? `<span class="aud-av has-logo"><img src="${escapeHtml(g.logo_url)}" alt="" onerror="this.remove()" /></span>`
-    : `<span class="aud-av ${g.tipo === 'b2c' ? 'is-b2c' : ''}">${escapeHtml(iniciales(g.nombre))}</span>`;
   return `
-    <p class="aud-resumen"><svg class="ico"><use href="#i-eye"/></svg> Lo ven: <b>${escapeHtml(audienciaTxt(aud))}</b></p>
-    <div class="aud-ops">
-      ${op(AUD_B2B, 'Todas las empresas', '', 'B2B')}
-      ${op(AUD_B2C, 'Todas las cohortes', '', 'B2C')}
-    </div>
-    ${grupos.length || huerfanos.length ? `
-      <span class="aud-sep">O solo estos grupos</span>
-      <div class="aud-ops">
-        ${grupos.map(g => op(g.id, escapeHtml(g.nombre), avGrupo(g), g.vigente === false ? 'Sin acceso' : '')).join('')}
-        ${huerfanos.map(v => op(v, 'Grupo eliminado')).join('')}
-      </div>` : ''}
-    <p class="aud-nota">${gruposFalla
-      ? escapeHtml(gruposFalla)
-      : grupos.length
-        ? 'Si no marcas nada, lo ven todos los grupos, también los que crees después.'
-        : 'Todavía no hay empresas ni cohortes creadas: por ahora lo ven todos.'}</p>`;
+    <details class="aud-dd">
+      <summary>
+        <svg class="ico"><use href="#i-eye"/></svg>
+        <span class="aud-resumen"><span>Lo ven</span><b>${audChipsHtml(aud)}</b></span>
+        <svg class="ico aud-chev"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="aud-panel">
+        ${grupos.length > 6 ? '<input type="text" class="aud-buscar" placeholder="Buscar empresa o cohorte" aria-label="Buscar empresa o cohorte" />' : ''}
+        <div class="aud-lista">
+          ${op(AUD_B2B, 'Todas las empresas', '', 'B2B')}
+          ${op(AUD_B2C, 'Todas las cohortes', '', 'B2C')}
+          ${grupos.map(g => op(g.id, escapeHtml(g.nombre), audAv(g), g.vigente === false ? 'Sin acceso' : '')).join('')}
+          ${huerfanos.map(v => op(v, 'Grupo eliminado')).join('')}
+        </div>
+        <p class="aud-nota">${gruposFalla
+          ? escapeHtml(gruposFalla)
+          : grupos.length
+            ? 'Sin marcar nada, lo ven todos los grupos, también los que crees después.'
+            : 'Todavía no hay empresas ni cohortes creadas: por ahora lo ven todos.'}</p>
+      </div>
+    </details>`;
 }
 const leerAudiencia = cont => $$('input[data-aud]:checked', cont).map(i => i.value);
 
@@ -951,8 +967,14 @@ const leerAudiencia = cont => $$('input[data-aud]:checked', cont).map(i => i.val
 document.addEventListener('change', e => {
   const caja = e.target.closest('.aud'); if (!caja || !e.target.matches('[data-aud]')) return;
   const aud = leerAudiencia(caja);
-  const r = $('.aud-resumen b', caja); if (r) r.textContent = audienciaTxt(aud);
+  const r = $('.aud-resumen b', caja); if (r) r.innerHTML = audChipsHtml(aud);
   if (caja.id === 'quizAud' && quizEditando) quizEditando.audiencia = aud;
+});
+// Buscar dentro de la lista (sin tildes ni mayúsculas)
+document.addEventListener('input', e => {
+  if (!e.target.matches('.aud-buscar')) return;
+  const q = sinTildes(e.target.value);
+  $$('.aud-op', e.target.closest('.aud-panel')).forEach(o => { o.hidden = !!q && !sinTildes(o.textContent).includes(q); });
 });
 
 /** ¿La publicación trae un video (y no una imagen o un PDF)? Solo esos se marcan como vistos. */
