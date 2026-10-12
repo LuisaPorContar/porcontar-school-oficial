@@ -2081,8 +2081,8 @@ body.vista-clase .rail{top:140px}
 /* Los elementos de la marca en el menú y en la entrada (marca/*.svg, con sus colores):
    la dona de la marca abajo en el menú; en la entrada, el cristal arriba y un destello abajo. */
 .sidebar>.dona,.login>.login-dona{display:none}
-.sidebar::after{content:"";position:absolute;right:-78px;bottom:26px;width:270px;height:116px;pointer-events:none;z-index:0;
-  background:url(marca/malla.svg) center/contain no-repeat;opacity:.55;transform:rotate(-12deg)}
+.sidebar::after{content:"";position:absolute;right:-34px;bottom:8px;width:150px;height:64px;pointer-events:none;z-index:0;
+  background:url(marca/malla.svg) center/contain no-repeat;opacity:.28;transform:rotate(-12deg)}
 .login::before{content:"";position:absolute;left:-90px;top:-120px;width:420px;height:510px;pointer-events:none;
   background:url(marca/cristal.svg) center/contain no-repeat;opacity:.38}
 .login::after{content:"";position:absolute;right:9%;bottom:12%;width:34px;height:40px;pointer-events:none;
