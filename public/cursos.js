@@ -81,7 +81,7 @@ function cursosGridHtml(){
     <button class="cu-card ${c.visible === false ? 'is-off' : ''}" data-cu-abrir="${escapeHtml(c.id)}">
       ${c.portada_url ? `<span class="cu-portada"><img src="${escapeHtml(c.portada_url)}" alt="" loading="lazy" /></span>`
                       : ks[0] ? miniaturaHtml(ks[0], 'cu-portada') : '<span class="cu-portada cu-mini"></span>'}
-      ${!IS_ADMIN ? `<span class="cu-avance"><span class="quiz-barra"><i style="width:${p}%"></i></span><em>${p} % completado</em></span>` : ''}
+      <span class="cu-avance"><span class="quiz-barra"><i style="width:${p}%"></i></span><em>${p} % completado</em></span>
       <span class="cu-card-txt">
         <b>${escapeHtml(c.titulo)}</b>
         <small>${escapeHtml([c.area, ks.length + (ks.length === 1 ? ' cápsula' : ' cápsulas'), dur].filter(Boolean).join(' · '))}${c.visible === false ? ' · Apagado' : ''}</small>
@@ -153,7 +153,7 @@ function cursoHtml(){
         </div>
         ${c.descripcion ? `<p>${escapeHtml(c.descripcion)}</p>` : ''}
         ${c.instructor ? `<small>Con ${escapeHtml(c.instructor)}</small>` : ''}
-        ${!IS_ADMIN && ks.length ? `<div class="ini-avance"><div class="quiz-barra"><i style="width:${pct(hechas, ks.length)}%"></i></div>
+        ${ks.length ? `<div class="ini-avance"><div class="quiz-barra"><i style="width:${pct(hechas, ks.length)}%"></i></div>
           <span><b>${hechas} de ${ks.length}</b> ${ks.length === 1 ? 'cápsula vista' : 'cápsulas vistas'}</span></div>` : ''}
       </div>
       <div class="cu-cab-acc">
@@ -213,8 +213,8 @@ function capsulaHtml(){
   const q = quizDeCurso(c.id);
   // Un solo botón dice qué sigue: completar y avanzar, tomar el examen o volver al curso
   const principal = sig
-      ? `<button class="btn btn-primary" data-cu-siguiente="${escapeHtml(sig.id)}">${IS_ADMIN || vista ? 'Siguiente cápsula' : 'Completar y seguir'} <svg class="ico"><use href="#i-flecha"/></svg></button>`
-    : !IS_ADMIN && !vista ? `<button class="btn btn-primary" data-cu-vista><svg class="ico"><use href="#i-check"/></svg> Completar cápsula</button>`
+      ? `<button class="btn btn-primary" data-cu-siguiente="${escapeHtml(sig.id)}">${vista ? 'Siguiente cápsula' : 'Completar y seguir'} <svg class="ico"><use href="#i-flecha"/></svg></button>`
+    : !vista ? `<button class="btn btn-primary" data-cu-vista><svg class="ico"><use href="#i-check"/></svg> Completar cápsula</button>`
     : !IS_ADMIN && q ? `<button class="btn btn-primary" data-cu-examen="hacer"><svg class="ico"><use href="#i-quiz"/></svg> Tomar examen</button>`
     : `<button class="btn btn-primary" data-cu-abrir="${escapeHtml(c.id)}">Volver al curso</button>`;
 
@@ -223,7 +223,7 @@ function capsulaHtml(){
       <button class="cu-foco-volver" data-cu-abrir="${escapeHtml(c.id)}" title="Volver al curso" aria-label="Volver al curso"><svg class="ico"><use href="#i-flecha"/></svg></button>
       <div class="cu-foco-tit"><b>${escapeHtml(k.titulo)}</b><small>${escapeHtml(c.titulo)} · Cápsula ${i + 1} de ${ks.length}</small></div>
       <div class="cu-foco-acc">
-        ${!IS_ADMIN && vista ? '<span class="cu-vista-tag"><svg class="ico"><use href="#i-check"/></svg> Vista</span>' : ''}
+        ${vista ? '<span class="cu-vista-tag"><svg class="ico"><use href="#i-check"/></svg> Vista</span>' : ''}
         <button class="cu-foco-flecha es-atras" ${ant ? `data-cu-cap="${escapeHtml(ant.id)}"` : 'disabled'} title="Cápsula anterior" aria-label="Cápsula anterior"><svg class="ico"><use href="#i-flecha"/></svg></button>
         <button class="cu-foco-flecha" ${sig ? `data-cu-cap="${escapeHtml(sig.id)}"` : 'disabled'} title="Cápsula siguiente" aria-label="Cápsula siguiente"><svg class="ico"><use href="#i-flecha"/></svg></button>
         ${principal}
@@ -232,9 +232,8 @@ function capsulaHtml(){
     <div class="cu-foco-cuerpo">
       <aside class="cu-foco-lista">
         <div class="cu-lado-cab">
-          ${IS_ADMIN ? `<b>${ks.length} ${ks.length === 1 ? 'cápsula' : 'cápsulas'}</b>`
-            : `<div><b>${hechas} de ${ks.length} completadas</b><span>${pct(hechas, ks.length)}%</span></div>
-               <div class="quiz-barra"><i style="width:${pct(hechas, ks.length)}%"></i></div>`}
+          <div><b>${hechas} de ${ks.length} completadas</b><span>${pct(hechas, ks.length)}%</span></div>
+          <div class="quiz-barra"><i style="width:${pct(hechas, ks.length)}%"></i></div>
         </div>
         <div class="cu-lado-lista">${porSeccion(ks).map(s => `
           ${s.nombre ? `<h4>${escapeHtml(s.nombre)}</h4>` : ''}
@@ -282,8 +281,8 @@ async function abrirCapsula(id){
   window.scrollTo(0, 0);
 }
 async function marcarCapsula(id, vista){
-  if (!PERFIL) return;
   if (vista) capsHechas.add(id); else capsHechas.delete(id);
+  if (!PERFIL) return;          // el admin recorre el curso como vista previa: su avance no se guarda
   try { await store.marcarCapsula(id, vista); }
   catch (err){ if (vista) capsHechas.delete(id); else capsHechas.add(id); toast(errorMsg(err)); }
 }
