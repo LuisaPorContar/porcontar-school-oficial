@@ -25,7 +25,25 @@ const deSesion = r => ({
   id:r.id, orden:r.orden || 0, short:r.corto, name:r.nombre, desc:r.descripcion || '',
   icon:r.icono || 's-1', tipo:r.tipo || 'clase', title:`${r.corto}. ${r.nombre}`,
   visible:r.visible !== false,   // sin la columna (antes del SQL) todas se ven
+  grupoId:r.grupo_id || null,    // vacío = del reto; con grupo = propia de ese bootcamp o charla
 });
+
+/* Formatos: un grupo «corto» (bootcamp, charla) no sigue el reto, tiene sus propias sesiones.
+   SESSIONS son las del espacio en el que se está; OTRAS_SESIONES, las demás (solo el admin las recibe). */
+let OTRAS_SESIONES = [];
+/** El grupo corto cuyas sesiones se están viendo (admin: el espacio abierto), o null si son las del reto. */
+const grupoCorto = () => {
+  if (IS_ADMIN){ const g = grupoPorId(vistaComo); return g && g.formato === 'corto' ? g : null; }
+  const gs = PERFIL?.grupos || [];
+  return gs.length && gs.every(g => g.formato === 'corto') ? gs[0] : null;
+};
+/** Deja en SESSIONS las del espacio actual. El estudiante ya recibe solo las suyas. */
+function repartirSesiones(){
+  if (!IS_ADMIN) return;
+  const todas = [...SESSIONS, ...OTRAS_SESIONES], id = grupoCorto()?.id || null;
+  SESSIONS = todas.filter(s => (s.grupoId || null) === id).sort((x, y) => (x.orden || 0) - (y.orden || 0));
+  OTRAS_SESIONES = todas.filter(s => (s.grupoId || null) !== id);
+}
 const TIPOS_SESION = { kickoff:'Kick off', clase:'Clase', proyecto:'Proyecto', cierre:'Cierre' };
 const ICONOS_SESION = ['s-0','s-base','s-funnel','s-design','s-web','s-video','s-viral','s-1','s-agent',
                        's-crm','s-prospec','s-dash','s-ads','s-ecom','s-pre','s-2','s-3','s-4','s-5'];
@@ -311,7 +329,7 @@ function cloudStore(){
       if (!lista.length) return;
       check(await sb.from('reto_sesiones').upsert(lista.map(s => ({
         id:s.id, orden:s.orden, corto:s.short, nombre:s.name, descripcion:s.desc || '',
-        icono:s.icon, tipo:s.tipo || 'clase',
+        icono:s.icon, tipo:s.tipo || 'clase', ...(s.grupoId ? { grupo_id:s.grupoId } : {}),
         // visible solo viaja si está apagada o se acaba de cambiar: así guardar sigue funcionando
         // aunque la base todavía no tenga la columna
         ...(s.visible === false || s.cambioVisible ? { visible:s.visible !== false } : {}),
@@ -843,7 +861,9 @@ document.addEventListener('change', e => {
 const esVideo = p => !!(p.videoUrl || p.videoId) && (!!(p.videoUrl && toEmbed(p.videoUrl)) || (!esImagen(p) && !esPdf(p)));
 
 const sessionOf = id => id === FAQ_ID ? FAQ : id === TUTO_ID ? TUTO
-                      : SESSIONS.find(s => s.id === id) || SESSIONS[0];
+                      : SESSIONS.find(s => s.id === id) || OTRAS_SESIONES.find(s => s.id === id) || SESSIONS[0] || SIN_SESION;
+// Un bootcamp recién creado todavía no tiene sesiones
+const SIN_SESION = { id:'', short:'', name:'', title:'', desc:'', icon:'s-1', tipo:'clase' };
 /** Vista que le corresponde a una publicación según su sección. */
 const vistaDe = id => id === FAQ_ID ? { type:'faq' } : id === TUTO_ID ? { type:'tuto' }
                     : { type:'session', id };
@@ -854,6 +874,11 @@ const vistaDe = id => id === FAQ_ID ? { type:'faq' } : id === TUTO_ID ? { type:'
 /** Dibuja las sesiones en el menú, en el selector del composer y en la columna derecha.
     Se llama al arrancar y cada vez que el admin edita el reto. */
 function pintarNav(){
+  // Un bootcamp o una charla no es «el reto» ni tiene trabajo autónomo
+  const corto = !!grupoCorto();
+  $('#navSesTit').textContent = corto ? 'Sesiones' : 'Sesiones del reto';
+  $('#railSesTit').textContent = corto ? 'Sesiones' : 'El reto';
+  $('.nav-tareas').hidden = corto;
   $('#navSessions').innerHTML = SESSIONS.map(s => `
     <div class="nav-row ${s.visible === false ? 'is-apagada' : ''}" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
@@ -1037,7 +1062,7 @@ function renderVista(){
     // Arriba solo la etiqueta: el nombre y la descripción van grandes en la página de la clase
     const s = sessionOf(view.id);
     $('#viewTitle').textContent = s.short;
-    $('#viewSubtitle').textContent = TIPOS_SESION[s.tipo] && s.tipo !== 'clase' ? TIPOS_SESION[s.tipo] : 'El reto';
+    $('#viewSubtitle').textContent = TIPOS_SESION[s.tipo] && s.tipo !== 'clase' ? TIPOS_SESION[s.tipo] : grupoCorto() ? grupoCorto().nombre : 'El reto';
   } else if (view.type === 'skills'){
     $('#viewTitle').textContent = skillArea === 'todas' ? 'Skills' : skillArea;
     $('#viewSubtitle').textContent = 'Prompts listos para usar: ábrelos, cópialos o descárgalos en .md';
@@ -1072,8 +1097,9 @@ function renderVista(){
     $('#viewTitle').textContent = 'Administradoras';
     $('#viewSubtitle').textContent = 'Quién entra a /admin con su correo y su contraseña';
   } else if (view.type === 'reto'){
-    $('#viewTitle').textContent = 'Sesiones del reto';
-    $('#viewSubtitle').textContent = 'Agrega, edita, ordena o elimina las sesiones: el cambio se ve en todas las empresas';
+    $('#viewTitle').textContent = grupoCorto() ? 'Sesiones de ' + grupoCorto().nombre : 'Sesiones del reto';
+    $('#viewSubtitle').textContent = grupoCorto() ? 'Las sesiones de este bootcamp o charla: solo las ve este grupo'
+      : 'Agrega, edita, ordena o elimina las sesiones: el cambio se ve en todas las empresas';
   } else if (view.type === 'grupos'){
     const g = grupoAbierto && grupoPorId(grupoAbierto);
     $('#viewTitle').textContent = g ? g.nombre : 'Empresas y cohortes';
@@ -2042,7 +2068,7 @@ function openComposer(post = null){
     : view.type === 'faq'     ? FAQ_ID
     : view.type === 'tuto'    ? TUTO_ID
     : view.type === 'session' ? view.id
-    : SESSIONS[0].id;
+    : SESSIONS[0]?.id || TUTO_ID;
   $('#fTitle').value    = post ? (post.title || '') : '';
   $('#fBody').value     = post ? (post.body  || '') : '';
   $('#fPinned').checked = post ? !!post.pinned : false;
@@ -2852,6 +2878,8 @@ function cambiarEspacio(id){
   try { localStorage.setItem(ESPACIO_KEY, vistaComo); } catch {}
   refrescarVerComo();
   const g = grupoPorId(vistaComo);
+  repartirSesiones(); pintarNav();
+  if (view.type === 'session' && !SESSIONS.some(s => s.id === view.id)) view = { type:'inicio', id:null };
   toast(g ? `Estás en el espacio de ${g.nombre}` : 'Estás en el espacio Principal');
   // En el panel se pasa al de ese grupo; en lo demás se redibuja con lo del espacio
   if (view.type === 'panel') setView('panel', vistaComo || null);
@@ -3120,6 +3148,7 @@ function abrirGrupoForm(g = null){
   $('#grClaveNota').textContent = 'Al guardar, todos entran de nuevo con esta contraseña.';
   $('#grClaveNota').hidden = true;
   $('#grActivo').checked = g ? g.activo : true;
+  $('#grFormato').value = g?.formato || 'reto';
 
   // Ficha
   const campos = { grNit:'nit', grSector:'sector', grPlazas:'plazas', grWhatsapp:'whatsapp_url',
@@ -3198,10 +3227,12 @@ $('#grSave').addEventListener('click', async () => {
         logo_url:logo, nit:v('grNit'), sector:v('grSector'), plazas:v('grPlazas'), whatsapp_url:v('grWhatsapp'),
         fecha_inicio:v('grInicio'), fecha_fin:v('grFin'), contacto_nombre:v('grCNombre'),
         contacto_cargo:v('grCCargo'), contacto_email:v('grCEmail'), contacto_telefono:v('grCTel'),
+        formato:$('#grFormato').value,
       });
     }
     cerrarGrupoForm();
     await cargarGrupos();
+    repartirSesiones(); pintarNav();
     if (nuevo){
       toast('Grupo creado. Ahora pega los correos de las personas.');
       setView('grupos', id);
@@ -3659,7 +3690,7 @@ $('#loginForm').addEventListener('submit', async e => {
     // la academia sigue con las sesiones de siempre y sin cronograma.
     try {
       const ss = await store.sesiones();
-      if (ss.length) SESSIONS = ss;
+      if (ss.length){ SESSIONS = ss; OTRAS_SESIONES = []; repartirSesiones(); }
       [CRONO, GRABS] = await Promise.all([store.cronograma(), store.grabaciones()]);
       if (PERFIL) progresoVideo = await store.miProgresoVideo();
       fase1 = true;
@@ -3667,6 +3698,11 @@ $('#loginForm').addEventListener('submit', async e => {
     pintarNav();
 
     posts = await store.list();
+    // El estudiante solo ve lo publicado en las sesiones que le llegan (las del reto o las de su bootcamp)
+    if (!IS_ADMIN && fase1){
+      const mias = new Set([...SESSIONS.map(s => s.id), TUTO_ID, FAQ_ID]);
+      posts = posts.filter(p => mias.has(p.session));
+    }
 
     // El catálogo de skills es independiente: si su tabla aún no existe,
     // el muro sigue funcionando y solo se queda vacío ese módulo.
@@ -3696,6 +3732,6 @@ $('#loginForm').addEventListener('submit', async e => {
   if (!CLOUD) console.warn('Muro en modo local: falta SUPABASE_ANON_KEY en config.js');
   // Lo primero que se ve es el inicio con el cronograma; sin él, la primera clase no oculta
   const inicio = SESSIONS.find(s => !isHidden(s.id)) || SESSIONS[0];
-  view = fase1 ? { type:'inicio', id:null } : { type:'session', id:inicio.id };
+  view = fase1 || !inicio ? { type:'inicio', id:null } : { type:'session', id:inicio.id };
   render();
 })();

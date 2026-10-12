@@ -58,6 +58,18 @@ const fichaDe = g => ({
 /* ================================================================
    INICIO Y CRONOGRAMA
    ================================================================ */
+/** Cabecera mínima del grupo (admin), para cuando aún no hay sesiones que mostrar. */
+const hero0 = g => `
+  <section class="card ini-hero">
+    ${logoHtml(g, 'ini-logo')}
+    <div class="ini-hero-txt">
+      <span class="gr-tipo">${g.tipo === 'b2c' ? 'Cohorte' : 'Empresa'}</span>
+      <h2>${escapeHtml(g.nombre)}</h2>
+      ${resumenEmpresaHtml(g)}
+    </div>
+    <div class="ini-hero-acc">${gestionarEmpresaHtml(g)}</div>
+  </section>`;
+
 function inicioHtml(){
   if (!fase1) return `
     <div class="empty">
@@ -70,8 +82,19 @@ function inicioHtml(){
   if (!g) return `<div class="empty"><svg class="ico"><use href="#i-cal"/></svg><h3>Sin programa asignado</h3></div>`;
 
   const crono = cronoDe(g.id);
-  const filas = SESSIONS.map(s => ({ s, r:crono.get(s.id) }));
+  // Un bootcamp o charla lleva solo sus sesiones; los demás, las del reto
+  const filas = SESSIONS.filter(s => g.formato === 'corto' ? s.grupoId === g.id : !s.grupoId)
+    .map(s => ({ s, r:crono.get(s.id) }));
   const ahora = Date.now();
+  if (IS_ADMIN && !filas.length && !inicioEditando) return hero0(g) + `
+    <section class="ini-prox ini-prox-vacia">
+      <div class="ini-prox-txt">
+        <em>Sesiones</em>
+        <h3>Este grupo todavía no tiene sesiones</h3>
+        <p>Crea la primera y después ponle fecha, enlace y grabación.</p>
+      </div>
+      <button class="btn btn-primary" data-reto-nueva><svg class="ico"><use href="#i-plus"/></svg> Nueva sesión</button>
+    </section>`;
   // El próximo encuentro: el primero que todavía no termina (se da 2 horas de margen)
   const proxima = filas.filter(f => momentoDe(f.r))
     .sort((a, b) => momentoDe(a.r) - momentoDe(b.r))
@@ -160,7 +183,7 @@ function inicioHtml(){
   const lista = `
     <section class="card ini-crono">
       <div class="ini-crono-cab">
-        <span>Cronograma del reto</span>
+        <span>${grupoCorto() ? 'Cronograma' : 'Cronograma del reto'}</span>
         ${g.fecha_inicio && g.fecha_fin ? `<em>${escapeHtml(fechaCorta(g.fecha_inicio))} al ${escapeHtml(fechaCorta(g.fecha_fin))}</em>` : ''}
       </div>
       <ol class="ini-lista">${filas.map(({ s, r }) => {
@@ -305,7 +328,7 @@ function retoHtml(){
       <h3>Las sesiones todavía son fijas</h3><p>Falta correr <b>supabase-fase1.sql</b> en Supabase.</p></div>`;
   return `
     <div class="sk-head">
-      <span class="sk-label">${SESSIONS.length} ${SESSIONS.length === 1 ? 'sesión' : 'sesiones'} en el reto · iguales para todas las empresas</span>
+      <span class="sk-label">${SESSIONS.length} ${SESSIONS.length === 1 ? 'sesión' : 'sesiones'} ${grupoCorto() ? 'de ' + escapeHtml(grupoCorto().nombre) : 'en el reto · iguales para todas las empresas'}</span>
       <button class="btn btn-primary" data-reto-nueva><svg class="ico"><use href="#i-plus"/></svg> Nueva sesión</button>
     </div>
     <div class="card reto-lista">${SESSIONS.map((s, i) => {
@@ -337,7 +360,7 @@ function retoHtml(){
 function abrirSesionForm(s = null){
   editandoSesion = s;
   $('#seTitle').textContent = s ? 'Editar sesión' : 'Nueva sesión';
-  $('#seCorto').value  = s ? s.short : `Sesión ${SESSIONS.length}`;
+  $('#seCorto').value  = s ? s.short : grupoCorto() ? (SESSIONS.length ? `Sesión ${SESSIONS.length + 1}` : 'Bootcamp') : `Sesión ${SESSIONS.length}`;
   $('#seNombre').value = s ? s.name : '';
   $('#seDesc').value   = s ? s.desc : '';
   $('#seTipo').value   = s ? s.tipo || 'clase' : 'clase';
@@ -360,7 +383,8 @@ $('#seSave').addEventListener('click', async () => {
   if (!corto)  return void (msg.textContent = 'Ponle una etiqueta corta, por ejemplo «Sesión 13».');
   if (!nombre) return void (msg.textContent = 'Ponle un nombre a la sesión.');
   const s = editandoSesion ? { ...editandoSesion }
-          : { id:'s' + Date.now().toString(36), orden:Math.max(-1, ...SESSIONS.map(x => x.orden || 0)) + 1 };
+          : { id:'s' + Date.now().toString(36), orden:Math.max(-1, ...SESSIONS.map(x => x.orden || 0)) + 1,
+              grupoId:grupoCorto()?.id || null };
   Object.assign(s, { short:corto, name:nombre, desc:$('#seDesc').value.trim(), tipo:$('#seTipo').value,
                      icon:($('input[name="seIcono"]:checked') || {}).value || 's-1' });
   s.title = `${s.short}. ${s.name}`;
@@ -372,7 +396,8 @@ $('#seSave').addEventListener('click', async () => {
     const nueva = !editandoSesion;
     cerrarSesionForm();
     pintarNav();
-    toast(nueva ? 'Sesión creada: ya aparece en el menú de todas las empresas' : 'Sesión actualizada');
+    toast(!nueva ? 'Sesión actualizada' : grupoCorto() ? `Sesión creada: solo la ve ${grupoCorto().nombre}`
+                 : 'Sesión creada: ya aparece en el menú de todas las empresas');
     render();
   } catch (err){
     console.error(err);
@@ -401,7 +426,7 @@ async function borrarSesion(id){
   const nGrabs = GRABS.filter(g => g.sesion_id === id).length;
   const nCrono = CRONO.filter(r => r.sesion_id === id).length;
   const extra = nGrabs || nCrono ? `\n\nTambién se borran sus ${nGrabs} grabaciones y su fecha en ${nCrono} cronogramas.` : '';
-  if (!(await confirmar({ titulo:`¿Eliminar «${s.title}»?`, texto:`Deja de verse en todas las empresas.${extra} Si solo quieres ocultarla un tiempo, mejor apágala.`, boton:'Eliminar sesión' }))) return;
+  if (!(await confirmar({ titulo:`¿Eliminar «${s.title}»?`, texto:`${grupoCorto() ? 'Deja de verla ' + grupoCorto().nombre : 'Deja de verse en todas las empresas'}.${extra} Si solo quieres ocultarla un tiempo, mejor apágala.`, boton:'Eliminar sesión' }))) return;
   try {
     await store.borrarSesion(id);
     SESSIONS = SESSIONS.filter(x => x.id !== id);
@@ -741,6 +766,7 @@ $('#posts').addEventListener('click', e => {
     if (grp){ inicioGrupoId = grp.dataset.iniGrupo; return render(); }
     if (e.target.closest('[data-ini-editar]')){ inicioEditando = !inicioEditando; return render(); }
     if (e.target.closest('[data-ce-guardar]')) return guardarCronograma();
+    if (e.target.closest('[data-reto-nueva]')) return abrirSesionForm();
   }
   if (view.type === 'reto'){
     if (e.target.closest('[data-reto-nueva]')) return abrirSesionForm();
@@ -913,7 +939,7 @@ async function alternarSesion(id){
     delete nueva.cambioVisible;
     SESSIONS = SESSIONS.map(x => x.id === id ? nueva : x);
     pintarNav();
-    toast(nueva.visible ? `«${s.short}» encendida: ya la ven todas las empresas`
+    toast(nueva.visible ? `«${s.short}» encendida: ya la ${grupoCorto() ? 've ' + grupoCorto().nombre : 'ven todas las empresas'}`
                         : `«${s.short}» apagada: los estudiantes ya no la ven`);
     render();
   } catch (err){

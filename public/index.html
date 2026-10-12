@@ -144,7 +144,7 @@
         <span class="nav-label">Inicio y cronograma</span>
       </button>
 
-      <p class="nav-title nav-title-acc">Sesiones del reto
+      <p class="nav-title nav-title-acc"><span id="navSesTit">Sesiones del reto</span>
         <button class="nav-editar" data-editar-reto hidden title="Agregar, editar u ordenar las sesiones del reto">
           <svg class="ico"><use href="#i-edit"/></svg> Editar
         </button>
@@ -169,7 +169,7 @@
         <span class="nav-label">Vocabulario y términos</span>
       </button>
       <!-- Oculto por ahora: para mostrarlo de nuevo, quitar hidden -->
-      <button class="nav-item" data-view="config" hidden title="Qué dejar activo en tu organización de Claude">
+      <button class="nav-item" data-view="config" title="Qué dejar activo en tu organización de Claude">
         <svg class="ico"><use href="#i-config"/></svg>
         <span class="nav-label">Configurar Claude</span>
       </button>
@@ -262,7 +262,7 @@
         <!-- estudiantes: formulario de pregunta · admin: preguntas por responder (lo pinta app.js) -->
         <div class="card rail-card rail-pregunta" id="railPregunta"></div>
         <div class="card rail-card">
-          <h3>El reto</h3>
+          <h3 id="railSesTit">El reto</h3>
           <ol class="rail-list" id="railSessions"></ol>
         </div>
       </aside>
@@ -505,6 +505,11 @@
 
       <p class="aj-tit">Programa</p>
       <div class="aj-caja">
+        <label class="aj-fila"><span>Formato</span>
+          <select id="grFormato">
+            <option value="reto">Reto completo</option>
+            <option value="corto">Bootcamp o charla</option>
+          </select></label>
         <label class="aj-fila"><span>Inicio</span><input type="date" id="grInicio" /></label>
         <label class="aj-fila"><span>Fin</span><input type="date" id="grFin" /></label>
         <label class="aj-fila"><span>Grupo de WhatsApp</span><input type="text" inputmode="url" id="grWhatsapp" maxlength="300" placeholder="chat.whatsapp.com/…" /></label>
