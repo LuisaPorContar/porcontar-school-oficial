@@ -42,6 +42,7 @@ const EXTRAS = ['tareas', 'skills', 'resumen', 'config', 'tuto', 'faq'];
 const sinExtra = (g, k) => (g.extras_off || []).includes(k) || (k === 'tareas' && g.formato === 'corto');
 /** ¿Ese extra está apagado para quien mira? (admin: en el espacio abierto; quien está en varios grupos lo ve si alguno lo tiene) */
 function extraApagado(k){
+  if (typeof AJUSTES !== 'undefined' && AJUSTES.extras_off.includes(k)) return true;
   if (IS_ADMIN){ const g = grupoPorId(vistaComo); return !!g && sinExtra(g, k); }
   const gs = PERFIL?.grupos || [];
   return gs.length > 0 && gs.every(g => sinExtra(g, k));
@@ -515,6 +516,29 @@ function cloudStore(){
     },
 
     /* ---------- Catálogo de skills ---------- */
+    // Trabajo autónomo editable y ajustes generales (supabase-tareas.sql)
+    async tareas(){
+      const { data, error } = await sb.from('tareas').select('*').order('orden', { ascending:true });
+      if (error) throw error;
+      return data.map(r => ({ id:r.id, orden:r.orden || 0, sesion_id:r.sesion_id || null, titulo:r.titulo, descripcion:r.descripcion || '',
+                              pasos:Array.isArray(r.pasos) ? r.pasos : [], visible:r.visible !== false }));
+    },
+    async guardarTareas(lista){
+      if (!lista.length) return;
+      check(await sb.from('tareas').upsert(lista.map(t => ({ id:t.id, orden:t.orden, sesion_id:t.sesion_id || null, titulo:t.titulo,
+        descripcion:t.descripcion || '', pasos:t.pasos, visible:t.visible !== false, updated_at:new Date().toISOString() }))));
+    },
+    async borrarTarea(id){ check(await sb.from('tareas').delete().eq('id', id)); },
+    tareasCargar: ()      => rpc('tareas_cargar'),
+    tareasGuardar: estado => rpc('tareas_guardar', { p_estado:estado }),
+    async ajustes(){
+      const { data, error } = await sb.from('ajustes').select('*');
+      if (error) throw error;
+      return Object.fromEntries(data.map(r => [r.clave, r.valor]));
+    },
+    async guardarAjuste(clave, valor){
+      check(await sb.from('ajustes').upsert({ clave, valor, updated_at:new Date().toISOString() }));
+    },
     async listSkills(){
       const { data, error } = await sb.from(tablaSk).select('*').order('created_at', { ascending:true });
       if (error) throw error;
@@ -1044,6 +1068,7 @@ function buildNav(){
   pintarNav();
   $('#nav').addEventListener('click', e => {
     if (e.target.closest('[data-editar-reto]')){ setView('reto'); $('#sidebar').classList.remove('is-open'); return; }
+    if (e.target.closest('[data-editar-extras]')){ setView('extras'); $('#sidebar').classList.remove('is-open'); return; }
     const ojo = e.target.closest('[data-hide]');
     if (ojo){                        // el ojito no navega: solo oculta o muestra la clase
       const s = sessionOf(ojo.dataset.hide);
@@ -1214,6 +1239,12 @@ function renderVista(){
     $('#viewSubtitle').textContent = sq ? sq.name : IS_ADMIN
       ? 'Arma los quizzes y mira cuánto acertó el grupo'
       : 'Pon a prueba lo aprendido en cada clase';
+  } else if (view.type === 'extras'){
+    $('#viewTitle').textContent = 'Extras';
+    $('#viewSubtitle').textContent = 'Enciende o apaga lo que la gente ve en general';
+  } else if (view.type === 'tareasadmin'){
+    $('#viewTitle').textContent = 'Tareas del trabajo autónomo';
+    $('#viewSubtitle').textContent = 'Agrega, edita, ordena, enciende o apaga las tareas de la checklist';
   } else if (view.type === 'tareas'){
     $('#viewTitle').textContent = 'Trabajo autónomo';
     $('#viewSubtitle').textContent = IS_ADMIN
@@ -1326,14 +1357,15 @@ function renderVista(){
   const enResumen = view.type === 'resumen';
   const enConfig  = view.type === 'config';
   const enTareas  = view.type === 'tareas';
-  const enGestion = ['grupos', 'panel', 'reto', 'admins'].includes(view.type);
+  const enGestion = ['grupos', 'panel', 'reto', 'admins', 'extras', 'tareasadmin'].includes(view.type);
+  const tareasNativas = enTareas && typeof TAREAS !== 'undefined' && TAREAS !== null;   // la checklist de la base (si no, la página de antes)
   const enInicio  = view.type === 'inicio';
   const enComunidad = view.type === 'comunidad';
   // Las clases del body van todas aquí: cada vista sale antes con su return
   document.body.classList.toggle('vista-skills', enSkills);
-  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio || enComunidad);
+  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio || enComunidad || tareasNativas);
   document.body.classList.toggle('vista-gestion', enGestion);
-  document.body.classList.toggle('vista-resumen', enResumen || enConfig || enTareas);
+  document.body.classList.toggle('vista-resumen', enResumen || enConfig || (enTareas && !tareasNativas));
   const skillsVisibles = vis(skills);
   $('#countSkills').textContent = skillsVisibles.length;
   const cq = $('#countQuiz');
@@ -1342,6 +1374,7 @@ function renderVista(){
 
   if (enGestion){
     $('#posts').innerHTML = view.type === 'grupos' ? gruposHtml() : view.type === 'reto' ? retoHtml()
+                          : view.type === 'extras' ? extrasHtml() : view.type === 'tareasadmin' ? tareasAdminHtml()
                           : view.type === 'admins' ? adminsHtml() : panelHtml();
     return;
   }
@@ -1374,6 +1407,10 @@ function renderVista(){
     return;
   }
 
+  if (tareasNativas){
+    $('#posts').innerHTML = tareasHtml();
+    return;
+  }
   if (enResumen || enConfig || enTareas){
     const url = enTareas ? TAREAS_URL : enConfig ? CONFIG_URL : GUIA_URL;
     const abierta = $('.guia iframe');
@@ -2562,6 +2599,7 @@ function applyMode(){
   $('#navEspacio').hidden = !(IS_ADMIN && CLOUD);
   $('#navGestion').hidden = IS_ADMIN || !gruposResponsable().length;
   $('[data-editar-reto]').hidden = !(IS_ADMIN && CLOUD);
+  $('[data-editar-extras]').hidden = !(IS_ADMIN && CLOUD);
   refrescarVerComo();
 
   // Menú de cuenta (arriba a la derecha): quién eres, accesos de gestión y cerrar sesión
@@ -3515,6 +3553,8 @@ let panelTareas  = null;     // las tareas, leídas de trabajo-autonomo.html (la
 const panelOpciones = () => IS_ADMIN ? GRUPOS : gruposResponsable();
 
 async function cargarTareasDef(){
+  if (typeof TAREAS !== 'undefined' && TAREAS !== null)
+    return (panelTareas = TAREAS.filter(t => t.visible !== false).map(t => ({ titulo:t.titulo, checks:t.pasos.map(p => p.id), radio:null })));
   if (panelTareas) return panelTareas;
   try {
     const html = await (await fetch('trabajo-autonomo.html', { cache:'no-cache' })).text();
@@ -3852,6 +3892,7 @@ $('#loginForm').addEventListener('submit', async e => {
       if (PERFIL) progresoVideo = await store.miProgresoVideo();
       fase1 = true;
     } catch (err){ console.warn("Fase 1 no disponible (falta supabase-fase1.sql):", err); }
+    if (CLOUD && typeof cargarTareasYAjustes === 'function') await cargarTareasYAjustes();
     pintarNav();
 
     posts = await store.list();
