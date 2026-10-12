@@ -983,6 +983,8 @@ function pintarNav(){
     b.hidden = off && (!IS_ADMIN || noAplica);
     b.classList.toggle('is-off', off && IS_ADMIN && !noAplica);
   });
+  // Sin preguntas frecuentes no hay dónde preguntar: la tarjeta de preguntas tampoco se muestra
+  $('#railPregunta').style.display = extraApagado('faq') ? 'none' : '';
   const cursos = $('#subnav [data-sub="tuto"]'); if (cursos) cursos.hidden = !IS_ADMIN && extraApagado('tuto');
   const comu = $('#subnav [data-sub="comunidad"]');
   if (comu){ comu.hidden = !CLOUD || (!IS_ADMIN && extraApagado('comunidad')); comu.classList.toggle('is-off', IS_ADMIN && extraApagado('comunidad')); }
