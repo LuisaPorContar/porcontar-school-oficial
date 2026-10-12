@@ -1857,3 +1857,13 @@ body.vista-clase .rail{top:140px}
 /* Logo del menú: pequeño y a la izquierda */
 .sidebar .brand{align-items:flex-start;padding:14px 0 12px}
 .sidebar .brand .logo{width:58px}
+
+/* Video que la plataforma no deja reproducir adentro (Zoom, OneDrive…): un botón que lo abre */
+.post-enlace{display:flex;align-items:center;gap:14px;margin:4px 0 14px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;
+  background:var(--paper-2);color:var(--ink);text-decoration:none}
+.post-enlace:hover{border-color:var(--pc-blue)}
+.post-enlace>span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column}
+.post-enlace b{font-family:var(--font-display);font-weight:600;font-size:15px}
+.post-enlace em{font-style:normal;font-size:12.5px;color:var(--ink-mute)}
+.post-enlace-ico{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--night);color:var(--pc-yellow);flex:none}
+.post-enlace>.ico{color:var(--ink-mute);flex:none}

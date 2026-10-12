@@ -746,24 +746,75 @@ function timeAgo(ts){
   return new Date(ts).toLocaleDateString('es-ES', { day:'numeric', month:'short' });
 }
 
-/** YouTube / Vimeo -> URL embebible. Si no lo es, null. */
+/** Enlace de un video -> dirección que se puede reproducir dentro de la academia, o null.
+    YouTube, Vimeo, Google Drive (también las grabaciones de Meet), Loom, Dailymotion,
+    Streamable y Wistia. Lo que no deja incrustarse (Zoom, OneDrive, Teams…) sale como
+    botón para abrirlo: ver enlaceVideoHtml. */
 function toEmbed(url){
   try {
     const u = new URL(url);
-    const h = u.hostname.replace(/^www\./,'');
-    if (h === 'youtu.be')     return 'https://www.youtube.com/embed/' + u.pathname.slice(1);
-    if (h.endsWith('youtube.com')){
-      if (u.pathname.startsWith('/embed/')) return u.href;
+    const h = u.hostname.replace(/^www\./,'').replace(/^m\./,'');
+    const partes = u.pathname.split('/').filter(Boolean);
+    if (h === 'youtu.be' && partes[0]) return 'https://www.youtube.com/embed/' + partes[0];
+    if (h.endsWith('youtube.com') || h.endsWith('youtube-nocookie.com')){
+      if (partes[0] === 'embed') return u.href;
+      if (['shorts', 'live', 'v'].includes(partes[0]) && partes[1]) return 'https://www.youtube.com/embed/' + partes[1];
       const v = u.searchParams.get('v');
       if (v) return 'https://www.youtube.com/embed/' + v;
     }
+    if (h === 'player.vimeo.com') return u.href;
     if (h.endsWith('vimeo.com')){
-      const id = u.pathname.split('/').filter(Boolean)[0];
-      if (/^\d+$/.test(id)) return 'https://player.vimeo.com/video/' + id;
+      const i = partes.findIndex(x => /^\d+$/.test(x));
+      if (i >= 0){      // los privados llevan un código después del número: vimeo.com/123/abc
+        const clave = /^[0-9a-f]{6,}$/i.test(partes[i + 1] || '') ? partes[i + 1] : u.searchParams.get('h');
+        return 'https://player.vimeo.com/video/' + partes[i] + (clave ? '?h=' + clave : '');
+      }
+    }
+    if (h === 'drive.google.com' || h === 'docs.google.com'){
+      const id = (u.pathname.match(/\/file\/d\/([\w-]{10,})/) || [])[1]
+              || (['open', 'uc'].includes(partes[0]) ? u.searchParams.get('id') : null);
+      if (id) return 'https://drive.google.com/file/d/' + id + '/preview';
+    }
+    if (h.endsWith('loom.com') && ['share', 'embed'].includes(partes[0]) && partes[1])
+      return 'https://www.loom.com/embed/' + partes[1];
+    if (h.endsWith('dailymotion.com') && partes.includes('video'))
+      return 'https://www.dailymotion.com/embed/video/' + partes[partes.indexOf('video') + 1];
+    if (h === 'dai.ly' && partes[0]) return 'https://www.dailymotion.com/embed/video/' + partes[0];
+    if (h === 'streamable.com' && partes.length) return 'https://streamable.com/e/' + partes[partes.length - 1];
+    if (/wistia\.(com|net)$/.test(h)){
+      const i = partes.findIndex(x => x === 'medias' || x === 'iframe');
+      if (i >= 0 && partes[i + 1]) return 'https://fast.wistia.net/embed/iframe/' + partes[i + 1];
     }
   } catch { /* url inválida */ }
   return null;
 }
+/** Un archivo de video al que se llega directo (termina en .mp4…) o uno de Dropbox: se reproduce con el reproductor del navegador. */
+function videoDirecto(url){
+  try {
+    const u = new URL(url);
+    if (/(^|\.)dropbox\.com$/.test(u.hostname)){ u.searchParams.delete('dl'); u.searchParams.set('raw', '1'); return u.href; }
+    return /\.(mp4|webm|m4v|mov|ogv)$/i.test(u.pathname) ? u.href : null;
+  } catch { return null; }
+}
+/** El nombre de la plataforma de un enlace, para el botón de los que no se dejan incrustar. */
+function plataformaDe(url){
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, '');
+    const lista = [[/zoom\.(us|com)$/, 'Zoom'], [/(1drv\.ms|onedrive\.live\.com|sharepoint\.com)$/, 'OneDrive'],
+                   [/(teams\.microsoft\.com|microsoftstream\.com|teams\.live\.com)$/, 'Microsoft Teams'], [/meet\.google\.com$/, 'Google Meet'],
+                   [/icloud\.com$/, 'iCloud'], [/(mega\.nz|mega\.io)$/, 'MEGA'], [/box\.com$/, 'Box'], [/wetransfer\.com|we\.tl$/, 'WeTransfer'],
+                   [/canva\.com$/, 'Canva'], [/(facebook\.com|fb\.watch)$/, 'Facebook'], [/instagram\.com$/, 'Instagram'],
+                   [/tiktok\.com$/, 'TikTok'], [/linkedin\.com$/, 'LinkedIn'], [/drive\.google\.com$/, 'Google Drive']];
+    return (lista.find(([re]) => re.test(h)) || [, h])[1];
+  } catch { return 'el enlace'; }
+}
+/** Enlace que la plataforma no deja reproducir aquí adentro: un botón que lo abre en otra pestaña. */
+const enlaceVideoHtml = url => `
+  <a class="post-enlace" href="${escapeHtml(url)}" target="_blank" rel="noopener">
+    <span class="post-enlace-ico"><svg class="ico"><use href="#i-video"/></svg></span>
+    <span><b>Ver el video en ${escapeHtml(plataformaDe(url))}</b><em>Se abre en otra pestaña</em></span>
+    <svg class="ico"><use href="#i-ext"/></svg>
+  </a>`;
 
 function toast(msg){
   const t = $('#toast');
@@ -1959,12 +2010,16 @@ function resaltarFaq(id){
 function mediaHtml(p){
   if (p.videoUrl){
     const embed = toEmbed(p.videoUrl);
-    if (embed) return `<div class="post-media"><iframe src="${escapeHtml(embed)}" allowfullscreen
-        allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"></iframe></div>`;
+    if (embed) return `<div class="post-media"><iframe src="${escapeHtml(embed)}" allowfullscreen loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe></div>`;
     if (esPdf(p)) return pdfHtml(p.videoUrl, p.videoName);
     if (esImagen(p)) return `<div class="post-media es-imagen">
       <img src="${escapeHtml(p.videoUrl)}" alt="${escapeHtml(p.videoName || 'Imagen de la publicación')}" loading="lazy" /></div>`;
-    return `<div class="post-media"><video src="${escapeHtml(p.videoUrl)}" controls playsinline preload="metadata"></video></div>`;
+    // Un enlace pegado (no un archivo subido) que no se puede incrustar: Zoom, OneDrive, Teams…
+    const pegado = !p.videoPath && !p.videoId;
+    const directo = pegado ? videoDirecto(p.videoUrl) : p.videoUrl;
+    if (!directo) return enlaceVideoHtml(p.videoUrl);
+    return `<div class="post-media"><video src="${escapeHtml(directo)}" controls playsinline preload="metadata"></video></div>`;
   }
   if (p.videoId) return `<div class="post-media" data-video="${p.id}"></div>`;
   return '';
@@ -2118,7 +2173,7 @@ function openComposer(post = null){
   $('#modalMsg').textContent = '';
 
   // un enlace embebible va en la pestaña "Enlace"; un archivo subido, en "Subir"
-  const esEnlace = !!(post && post.videoUrl && toEmbed(post.videoUrl));
+  const esEnlace = !!(post && post.videoUrl && !post.videoPath && !post.videoId);
   $('#fUrl').value = esEnlace ? post.videoUrl : '';
   setTab(esEnlace ? 'url' : 'file');
 
