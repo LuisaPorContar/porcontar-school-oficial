@@ -19,6 +19,8 @@
     <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3.75h12a1 1 0 0 1 1 1V21l-7-4-7 4V4.75a1 1 0 0 1 1-1Z"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+    <symbol id="i-megusta" viewBox="0 0 24 24"><path d="M7 21V10l5-7a2 2 0 0 1 3 2l-1 5h4.5a2 2 0 0 1 2 2.4l-1.5 7A2 2 0 0 1 17 21H7Zm0 0H3V10h4"/></symbol>
+    <symbol id="i-comentario" viewBox="0 0 24 24"><path d="M12 20a8 8 0 1 0-7.1-4.3L4 20l4.3-.9A8 8 0 0 0 12 20Z"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
     <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></symbol>
@@ -239,7 +241,7 @@
       <nav class="subnav" id="subnav" aria-label="Atajos">
         <button data-sub="tuto"><svg class="ico"><use href="#i-libro"/></svg>Cursos</button>
         <button data-sub="inicio"><svg class="ico"><use href="#i-envivo"/></svg>Clases en vivo</button>
-        <span class="subnav-off"><svg class="ico"><use href="#i-users"/></svg>Comunidad</span>
+        <button data-sub="comunidad"><svg class="ico"><use href="#i-users"/></svg>Comunidad</button>
         <a href="https://porcontar.substack.com/" target="_blank" rel="noopener"><svg class="ico"><use href="#i-feed"/></svg>Newsletter<svg class="ico ico-ext"><use href="#i-ext"/></svg></a>
       </nav>
     </div>
@@ -515,7 +517,7 @@
         <label class="aj-fila"><span>Grupo de WhatsApp</span><input type="text" inputmode="url" id="grWhatsapp" maxlength="300" placeholder="chat.whatsapp.com/…" /></label>
       </div>
 
-      <p class="aj-tit">Extras que ve este grupo</p>
+      <p class="aj-tit">Lo que ve este grupo</p>
       <div class="aj-caja" id="grExtras">
         <label class="aj-fila"><span>Trabajo autónomo</span>
           <span class="aj-switch"><input type="checkbox" data-extra="tareas" checked /><i></i></span></label>
@@ -529,6 +531,8 @@
           <span class="aj-switch"><input type="checkbox" data-extra="tuto" checked /><i></i></span></label>
         <label class="aj-fila"><span>Preguntas frecuentes</span>
           <span class="aj-switch"><input type="checkbox" data-extra="faq" checked /><i></i></span></label>
+        <label class="aj-fila"><span>Comunidad</span>
+          <span class="aj-switch"><input type="checkbox" data-extra="comunidad" checked /><i></i></span></label>
       </div>
 
       <p class="aj-tit">Contacto en la empresa</p>
@@ -638,5 +642,6 @@
 <script src="sesion.js"></script>
 <script src="app.js"></script>
 <script src="programa.js"></script>
+<script src="comunidad.js"></script>
 </body>
 </html>

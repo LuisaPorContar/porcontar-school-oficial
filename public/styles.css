@@ -1779,3 +1779,58 @@ body.vista-clase .rail{top:140px}
 /* Extra apagado para el grupo del espacio abierto (solo lo ve así el admin) */
 .nav-item.is-off{opacity:.42}
 .nav-item.is-off .nav-label::after{content:" · apagado";font-size:11px;font-weight:500}
+
+/* ============ COMUNIDAD · el muro de toda la academia ============ */
+.cm{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.cm-av{width:40px;height:40px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--paper-2);
+  border:1px solid var(--line);color:var(--ink-soft);font-family:var(--font-display);font-weight:700;font-size:13.5px}
+.cm-av.es-equipo{background:var(--night);border-color:var(--night);color:var(--pc-yellow)}
+.cm-crear{display:flex;align-items:center;gap:12px;width:100%;padding:14px 18px;text-align:left;font:inherit;font-size:15px;color:var(--ink-mute);cursor:pointer}
+.cm-crear>span:nth-child(2){flex:1}
+.cm-crear>i{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--paper-2);color:var(--ink)}
+.cm-crear:hover>i{background:var(--pc-blue-tint);color:var(--pc-blue)}
+.cm-crear.is-abierto{flex-direction:column;align-items:stretch;gap:10px;cursor:default;padding:18px}
+.cm-crear input,.cm-crear textarea,.cm-responder input{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 13px;font:inherit;font-size:15px;color:var(--ink);background:#fff;outline:none}
+.cm-crear input{font-family:var(--font-display);font-weight:600}
+.cm-crear textarea{resize:vertical;min-height:110px;line-height:1.55}
+.cm-crear input:focus,.cm-crear textarea:focus,.cm-responder input:focus{border-color:var(--pc-blue)}
+.cm-crear-pie{display:flex;align-items:center;gap:8px}
+.cm-crear-pie .modal-msg{flex:1}
+.cm-post{padding:20px 22px 8px}
+.cm-cab{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.cm-firma{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px}
+.cm-firma b{font-family:var(--font-display);font-weight:600;color:var(--ink)}
+.cm-firma time{color:var(--ink-mute);font-size:13px}
+.cm-equipo{background:var(--night);color:#fff;border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:600}
+.cm-grupo{background:var(--paper-2);color:var(--ink-soft);border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:600}
+.cm-ops{display:flex;align-items:center;gap:2px;flex:none}
+.cm-fijada{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--ink-soft);margin-right:4px}
+.cm-fijada .ico{width:14px;height:14px}
+.cm-titulo{font-size:19px;line-height:1.25;margin:0 0 8px}
+.cm-texto{font-size:15px;line-height:1.6;color:var(--ink);overflow-wrap:anywhere}
+.cm-texto a{color:var(--pc-blue)}
+.cm-mas{border:0;background:none;padding:6px 0 0;font:inherit;font-size:14px;color:var(--ink-mute);cursor:pointer}
+.cm-mas:hover{color:var(--pc-blue)}
+.cm-cuenta{display:flex;justify-content:space-between;align-items:center;min-height:22px;margin-top:14px;font-size:13.5px;color:var(--ink-soft)}
+.cm-cuenta button{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:0}
+.cm-cuenta button:hover{text-decoration:underline}
+.cm-like-dot{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--pc-blue-tint);color:var(--pc-blue);vertical-align:-4px;margin-right:3px}
+.cm-like-dot .ico{width:12px;height:12px}
+.cm-acc{display:flex;gap:6px;margin-top:10px;padding:6px 0;border-top:1px solid var(--line)}
+.cm-acc button{display:inline-flex;align-items:center;gap:8px;border:0;background:none;border-radius:10px;padding:9px 14px;font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--ink);cursor:pointer}
+.cm-acc button:hover{background:var(--paper-2)}
+.cm-acc button.is-on{color:var(--pc-blue)}
+.cm-acc button.is-on .ico{fill:var(--pc-blue-tint)}
+.cm-coms{border-top:1px solid var(--line);padding:14px 0 12px;display:flex;flex-direction:column;gap:12px}
+.cm-com{display:flex;gap:10px;align-items:flex-start}
+.cm-com .cm-av,.cm-responder .cm-av{width:32px;height:32px;font-size:11.5px}
+.cm-com-caja{flex:1;min-width:0;background:var(--paper-2);border-radius:14px;padding:9px 13px}
+.cm-com-caja .cm-firma{font-size:13px;margin-bottom:2px}
+.cm-com-caja .cm-texto{font-size:14.5px}
+.cm-responder{display:flex;align-items:center;gap:10px}
+.cm-responder input{flex:1;border-radius:99px;padding:9px 15px;font-size:14.5px}
+.cm-cargando,.cm-vacio{color:var(--ink-mute);font-size:14.5px;margin:0}
+.cm-vacio{padding:34px 20px;text-align:center}
+.subnav button.is-off{opacity:.45}
+@media (max-width:560px){ .cm-post{padding:16px 16px 6px} .cm-acc button{padding:9px 10px} }
+.subnav [hidden]{display:none !important}

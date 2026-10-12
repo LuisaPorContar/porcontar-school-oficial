@@ -323,6 +323,16 @@ function cloudStore(){
     adminAgregar: (email, nombre, clave) => rpc('admin_agregar', { p_email:email, p_nombre:nombre, p_clave:clave }),
     adminActivar: (email, activo)        => rpc('admin_activar', { p_email:email, p_activo:activo }),
     adminCambiarClave: (actual, nueva)   => rpc('admin_cambiar_clave', { p_actual:actual, p_nueva:nueva }),
+    // Comunidad: un muro para toda la academia (supabase-comunidad.sql)
+    comunidadFeed:        ()              => rpc('comunidad_feed'),
+    comunidadPublicar:    (titulo, texto) => rpc('comunidad_publicar', { p_titulo:titulo, p_texto:texto }),
+    comunidadBorrar:      id              => rpc('comunidad_borrar', { p_id:id }),
+    comunidadFijar:       (id, fijado)    => rpc('comunidad_fijar', { p_id:id, p_fijado:fijado }),
+    comunidadGustar:      id              => rpc('comunidad_gustar', { p_id:id }),
+    comunidadComentarios: id              => rpc('comunidad_comentarios', { p_id:id }),
+    comunidadComentar:    (id, texto)     => rpc('comunidad_comentar', { p_id:id, p_texto:texto }),
+    comunidadBorrarComentario: id         => rpc('comunidad_borrar_comentario', { p_id:id }),
+    comunidadGrupo:       (id, activa)    => rpc('admin_comunidad_grupo', { p_id:id, p_activa:activa }),
     async subirLogo(grupoId, file){
       const ext = (file.name.match(/\.(\w+)$/) || [, 'png'])[1].toLowerCase();
       const path = `logos/${grupoId}-${Date.now().toString(36)}.${ext}`;
@@ -518,6 +528,9 @@ function localStore(){
     miembros:soloNube, agregarMiembros:soloNube, actualizarMiembro:soloNube, quitarMiembro:soloNube,
     adminPerfil:async () => null, salirAdmin:async () => {}, adminsLista:soloNube, adminAgregar:soloNube,
     adminActivar:soloNube, adminCambiarClave:soloNube,
+    comunidadFeed:soloNube, comunidadPublicar:soloNube, comunidadBorrar:soloNube, comunidadFijar:soloNube,
+    comunidadGustar:soloNube, comunidadComentarios:soloNube, comunidadComentar:soloNube,
+    comunidadBorrarComentario:soloNube, comunidadGrupo:soloNube,
     fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
     guardarCronograma:soloNube, guardarGrabacion:soloNube, borrarGrabacion:soloNube,
     async sesiones(){ return SESIONES_BASE.slice(); },
@@ -896,6 +909,8 @@ function pintarNav(){
     b.classList.toggle('is-off', off && IS_ADMIN && !noAplica);
   });
   const cursos = $('#subnav [data-sub="tuto"]'); if (cursos) cursos.hidden = !IS_ADMIN && extraApagado('tuto');
+  const comu = $('#subnav [data-sub="comunidad"]');
+  if (comu){ comu.hidden = !CLOUD || (!IS_ADMIN && extraApagado('comunidad')); comu.classList.toggle('is-off', IS_ADMIN && extraApagado('comunidad')); }
   $('#navSessions').innerHTML = SESSIONS.map(s => `
     <div class="nav-row ${s.visible === false ? 'is-apagada' : ''}" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
@@ -969,6 +984,7 @@ function setView(type, id){
     (grupoAbierto ? cargarMiembros() : cargarGrupos()).then(render);
   }
   if (type === 'admins') cargarAdmins().then(render);
+  if (type === 'comunidad'){ COMU.posts = null; cargarComunidad().then(() => { if (view.type === 'comunidad') render(); }); }
   if (type === 'panel'){
     if (id) panelGrupo = id;
     cargarPanel().then(render);
@@ -1104,6 +1120,9 @@ function renderVista(){
     $('#viewSubtitle').textContent = IS_ADMIN
       ? 'Así ven las tareas los estudiantes. El avance de cada persona está en el Panel de avance'
       : 'Las tareas de cada sesión: marca cada paso a medida que lo termines';
+  } else if (view.type === 'comunidad'){
+    $('#viewTitle').textContent = 'Comunidad';
+    $('#viewSubtitle').textContent = 'El muro de toda la academia: comparte, pregunta y comenta';
   } else if (view.type === 'inicio'){
     const g = typeof grupoInicio === 'function' ? grupoInicio() : null;
     $('#viewTitle').textContent = IS_ADMIN && !g ? 'Cronogramas' : 'Inicio';
@@ -1210,9 +1229,10 @@ function renderVista(){
   const enTareas  = view.type === 'tareas';
   const enGestion = ['grupos', 'panel', 'reto', 'admins'].includes(view.type);
   const enInicio  = view.type === 'inicio';
+  const enComunidad = view.type === 'comunidad';
   // Las clases del body van todas aquí: cada vista sale antes con su return
   document.body.classList.toggle('vista-skills', enSkills);
-  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio);
+  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio || enComunidad);
   document.body.classList.toggle('vista-gestion', enGestion);
   document.body.classList.toggle('vista-resumen', enResumen || enConfig || enTareas);
   const skillsVisibles = vis(skills);
@@ -1228,6 +1248,11 @@ function renderVista(){
   }
   if (enInicio){
     $('#posts').innerHTML = inicioHtml();
+    return;
+  }
+  if (enComunidad){
+    comuGuardarBorradores();   // un repintado general no borra lo que se está escribiendo
+    $('#posts').innerHTML = comunidadHtml();
     return;
   }
 
@@ -3239,6 +3264,7 @@ $('#grSave').addEventListener('click', async () => {
       vence_el:$('#grVence').value || null, activo:$('#grActivo').checked,
     });
     if (clave) claveReciente[id] = clave;
+    const conComunidad = $('#grExtras [data-extra="comunidad"]').checked;
     // Si algo de la ficha falla, volver a guardar edita este grupo en vez de crear otro
     if (!editandoGrupo) editandoGrupo = { id, activo:true };
 
@@ -3252,6 +3278,8 @@ $('#grSave').addEventListener('click', async () => {
         formato:$('#grFormato').value,
         extras_off:$$('#grExtras [data-extra]').filter(c => !c.checked).map(c => c.dataset.extra),
       });
+      // La comunidad va aparte; si su SQL aún no está, el grupo igual queda guardado
+      await store.comunidadGrupo(id, conComunidad).catch(err => console.warn('Comunidad no disponible:', err));
     }
     cerrarGrupoForm();
     await cargarGrupos();
