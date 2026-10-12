@@ -325,12 +325,24 @@ function cloudStore(){
     adminCambiarClave: (actual, nueva)   => rpc('admin_cambiar_clave', { p_actual:actual, p_nueva:nueva }),
     // Comunidad: un muro para toda la academia (supabase-comunidad.sql)
     comunidadFeed:        ()              => rpc('comunidad_feed'),
-    comunidadPublicar:    (titulo, texto) => rpc('comunidad_publicar', { p_titulo:titulo, p_texto:texto }),
+    comunidadPublicar:    (titulo, texto, adjuntos, encuesta) =>
+      rpc('comunidad_publicar', { p_titulo:titulo, p_texto:texto, p_adjuntos:adjuntos || [], p_encuesta:encuesta || null }),
+    comunidadVotar:       (id, opcion)    => rpc('comunidad_votar', { p_id:id, p_opcion:opcion }),
+    comunidadGustarComentario: id         => rpc('comunidad_gustar_comentario', { p_id:id }),
+    /** Sube un archivo de la comunidad (imagen, PDF, audio o video) y devuelve su dirección pública. */
+    async comunidadSubir(file){
+      const tipo = (file.type || '').split(';')[0];
+      const ext = ((file.name || '').match(/\.(\w{1,5})$/) || [, (tipo.split('/')[1] || 'bin')])[1].toLowerCase();
+      const path = `comunidad/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await sb.storage.from(bucket).upload(path, file, { contentType:tipo, cacheControl:'31536000' });
+      if (error) throw error;
+      return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    },
     comunidadBorrar:      id              => rpc('comunidad_borrar', { p_id:id }),
     comunidadFijar:       (id, fijado)    => rpc('comunidad_fijar', { p_id:id, p_fijado:fijado }),
     comunidadGustar:      id              => rpc('comunidad_gustar', { p_id:id }),
     comunidadComentarios: id              => rpc('comunidad_comentarios', { p_id:id }),
-    comunidadComentar:    (id, texto)     => rpc('comunidad_comentar', { p_id:id, p_texto:texto }),
+    comunidadComentar:    (id, texto, padre) => rpc('comunidad_comentar', { p_id:id, p_texto:texto, p_padre:padre || null }),
     comunidadBorrarComentario: id         => rpc('comunidad_borrar_comentario', { p_id:id }),
     comunidadGrupo:       (id, activa)    => rpc('admin_comunidad_grupo', { p_id:id, p_activa:activa }),
     async subirLogo(grupoId, file){
@@ -530,7 +542,8 @@ function localStore(){
     adminActivar:soloNube, adminCambiarClave:soloNube,
     comunidadFeed:soloNube, comunidadPublicar:soloNube, comunidadBorrar:soloNube, comunidadFijar:soloNube,
     comunidadGustar:soloNube, comunidadComentarios:soloNube, comunidadComentar:soloNube,
-    comunidadBorrarComentario:soloNube, comunidadGrupo:soloNube,
+    comunidadBorrarComentario:soloNube, comunidadGrupo:soloNube, comunidadVotar:soloNube,
+    comunidadGustarComentario:soloNube, comunidadSubir:soloNube,
     fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
     guardarCronograma:soloNube, guardarGrabacion:soloNube, borrarGrabacion:soloNube,
     async sesiones(){ return SESIONES_BASE.slice(); },
@@ -800,7 +813,8 @@ function videoDirecto(url){
 function plataformaDe(url){
   try {
     const h = new URL(url).hostname.replace(/^www\./, '');
-    const lista = [[/zoom\.(us|com)$/, 'Zoom'], [/(1drv\.ms|onedrive\.live\.com|sharepoint\.com)$/, 'OneDrive'],
+    const lista = [[/(youtube\.com|youtu\.be)$/, 'YouTube'], [/vimeo\.com$/, 'Vimeo'], [/loom\.com$/, 'Loom'], [/dropbox\.com$/, 'Dropbox'],
+                   [/zoom\.(us|com)$/, 'Zoom'], [/(1drv\.ms|onedrive\.live\.com|sharepoint\.com)$/, 'OneDrive'],
                    [/(teams\.microsoft\.com|microsoftstream\.com|teams\.live\.com)$/, 'Microsoft Teams'], [/meet\.google\.com$/, 'Google Meet'],
                    [/icloud\.com$/, 'iCloud'], [/(mega\.nz|mega\.io)$/, 'MEGA'], [/box\.com$/, 'Box'], [/wetransfer\.com|we\.tl$/, 'WeTransfer'],
                    [/canva\.com$/, 'Canva'], [/(facebook\.com|fb\.watch)$/, 'Facebook'], [/instagram\.com$/, 'Instagram'],
