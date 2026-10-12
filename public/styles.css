@@ -2067,14 +2067,23 @@ body.vista-clase .rail{top:140px}
 .ta-nota{max-width:820px;margin:12px 4px 0}
 .reto-fila .btn{padding:7px 13px;font-size:13px}
 
-/* El admin (/admin) se distingue por el color: violeta en vez del azul noche de los estudiantes */
-body.ruta-admin{--night:#26115f;--night-2:#31187a;--night-3:#3b1f8f}
+/* El admin (/admin) se distingue por el color, con la paleta de la marca (BRANDKIT.md):
+   azul PorContar en vez del azul noche de los estudiantes. Lo activo se marca en blanco y amarillo. */
+body.ruta-admin{--night:#1B33A8;--night-2:#2340c9;--night-3:#2B4FE8;--night-line:rgba(255,255,255,.16)}
 body.ruta-admin .sidebar{background:
-  radial-gradient(420px 320px at -10% 108%, rgba(126,87,255,.55), transparent 70%),
-  radial-gradient(300px 200px at 120% -6%, rgba(255,244,1,.08), transparent 70%),
-  var(--night)}
-body.ruta-admin .login{background:radial-gradient(1200px 600px at 80% 110%, rgba(126,87,255,.5), transparent 60%), var(--night)}
-body.ruta-admin::before{background:linear-gradient(90deg,#7e57ff,#b39bff)}
+  radial-gradient(420px 320px at -10% 108%, rgba(70,104,255,.9), transparent 70%),
+  radial-gradient(300px 200px at 120% -6%, rgba(255,244,1,.12), transparent 70%),
+  linear-gradient(180deg,#1B33A8,#2443cf)}
+body.ruta-admin .login{background:radial-gradient(1200px 600px at 80% 110%, rgba(70,104,255,.85), transparent 60%), #1B33A8}
+body.ruta-admin::before{background:var(--pc-yellow)}
+body.ruta-admin .sidebar .nav-item.is-active{background:#fff;color:var(--pc-blue-deep);box-shadow:none}
+body.ruta-admin .sidebar .nav-item.is-active .nav-label em{color:var(--pc-blue)}
+body.ruta-admin .sidebar .nav-item.is-active .nav-label b{color:var(--pc-blue-deep)}
+body.ruta-admin .sidebar .nav-item.is-active .ico{color:var(--pc-blue)}
+body.ruta-admin .sidebar .nav-item.nav-tareas.is-active{background:var(--pc-yellow);color:var(--ink)}
+body.ruta-admin .sidebar::after{background:#fff;opacity:.2}
+body.ruta-admin .login::before{opacity:.5}
+body.ruta-admin .login-btn{background:var(--ink);box-shadow:none}
 
 /* ============ ELEMENTOS VISUALES DE LA MARCA (marca/*.svg), puestos con discreción ============ */
 /* Menú: la malla de la marca abajo, en lugar del adorno anterior */
@@ -2097,3 +2106,6 @@ body.ruta-admin::before{background:linear-gradient(90deg,#7e57ff,#b39bff)}
 .topbar h1::after{content:"";display:inline-block;width:13px;height:15px;margin-left:8px;vertical-align:2px;
   background:url(marca/destello.svg) center/contain no-repeat}
 @media (max-width:820px){ .main::after{width:260px;height:316px;right:-90px;bottom:-110px} .login::before{width:260px;height:316px;left:-80px;top:-90px} }
+body.ruta-admin .sidebar .nav-item.is-active .nav-label{color:var(--pc-blue-deep)}
+body.ruta-admin .sidebar .nav-item.is-active .count{background:var(--pc-blue);color:#fff}
+body.ruta-admin .sidebar .nav-item.is-active + .nav-eye{color:var(--pc-blue)}
