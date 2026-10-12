@@ -2066,3 +2066,12 @@ body.vista-clase .rail{top:140px}
 .ta-area:focus{border-color:var(--pc-blue)}
 .ta-nota{max-width:820px;margin:12px 4px 0}
 .reto-fila .btn{padding:7px 13px;font-size:13px}
+
+/* El admin (/admin) se distingue por el color: violeta en vez del azul noche de los estudiantes */
+body.ruta-admin{--night:#26115f;--night-2:#31187a;--night-3:#3b1f8f}
+body.ruta-admin .sidebar{background:
+  radial-gradient(420px 320px at -10% 108%, rgba(126,87,255,.55), transparent 70%),
+  radial-gradient(300px 200px at 120% -6%, rgba(255,244,1,.08), transparent 70%),
+  var(--night)}
+body.ruta-admin .login{background:radial-gradient(1200px 600px at 80% 110%, rgba(126,87,255,.5), transparent 60%), var(--night)}
+body.ruta-admin::before{background:linear-gradient(90deg,#7e57ff,#b39bff)}

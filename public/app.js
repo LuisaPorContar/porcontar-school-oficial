@@ -6,6 +6,8 @@
    ================================================================ */
 
 const CFG = window.MURO_CONFIG || {};
+// En /admin toda la interfaz cambia de color (styles.css: body.ruta-admin), para no confundirla con la de estudiantes
+if (window.ACADEMIA && ACADEMIA.rutaAdmin()) document.body.classList.add('ruta-admin');
 
 /* Las clases del reto. Se administran desde la app (tabla reto_sesiones);
    esta lista es solo el arranque y el respaldo del modo local. */
