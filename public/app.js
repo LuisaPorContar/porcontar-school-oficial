@@ -2532,7 +2532,7 @@ function applyMode(){
     const modo = document.createElement('span');
     modo.className = 'modo-admin';
     modo.title = 'Estás en modo admin porque la dirección termina en /admin. Sin /admin ves la academia como un estudiante.';
-    modo.innerHTML = '<svg class="ico"><use href="#i-edit"/></svg>Modo admin';
+    modo.innerHTML = '<i></i>Admin';
     $('.topbar-right').prepend(modo);
   }
 

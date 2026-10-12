@@ -233,20 +233,23 @@ function inicioPrincipalHtml(){
       <p>Crea la primera desde tu menú de cuenta → <b>Empresas y cohortes</b>. Después armas su cronograma en su espacio.</p>
     </div>`;
   const ahora = Date.now();
+  // Una fila por empresa: toda la fila abre su espacio. A la derecha, solo su próximo encuentro.
+  const corta = r => new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' }).replace(/\./g, '');
   return `
-    <div class="sk-head"><span class="sk-label">Elige una empresa para ver o armar su cronograma</span></div>
-    <div class="quiz-grid">${GRUPOS.map(g => {
+    <div class="ini-emps">${GRUPOS.map(g => {
       const crono = CRONO.filter(r => r.grupo_id === g.id && r.fecha);
       const prox = crono.filter(r => momentoDe(r).getTime() + 2 * 36e5 >= ahora).sort((a, b) => momentoDe(a) - momentoDe(b))[0];
-      const s = prox && SESSIONS.find(x => x.id === prox.sesion_id);
+      const s = prox && [...SESSIONS, ...OTRAS_SESIONES].find(x => x.id === prox.sesion_id);
       return `
-      <article class="quiz-card ini-emp ${g.vigente ? '' : 'is-off'}">
-        <div class="ini-emp-top">${logoHtml(g)}<div><h3>${escapeHtml(g.nombre)}</h3>
-          <p class="quiz-meta">${escapeHtml(rangoTxt(g.fecha_inicio, g.fecha_fin) || 'Sin fechas de programa')}</p></div></div>
-        <p class="quiz-meta">${prox ? `<b>Próximo:</b> ${escapeHtml(s ? s.short : 'Sesión')} · ${escapeHtml(diaTxt(prox))}${prox.hora ? ' · ' + escapeHtml(horaTxt(prox)) : ''}`
-          : crono.length ? 'Ya pasaron todos sus encuentros' : 'Sin cronograma todavía'}</p>
-        <div class="quiz-acciones"><button class="btn btn-primary" data-ini-espacio="${g.id}">Abrir su espacio</button></div>
-      </article>`;
+      <button class="ini-emp ${g.vigente ? '' : 'is-off'}" data-ini-espacio="${g.id}">
+        ${logoHtml(g)}
+        <span class="ini-emp-txt"><b>${escapeHtml(g.nombre)}</b>
+          <em>${g.vigente ? (g.formato === 'corto' ? 'Bootcamp o charla' : g.tipo === 'b2c' ? 'Cohorte' : 'Empresa') : 'Acceso vencido o inactivo'}</em></span>
+        <span class="ini-emp-prox">${prox
+          ? `<b>${escapeHtml(s ? s.name : 'Sesión')}</b><em>${escapeHtml(corta(prox))}${prox.hora ? ' · ' + escapeHtml(horaTxt(prox)) : ''}</em>`
+          : `<em>${crono.length ? 'Ya terminó' : 'Sin cronograma'}</em>`}</span>
+        <svg class="ico"><use href="#i-flecha"/></svg>
+      </button>`;
     }).join('')}</div>`;
 }
 
