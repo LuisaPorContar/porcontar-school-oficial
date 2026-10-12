@@ -63,27 +63,51 @@ function porSeccion(caps){
 /* ================================================================
    1) Catálogo
    ================================================================ */
+const cuFiltro = { q:'', area:'', mios:false };     // lo que se busca en el catálogo
+function cursosFiltrados(){
+  const q = sinTildes(cuFiltro.q);
+  return cursosVisibles().filter(c =>
+    (!cuFiltro.area || c.area === cuFiltro.area)
+    && (!cuFiltro.mios || capsDe(c.id).some(k => capsHechas.has(k.id)))
+    && (!q || sinTildes(c.titulo + ' ' + c.descripcion + ' ' + c.area + ' ' + c.instructor + ' ' + capsDe(c.id).map(k => k.titulo).join(' ')).includes(q)));
+}
+function cursosGridHtml(){
+  const lista = cursosFiltrados();
+  if (!lista.length) return `<div class="card cm-vacio">${cuFiltro.mios && !cuFiltro.q && !cuFiltro.area
+    ? 'Todavía no has empezado ningún curso.' : 'Ningún curso coincide con lo que buscas.'}</div>`;
+  return `<div class="cu-grid">${lista.map(c => {
+    const ks = capsDe(c.id), dur = duracionTotal(ks), p = cursoPct(c);
+    return `
+    <button class="cu-card ${c.visible === false ? 'is-off' : ''}" data-cu-abrir="${escapeHtml(c.id)}">
+      ${c.portada_url ? `<span class="cu-portada"><img src="${escapeHtml(c.portada_url)}" alt="" loading="lazy" /></span>`
+                      : ks[0] ? miniaturaHtml(ks[0], 'cu-portada') : '<span class="cu-portada cu-mini"></span>'}
+      ${!IS_ADMIN ? `<span class="cu-avance"><span class="quiz-barra"><i style="width:${p}%"></i></span><em>${p} % completado</em></span>` : ''}
+      <span class="cu-card-txt">
+        <b>${escapeHtml(c.titulo)}</b>
+        <small>${escapeHtml([c.area, ks.length + (ks.length === 1 ? ' cápsula' : ' cápsulas'), dur].filter(Boolean).join(' · '))}${c.visible === false ? ' · Apagado' : ''}</small>
+        ${IS_ADMIN && typeof audTagHtml === 'function' ? audTagHtml(c) : ''}
+      </span>
+    </button>`; }).join('')}</div>`;
+}
 function cursosHtml(){
-  const lista = cursosVisibles();
+  const todos = cursosVisibles();
   const nuevo = IS_ADMIN ? `<button class="btn btn-primary" data-cu-nuevo><svg class="ico"><use href="#i-plus"/></svg> Nuevo curso</button>` : '';
-  if (!lista.length) return `<div class="cu">
+  if (!todos.length) return `<div class="cu">
     <div class="empty"><svg class="ico"><use href="#i-libro"/></svg><h3>Todavía no hay cursos</h3>
       <p>${IS_ADMIN ? 'Crea el primero: un nombre, una descripción y después sus cápsulas.' : 'Cuando el equipo publique cursos para ti, aparecen aquí.'}</p>${nuevo}</div></div>`;
+  const areas = [...new Set(todos.map(c => c.area).filter(Boolean))];
   return `<div class="cu">
-    ${IS_ADMIN ? `<div class="sk-head"><span></span>${nuevo}</div>` : ''}
-    <div class="cu-grid">${lista.map(c => {
-      const ks = capsDe(c.id), dur = duracionTotal(ks), p = cursoPct(c);
-      return `
-      <button class="card cu-card ${c.visible === false ? 'is-off' : ''}" data-cu-abrir="${escapeHtml(c.id)}">
-        ${c.portada_url ? `<span class="cu-portada"><img src="${escapeHtml(c.portada_url)}" alt="" loading="lazy" /></span>`
-                        : ks[0] ? miniaturaHtml(ks[0], 'cu-portada') : '<span class="cu-portada cu-mini"></span>'}
-        <span class="cu-card-txt">
-          <em>${escapeHtml([c.area, c.nivel].filter(Boolean).join(' · '))}${c.visible === false ? ' · Apagado' : ''}</em>
-          <b>${escapeHtml(c.titulo)}</b>
-          <small>${ks.length} ${ks.length === 1 ? 'cápsula' : 'cápsulas'}${dur ? ' · ' + dur : ''}</small>
-          ${!IS_ADMIN ? `<span class="quiz-barra"><i style="width:${p}%"></i></span>` : (typeof audTagHtml === 'function' ? audTagHtml(c) : '')}
-        </span>
-      </button>`; }).join('')}</div>
+    <div class="cu-herr">
+      <label class="cu-buscar"><svg class="ico"><use href="#i-search"/></svg>
+        <input type="text" id="cuBuscar" placeholder="Busca un curso o un tema" value="${escapeHtml(cuFiltro.q)}" autocomplete="off" aria-label="Buscar cursos" /></label>
+      ${!IS_ADMIN ? `<div class="cu-seg">
+        <button class="${cuFiltro.mios ? '' : 'is-on'}" data-cu-mios="0">Todos los cursos</button>
+        <button class="${cuFiltro.mios ? 'is-on' : ''}" data-cu-mios="1">Mis cursos</button></div>` : nuevo}
+    </div>
+    ${areas.length > 1 ? `<div class="cu-areas">
+      <button class="${cuFiltro.area ? '' : 'is-on'}" data-cu-area="">Todas</button>
+      ${areas.map(x => `<button class="${cuFiltro.area === x ? 'is-on' : ''}" data-cu-area="${escapeHtml(x)}">${escapeHtml(x)}</button>`).join('')}</div>` : ''}
+    <div id="cuZona">${cursosGridHtml()}</div>
   </div>`;
 }
 
@@ -182,70 +206,71 @@ function capsulaHtml(){
   if (!k || !c) return `<div class="cu"><div class="empty"><svg class="ico"><use href="#i-libro"/></svg><h3>Esa cápsula ya no está disponible</h3>
     <button class="btn btn-primary" data-cu-catalogo>Ver todos los cursos</button></div></div>`;
   const ks = capsDe(c.id).filter(x => IS_ADMIN || x.visible !== false);
-  const i = ks.findIndex(x => x.id === k.id), sig = ks[i + 1], vista = capsHechas.has(k.id);
+  const i = ks.findIndex(x => x.id === k.id), ant = ks[i - 1], sig = ks[i + 1], vista = capsHechas.has(k.id);
   const hechas = ks.filter(x => capsHechas.has(x.id)).length;
   const coms = capComentarios[k.id];
-  const yo = IS_ADMIN ? (ADMIN_PERFIL?.nombre || 'PorContar') : (PERFIL?.nombre || PERFIL?.email || '');
   const av = (nombre, admin, foto) => typeof comuAvatar === 'function' ? comuAvatar(nombre, admin, foto) : '';
   const q = quizDeCurso(c.id);
+  // Un solo botón dice qué sigue: completar y avanzar, tomar el examen o volver al curso
+  const principal = sig
+      ? `<button class="btn btn-primary" data-cu-siguiente="${escapeHtml(sig.id)}">${IS_ADMIN || vista ? 'Siguiente cápsula' : 'Completar y seguir'} <svg class="ico"><use href="#i-flecha"/></svg></button>`
+    : !IS_ADMIN && !vista ? `<button class="btn btn-primary" data-cu-vista><svg class="ico"><use href="#i-check"/></svg> Completar cápsula</button>`
+    : !IS_ADMIN && q ? `<button class="btn btn-primary" data-cu-examen="hacer"><svg class="ico"><use href="#i-quiz"/></svg> Tomar examen</button>`
+    : `<button class="btn btn-primary" data-cu-abrir="${escapeHtml(c.id)}">Volver al curso</button>`;
 
-  const lista = `
-    <div class="cu-lado-cab"><b>Progreso del curso</b>
-      ${!IS_ADMIN ? `<div class="quiz-barra"><i style="width:${pct(hechas, ks.length)}%"></i></div><small>${pct(hechas, ks.length)}% completado</small>` : ''}</div>
-    <div class="cu-lado-lista">${porSeccion(ks).map(s => `
-      ${s.nombre ? `<h4>${escapeHtml(s.nombre)}</h4>` : ''}
-      ${s.caps.map(x => `
-        <button class="cu-item ${x.id === k.id ? 'is-on' : ''} ${capsHechas.has(x.id) ? 'is-ok' : ''}" data-cu-cap="${escapeHtml(x.id)}">
-          <span class="cu-n">${x.id === k.id ? '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>' : capsHechas.has(x.id) ? '<svg class="ico"><use href="#i-check"/></svg>' : ks.indexOf(x) + 1}</span>
-          ${miniaturaHtml(x)}
-          <span class="cu-fila-txt"><b>${escapeHtml(x.titulo)}</b><small>${x.id === k.id ? 'Viendo ahora' : escapeHtml(x.duracion || '')}</small></span>
-        </button>`).join('')}`).join('')}</div>`;
-  const comentarios = `
-    <form class="cu-comentar" data-cu-comentar>
-      <input type="text" maxlength="2000" placeholder="Escribe tu comentario o aporte" aria-label="Comentario" />
-      <button class="icon-btn" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-flecha"/></svg></button>
-    </form>
-    <div class="cu-coms">${!coms ? '<p class="cm-cargando">Cargando comentarios…</p>'
-      : coms.length ? coms.map(x => `
-        <div class="cm-com ${x.es_admin ? 'es-equipo' : ''}" data-cu-com="${x.id}">
-          ${av(x.autor, x.es_admin, x.foto)}
-          <div class="cm-com-col"><div class="cm-com-caja">
-            <div class="cm-firma">${typeof comuFirma === 'function' ? comuFirma(x) : escapeHtml(x.autor)}</div>
-            <div class="cm-texto">${typeof comuTexto === 'function' ? comuTexto(x.texto) : escapeHtml(x.texto)}</div></div>
-            ${IS_ADMIN || x.mio ? '<div class="cm-com-acc"><button data-cu-com-borrar>Eliminar</button></div>' : ''}</div>
-        </div>`).join('')
-      : '<p class="cm-cargando">Todavía no hay comentarios. Deja el primero.</p>'}</div>`;
-
-  return `<div class="cu cu-leccion">
-    <div class="cu-principal">
-      ${capsulaVideoHtml(k)}
-      <div class="cu-barra">
-        <div class="cu-barra-txt">
-          <b>${escapeHtml(k.titulo)}</b>
-          <small><button data-cu-abrir="${escapeHtml(c.id)}">${escapeHtml(c.titulo)}</button> · Cápsula ${i + 1} de ${ks.length}</small>
-        </div>
-        <div class="cu-barra-acc">
-          ${!IS_ADMIN ? `<button class="btn ${vista ? 'is-vista' : ''}" data-cu-vista aria-pressed="${vista}"><svg class="ico"><use href="#i-check"/></svg> ${vista ? 'Vista' : 'Marcar como vista'}</button>` : ''}
-          <button class="btn ${capRecursos ? 'is-on' : ''}" data-cu-recursos><svg class="ico"><use href="#i-resumen"/></svg> Resumen y recursos</button>
-          ${sig ? `<button class="btn btn-primary" data-cu-siguiente="${escapeHtml(sig.id)}">Siguiente cápsula <svg class="ico"><use href="#i-flecha"/></svg></button>`
-                : q && !IS_ADMIN ? `<button class="btn btn-primary" data-cu-examen="hacer"><svg class="ico"><use href="#i-quiz"/></svg> Tomar examen</button>`
-                : `<button class="btn btn-primary" data-cu-abrir="${escapeHtml(c.id)}">Volver al curso</button>`}
-        </div>
+  return `<div class="cu-foco">
+    <header class="cu-foco-top">
+      <button class="cu-foco-volver" data-cu-abrir="${escapeHtml(c.id)}" title="Volver al curso" aria-label="Volver al curso"><svg class="ico"><use href="#i-flecha"/></svg></button>
+      <div class="cu-foco-tit"><b>${escapeHtml(k.titulo)}</b><small>${escapeHtml(c.titulo)} · Cápsula ${i + 1} de ${ks.length}</small></div>
+      <div class="cu-foco-acc">
+        ${!IS_ADMIN && vista ? '<span class="cu-vista-tag"><svg class="ico"><use href="#i-check"/></svg> Vista</span>' : ''}
+        <button class="cu-foco-flecha es-atras" ${ant ? `data-cu-cap="${escapeHtml(ant.id)}"` : 'disabled'} title="Cápsula anterior" aria-label="Cápsula anterior"><svg class="ico"><use href="#i-flecha"/></svg></button>
+        <button class="cu-foco-flecha" ${sig ? `data-cu-cap="${escapeHtml(sig.id)}"` : 'disabled'} title="Cápsula siguiente" aria-label="Cápsula siguiente"><svg class="ico"><use href="#i-flecha"/></svg></button>
+        ${principal}
       </div>
-      ${capRecursos ? `<section class="card cu-recursos">
-        ${k.resumen ? `<h4>Resumen</h4><p>${typeof comuTexto === 'function' ? comuTexto(k.resumen) : escapeHtml(k.resumen)}</p>` : ''}
-        ${(k.recursos || []).length ? `<h4>Recursos</h4>${k.recursos.map(r => `
-          <a class="cm-archivo" href="${escapeHtml(r.url)}" target="_blank" rel="noopener"><svg class="ico"><use href="#i-clip"/></svg><span>${escapeHtml(r.nombre || r.url)}</span><svg class="ico"><use href="#i-ext"/></svg></a>`).join('')}` : ''}
-        ${!k.resumen && !(k.recursos || []).length ? '<p class="cm-cargando">Esta cápsula no tiene resumen ni recursos.</p>' : ''}
-      </section>` : ''}
+    </header>
+    <div class="cu-foco-cuerpo">
+      <aside class="cu-foco-lista">
+        <div class="cu-lado-cab">
+          ${IS_ADMIN ? `<b>${ks.length} ${ks.length === 1 ? 'cápsula' : 'cápsulas'}</b>`
+            : `<div><b>${hechas} de ${ks.length} completadas</b><span>${pct(hechas, ks.length)}%</span></div>
+               <div class="quiz-barra"><i style="width:${pct(hechas, ks.length)}%"></i></div>`}
+        </div>
+        <div class="cu-lado-lista">${porSeccion(ks).map(s => `
+          ${s.nombre ? `<h4>${escapeHtml(s.nombre)}</h4>` : ''}
+          ${s.caps.map(x => `
+            <button class="cu-item ${x.id === k.id ? 'is-on' : ''} ${capsHechas.has(x.id) ? 'is-ok' : ''}" data-cu-cap="${escapeHtml(x.id)}">
+              ${miniaturaHtml(x)}
+              <span class="cu-fila-txt"><b>${escapeHtml(x.titulo)}</b><small>${x.id === k.id ? 'Viendo ahora' : escapeHtml(x.duracion || '')}</small></span>
+              ${capsHechas.has(x.id) ? '<span class="cu-n"><svg class="ico"><use href="#i-check"/></svg></span>' : ''}
+            </button>`).join('')}`).join('')}</div>
+      </aside>
+      <div class="cu-foco-main">
+        ${capsulaVideoHtml(k)}
+        ${k.resumen || (k.recursos || []).length ? `<section class="card cu-recursos">
+          ${k.resumen ? `<h4>Resumen</h4><p>${typeof comuTexto === 'function' ? comuTexto(k.resumen) : escapeHtml(k.resumen)}</p>` : ''}
+          ${(k.recursos || []).length ? `<h4>Recursos</h4>${k.recursos.map(r => `
+            <a class="cm-archivo" href="${escapeHtml(r.url)}" target="_blank" rel="noopener"><svg class="ico"><use href="#i-clip"/></svg><span>${escapeHtml(r.nombre || r.url)}</span><svg class="ico"><use href="#i-ext"/></svg></a>`).join('')}` : ''}
+        </section>` : ''}
+        <section class="card cu-comentarios">
+          <h4>Comentarios${coms ? ` (${coms.length})` : ''}</h4>
+          <form class="cu-comentar" data-cu-comentar>
+            <input type="text" maxlength="2000" placeholder="Escribe tu comentario o aporte" aria-label="Comentario" />
+            <button class="icon-btn" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-flecha"/></svg></button>
+          </form>
+          <div class="cu-coms">${!coms ? '<p class="cm-cargando">Cargando comentarios…</p>'
+            : coms.length ? coms.map(x => `
+              <div class="cm-com ${x.es_admin ? 'es-equipo' : ''}" data-cu-com="${x.id}">
+                ${av(x.autor, x.es_admin, x.foto)}
+                <div class="cm-com-col"><div class="cm-com-caja">
+                  <div class="cm-firma">${typeof comuFirma === 'function' ? comuFirma(x) : escapeHtml(x.autor)}</div>
+                  <div class="cm-texto">${typeof comuTexto === 'function' ? comuTexto(x.texto) : escapeHtml(x.texto)}</div></div>
+                  ${IS_ADMIN || x.mio ? '<div class="cm-com-acc"><button data-cu-com-borrar>Eliminar</button></div>' : ''}</div>
+              </div>`).join('')
+            : '<p class="cm-cargando">Todavía no hay comentarios. Deja el primero.</p>'}</div>
+        </section>
+      </div>
     </div>
-    <aside class="card cu-lado">
-      <div class="cu-tabs">
-        <button class="${capPanel === 'lista' ? 'is-on' : ''}" data-cu-panel="lista">Cápsulas</button>
-        <button class="${capPanel === 'coment' ? 'is-on' : ''}" data-cu-panel="coment">Comentarios${coms ? ` (${coms.length})` : ''}</button>
-      </div>
-      ${capPanel === 'lista' ? lista : comentarios}
-    </aside>
   </div>`;
 }
 
@@ -253,8 +278,8 @@ async function abrirCapsula(id){
   capRecursos = false;
   setView('capsula', id);
   try { capComentarios[id] = await store.capsulaComentarios(id); } catch (err){ capComentarios[id] = []; }
-  if (view.type === 'capsula' && view.id === id && capPanel === 'coment') render();
-  else if (view.type === 'capsula' && view.id === id){ const b = $('[data-cu-panel="coment"]'); if (b) b.textContent = `Comentarios (${capComentarios[id].length})`; }
+  if (view.type === 'capsula' && view.id === id) render();
+  window.scrollTo(0, 0);
 }
 async function marcarCapsula(id, vista){
   if (!PERFIL) return;
@@ -420,6 +445,10 @@ $('#posts').addEventListener('click', async e => {
   const t = sel => e.target.closest(sel);
 
   if (t('[data-cu-catalogo]')) return setView('cursos');
+  const ar = t('[data-cu-area]');
+  if (ar){ cuFiltro.area = ar.dataset.cuArea; return render(); }
+  const mi = t('[data-cu-mios]');
+  if (mi){ cuFiltro.mios = mi.dataset.cuMios === '1'; return render(); }
   if (t('[data-cu-nuevo]')) return abrirCursoForm();
 
   // Primero lo que vive DENTRO de una fila (para que no la abra)
@@ -493,4 +522,11 @@ $('#posts').addEventListener('submit', async e => {
   input.disabled = true;
   try { await store.capsulaComentar(id, texto); capComentarios[id] = await store.capsulaComentarios(id); input.value = ''; render(); }
   catch (err){ toast(errorMsg(err)); input.disabled = false; }
+});
+
+// El buscador del catálogo filtra mientras se escribe, sin perder el cursor
+$('#posts').addEventListener('input', e => {
+  if (e.target.id !== 'cuBuscar') return;
+  cuFiltro.q = e.target.value;
+  $('#cuZona').innerHTML = cursosGridHtml();
 });

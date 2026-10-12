@@ -2186,3 +2186,70 @@ body.vista-clase .rail{top:140px}
 }
 @media (max-width:600px){ .cu-cab{padding:18px} .cu-cab h2{font-size:22px} .cu-mini{width:84px} .cu-fila-acc .icon-btn{width:30px} }
 .cu>.quiz-volver{align-self:flex-start}
+
+/* ---------- Catálogo de cursos: buscador, áreas y tarjetas con su avance ---------- */
+.cu-herr{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cu-buscar{flex:1;min-width:240px;display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink-mute)}
+.cu-buscar:focus-within{border-color:var(--pc-blue);box-shadow:0 0 0 4px rgba(43,79,232,.10)}
+.cu-buscar input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:15.5px;color:var(--ink)}
+.cu-buscar .ico{width:18px;height:18px}
+.cu-seg{display:flex;padding:4px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.cu-seg button{border:0;background:none;border-radius:10px;padding:9px 16px;font-family:var(--font-display);font-weight:600;font-size:13.5px;color:var(--ink-mute);cursor:pointer}
+.cu-seg button.is-on{background:var(--paper-2);color:var(--ink)}
+.cu-areas{display:flex;flex-wrap:wrap;gap:6px}
+.cu-areas button{border:0;background:none;border-radius:10px;padding:8px 14px;font:inherit;font-size:14px;color:var(--ink-soft);cursor:pointer}
+.cu-areas button:hover{background:#fff}
+.cu-areas button.is-on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--line)}
+.cu-grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:26px 22px}
+.cu-card{background:none;border:0;box-shadow:none;border-radius:0;overflow:visible;gap:10px}
+.cu-card:hover{transform:none;box-shadow:none}
+.cu-card .cu-portada{border-radius:16px;overflow:hidden;transition:transform .18s}
+.cu-card:hover .cu-portada{transform:translateY(-3px)}
+.cu-avance{display:flex;align-items:center;gap:10px}
+.cu-avance .quiz-barra{flex:1}
+.cu-avance em{font-style:normal;font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+.cu-card-txt{padding:0}
+.cu-card-txt b{font-size:16.5px}
+
+/* ---------- La cápsula en modo enfocado: sin el menú de la academia, video grande ---------- */
+body.vista-capsula .sidebar,body.vista-capsula .cabecera,body.vista-capsula .espacio-aviso,body.vista-capsula .main::after{display:none !important}
+body.vista-capsula .app{grid-template-columns:1fr}
+body.vista-capsula .content{max-width:none;padding:0;display:block}
+body.vista-capsula #posts{padding:0;margin:0;max-width:none}
+.cu-foco{min-height:100vh;display:flex;flex-direction:column;background:#fff}
+.cu-foco-top{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:14px;padding:10px 18px;background:#fff;border-bottom:1px solid var(--line)}
+.cu-foco-volver,.cu-foco-flecha{flex:none;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;display:grid;place-items:center;color:var(--ink);cursor:pointer}
+.cu-foco-volver:hover,.cu-foco-flecha:not([disabled]):hover{background:var(--paper-2)}
+.cu-foco-volver .ico,.cu-foco-flecha.es-atras .ico{transform:rotate(180deg)}
+.cu-foco-flecha[disabled]{opacity:.35;cursor:default}
+.cu-foco-tit{flex:1;min-width:0;display:flex;flex-direction:column}
+.cu-foco-tit b{font-family:var(--font-display);font-weight:600;font-size:17px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cu-foco-tit small{font-size:12.5px;color:var(--ink-mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cu-foco-acc{display:flex;align-items:center;gap:8px;flex:none}
+.cu-foco-acc .btn{padding:9px 16px;font-size:14px}
+.cu-vista-tag{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:99px;background:#e3f6ec;color:#1f7a4d;font-size:12.5px;font-weight:600}
+.cu-vista-tag .ico{width:14px;height:14px}
+.cu-foco-cuerpo{flex:1;display:grid;grid-template-columns:340px minmax(0,1fr)}
+.cu-foco-lista{border-right:1px solid var(--line);background:#fff;position:sticky;top:59px;align-self:start;max-height:calc(100vh - 59px);display:flex;flex-direction:column}
+.cu-foco-lista .cu-lado-cab{padding:16px 16px 12px;gap:9px}
+.cu-foco-lista .cu-lado-cab>div:first-child{display:flex;justify-content:space-between;align-items:baseline}
+.cu-foco-lista .cu-lado-cab span{font-size:13.5px;font-weight:600;color:var(--ink-soft)}
+.cu-foco-lista .cu-lado-lista{padding:0 8px 14px}
+.cu-foco-lista .cu-item .cu-n{margin-left:auto;background:#e3f6ec;color:#1f7a4d}
+.cu-foco-main{min-width:0;background:var(--paper-2);padding:0 0 40px;display:flex;flex-direction:column;gap:16px}
+.cu-foco-main .cu-video{border-radius:0;width:100%;max-height:calc(100vh - 110px);background:#000;display:grid;place-items:center}
+.cu-foco-main .cu-video iframe,.cu-foco-main .cu-video video{max-height:calc(100vh - 110px);aspect-ratio:16/9;width:auto;max-width:100%;height:100%}
+.cu-foco-main .cu-sin-video{aspect-ratio:auto;min-height:280px;background:var(--paper-2);border:0}
+.cu-foco-main>section{width:min(900px,calc(100% - 36px));margin:0 auto}
+.cu-comentarios{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.cu-comentarios h4{font-size:15px;margin:0}
+.cu-comentarios .cu-comentar{margin:0}
+.cu-comentarios .cu-coms{padding:6px 0 0;overflow:visible}
+@media (max-width:900px){
+  .cu-foco-cuerpo{grid-template-columns:1fr}
+  .cu-foco-lista{position:static;max-height:none;border-right:0;border-top:1px solid var(--line);order:2}
+  .cu-foco-main{order:1;padding-bottom:16px}
+  .cu-foco-top{flex-wrap:wrap;padding:10px 12px}
+  .cu-foco-acc{width:100%;justify-content:flex-end}
+  .cu-foco-main .cu-video,.cu-foco-main .cu-video iframe{max-height:none}
+}
