@@ -18,6 +18,11 @@
 alter table public.grupos
   add column if not exists formato text not null default 'reto' check (formato in ('reto', 'corto'));
 
+-- Lo que cada grupo NO ve del menú «Extras» (vacío = lo ve todo):
+-- tareas, skills, resumen, config, tuto, faq.
+alter table public.grupos
+  add column if not exists extras_off text[] not null default '{}';
+
 -- grupo_id vacío = sesión del reto (la ven los grupos de formato reto);
 -- con grupo = sesión propia de ese bootcamp o charla.
 alter table public.reto_sesiones
@@ -49,7 +54,7 @@ create policy "reto lectura" on public.reto_sesiones
     ))
   );
 
--- 2) La ficha guarda también el formato ------------------------------
+-- 2) La ficha guarda también el formato y los extras apagados ------------------------------
 create or replace function public.admin_ficha_grupo(p_id uuid, p_ficha jsonb)
 returns void
 language plpgsql
@@ -92,6 +97,10 @@ begin
     fecha_fin         = fin,
     -- si no viene (una versión vieja de la app abierta), se queda como estaba
     formato           = case when fmt in ('reto', 'corto') then fmt else formato end,
+    extras_off        = case when jsonb_typeof(p_ficha->'extras_off') = 'array'
+                          then array(select x from jsonb_array_elements_text(p_ficha->'extras_off') x
+                                      where x in ('tareas', 'skills', 'resumen', 'config', 'tuto', 'faq'))
+                          else extras_off end,
     updated_at        = now()
   where id = p_id;
   if not found then
@@ -119,7 +128,7 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', g.id, 'nombre', g.nombre, 'tipo', g.tipo, 'rol', m.rol, 'vence_el', g.vence_el,
            'logo_url', g.logo_url, 'whatsapp_url', g.whatsapp_url,
-           'fecha_inicio', g.fecha_inicio, 'fecha_fin', g.fecha_fin, 'formato', g.formato)
+           'fecha_inicio', g.fecha_inicio, 'fecha_fin', g.fecha_fin, 'formato', g.formato, 'extras_off', g.extras_off)
            order by g.nombre), '[]'::jsonb)
     into grupos
     from public.miembros m

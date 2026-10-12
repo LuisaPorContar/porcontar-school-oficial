@@ -663,84 +663,165 @@ details[open] .cat-caret{transform:rotate(45deg);}
 }
 .ppanel{display:none;}
 .ppanel.active{display:block;}
+
+/* ================================================================
+   CAPA MINIMALISTA
+   La guía se consulta, no se lee de corrido: arriba el buscador, debajo
+   los temas, y se abre un tema a la vez. Casi sin color: tinta, grises
+   y el azul solo para lo que se puede tocar.
+   ================================================================ */
+:root{
+  --g-linea:#E8EAF0;
+  --g-suave:#F6F7F9;
+  --pc-blue-tint:#F6F7F9;
+  --pc-blue-deep:#11162A;
+  --paper-2:#F6F7F9;
+  --sand:#FFFFFF;
+  --claude:#11162A;
+  --claude-soft:#5B6479;
+  --claude-tint:#F6F7F9;
+  --teal:#2B4FE8;
+  --navy-2:#FFFFFF;
+  --night:#FFFFFF;
+  --night-2:#FFFFFF;
+  --night-3:#F6F7F9;
+  --night-line:#E8EAF0;
+  --on-night:#11162A;
+  --on-night-soft:#5B6479;
+  --shadow-card:none;
+  --shadow-btn:none;
+  --maxw:820px;
+}
+html{scroll-behavior:auto;}
+body{background:#fff;font-size:15.5px;}
+.u-mark,.mark-thick{background:none !important;}
+.u-claude{color:inherit !important;}
+.deco-grid,.footer,.topbar,.hero{display:none !important;}
+
+/* ---------- cabecera con el buscador ---------- */
+.g-top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-bottom:1px solid transparent;transition:border-color .15s}
+.g-top.con-linea{border-bottom-color:var(--g-linea)}
+.g-top-in{max-width:var(--maxw);margin:0 auto;padding:18px 24px 14px;display:flex;align-items:center;gap:10px}
+.g-buscar{flex:1;display:flex;align-items:center;gap:10px;height:50px;padding:0 16px;border:1px solid var(--g-linea);
+  border-radius:14px;background:#fff;color:var(--ink-soft);cursor:text;transition:border-color .15s, box-shadow .15s}
+.g-buscar:focus-within{border-color:var(--pc-blue);box-shadow:0 0 0 4px rgba(43,79,232,.10)}
+.g-buscar input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:16px;color:var(--ink)}
+.g-buscar input::placeholder{color:#A3AABA}
+.g-limpiar{border:0;background:var(--g-suave);color:var(--ink-soft);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;cursor:pointer}
+.g-volver{display:inline-flex;align-items:center;gap:4px;height:50px;padding:0 14px 0 10px;border:1px solid var(--g-linea);border-radius:14px;
+  background:#fff;color:var(--ink);font:inherit;font-size:14.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.g-volver:hover{background:var(--g-suave)}
+.g-volver[hidden],.g-limpiar[hidden]{display:none}
+
+/* ---------- inicio: lo más buscado y los temas ---------- */
+.g-inicio{max-width:var(--maxw);margin:0 auto;padding:6px 24px 70px}
+.g-rotulo{margin:22px 0 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.g-chips{display:flex;flex-wrap:wrap;gap:8px}
+.g-chips button{border:1px solid var(--g-linea);background:#fff;border-radius:999px;padding:7px 14px;font:inherit;font-size:14px;color:var(--ink);cursor:pointer}
+.g-chips button:hover{border-color:var(--ink);}
+.g-temas{border:1px solid var(--g-linea);border-radius:14px;overflow:hidden}
+.g-temas a{display:flex;align-items:baseline;gap:14px;padding:14px 18px;border-top:1px solid var(--g-linea);text-decoration:none;color:var(--ink)}
+.g-temas a:first-child{border-top:0}
+.g-temas a:hover{background:var(--g-suave)}
+.g-temas b{font-family:'Poppins',sans-serif;font-weight:600;font-size:15px;flex:none}
+.g-temas span{flex:1;min-width:0;font-size:14px;color:var(--ink-soft);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- resultados ---------- */
+.g-res{margin-top:18px}
+.g-res-n{margin:0 0 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.g-lista{border:1px solid var(--g-linea);border-radius:14px;overflow:hidden;margin-bottom:22px}
+.g-r{display:block;width:100%;text-align:left;border:0;border-top:1px solid var(--g-linea);background:#fff;padding:15px 18px;font:inherit;color:var(--ink);cursor:pointer}
+.g-r:first-child{border-top:0}
+.g-r:hover,.g-r.activo{background:var(--g-suave)}
+.g-r-cab{display:flex;align-items:baseline;gap:10px;margin-bottom:3px}
+.g-r-cab b{font-family:'Poppins',sans-serif;font-weight:600;font-size:15.5px}
+.g-r-cab em{font-style:normal;font-size:12px;color:var(--ink-soft);margin-left:auto;white-space:nowrap}
+.g-r p{margin:0;font-size:14.5px;line-height:1.55;color:var(--ink-soft)}
+.g-r mark,.g-temas mark{background:#FFF7A8;color:inherit;border-radius:3px;padding:0 1px}
+.g-nada{padding:34px 18px;text-align:center;color:var(--ink-soft);border:1px dashed var(--g-linea);border-radius:14px}
+.g-nada b{color:var(--ink)}
+
+/* ---------- un tema a la vez ---------- */
+body.g-home section.section, body.g-home .section-dark, body.g-home #gPie,
+body.g-tema #gInicio,
+body.g-tema section.section:not(.g-actual), body.g-tema .section-dark:not(.g-actual){display:none !important}
+section.section,.section-dark{max-width:var(--maxw) !important;margin:0 auto !important;padding:14px 24px 30px !important;
+  background:none !important;border-radius:0 !important;color:var(--ink) !important}
+.section-dark > *{max-width:none !important;padding:0 !important}
+.section-tag{color:var(--ink-soft) !important;background:none !important;padding:0 !important;font-size:12px !important;letter-spacing:.04em}
+.section h2,.section-dark h2{font-size:27px !important;line-height:1.15 !important;color:var(--ink) !important;margin-bottom:10px}
+.section-intro{font-size:16px !important;color:var(--ink-soft) !important;max-width:none !important}
+.section h3{font-size:17px !important}
+#gPie{max-width:var(--maxw);margin:0 auto;padding:6px 24px 70px;display:flex;gap:10px}
+#gPie button{flex:1;min-width:0;text-align:left;border:1px solid var(--g-linea);background:#fff;border-radius:14px;padding:13px 16px;font:inherit;color:var(--ink);cursor:pointer}
+#gPie button:hover{background:var(--g-suave)}
+#gPie button:last-child{text-align:right}
+#gPie em{display:block;font-style:normal;font-size:12px;color:var(--ink-soft)}
+#gPie b{font-family:'Poppins',sans-serif;font-weight:600;font-size:14.5px}
+#gPie i{flex:1}
+.nav-flash{animation:gFlash 2s ease-out}
+@keyframes gFlash{0%,35%{box-shadow:0 0 0 3px rgba(43,79,232,.35)}100%{box-shadow:0 0 0 3px rgba(43,79,232,0)}}
+
+/* ---------- las piezas, en sobrio: blanco, línea fina, tinta ---------- */
+.vocab-card,.tech-card,.model-card,.link-card,.car-card,.tl-item,.stack-card,.priority-box,.dark-panel,.pf-item,.cat-acc,.prd-card{
+  background:#fff !important;border:1px solid var(--g-linea) !important;box-shadow:none !important;color:var(--ink) !important}
+.stack-card{position:static !important;border-radius:14px !important;padding:20px 22px !important;margin:0 0 10px !important}
+.stack-wrap{gap:0}
+:is(.stack-card,.priority-box,.dark-panel,.model-card,.section-dark,.link-card) :is(h3,h4,b,strong,.lc-name,.model-name){color:var(--ink) !important}
+:is(.stack-card,.priority-box,.dark-panel,.model-card,.section-dark,.link-card) :is(p,li,div,span,em,i){color:var(--ink-soft) !important}
+:is(.stack-card,.priority-box,.dark-panel,.model-card,.section-dark) :is(blockquote,.sc-ej,[class*="example"],[class*="quote"]){background:var(--g-suave) !important;border-color:var(--g-linea) !important}
+.cc-icon,.pf-num,.li-icon,[class*="-icon"]{background:var(--g-suave) !important;color:var(--ink) !important}
+.vc-tag,.tech-tag,.model-tag,[class*="-tag"]:not(.section-tag){background:var(--g-suave) !important;color:var(--ink-soft) !important}
+.ptab.active{background:var(--ink) !important;color:#fff !important}
+.btn-primary{background:var(--ink) !important;box-shadow:none !important}
+section.section [style*="background:#F"],section.section [style*="background:#E"]{background:var(--g-suave) !important}
+
+.section-tag{display:none !important}
+.model-grid{grid-template-columns:repeat(2,1fr) !important}
+body.g-home .back-top{display:none !important}
+.back-top{background:#fff !important;color:var(--ink) !important;border:1px solid var(--g-linea) !important;box-shadow:none !important}
+@media (max-width:640px){
+  .model-grid{grid-template-columns:1fr !important}
+  .g-top-in{padding:12px 16px 10px}
+  .g-inicio,#gPie{padding-left:16px;padding-right:16px}
+  section.section,.section-dark{padding-left:16px !important;padding-right:16px !important}
+  .g-temas a{flex-direction:column;gap:2px}
+  .g-temas span{text-align:left;white-space:normal}
+  .g-volver{padding:0 12px;font-size:0;gap:0}
+  .g-volver svg{width:18px;height:18px}
+}
 </style>
 </head>
-<body>
+<body class="g-home">
 
-<div class="topbar">
-  <div class="topbar-inner">
-    <div class="brand"><img src="marca/porcontar-tinta.png" alt="PorContar" width="57" height="36"></div>
-    <div class="navtools">
-      <div class="navsearch">
-        <span class="ns-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg></span>
-        <input id="navSearch" type="text" autocomplete="off" spellcheck="false" placeholder="Buscar en la guía: términos, técnicas, conectores…">
-        <span class="ns-kbd">/</span>
-        <div class="nav-panel" id="navResults" role="listbox"></div>
-      </div>
-      <div class="nav-dd">
-        <button class="nav-btn" id="navSectionsBtn" type="button" aria-expanded="false">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          <span class="txt">Secciones</span>
-          <svg class="caret" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
-        </button>
-        <div class="nav-panel" id="navSections"></div>
-      </div>
-    </div>
+<!-- ============ Cabecera: el buscador es lo primero ============ -->
+<header class="g-top">
+  <div class="g-top-in">
+    <button class="g-volver" id="gVolver" type="button" hidden>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      Temas
+    </button>
+    <label class="g-buscar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input id="gBuscar" type="text" autocomplete="off" spellcheck="false" placeholder="Busca un término, una técnica o un conector" aria-label="Buscar en la guía">
+      <button class="g-limpiar" id="gLimpiar" type="button" aria-label="Borrar la búsqueda" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </label>
   </div>
-</div>
+</header>
 
-<!-- ================= HERO ================= -->
-<div class="hero">
-  <div>
-    <span class="hero-badge"><span class="hb-yellow">GUÍA</span><span class="hb-text">PorContar Academia</span></span>
-    <h1>Guía de la <span class="mark-thick">Academia</span></h1>
-    <p class="lead">Vocabulario, prompts, conectores y herramientas de la Academia de PorContar. Un solo documento para consultar cada vez que lo necesites.</p>
-    <div class="hero-ctas">
-      <a href="#indice" class="btn-primary">Ver el índice →</a>
-      <a href="#vocabulario" class="btn-secondary">Empezar por el vocabulario</a>
-    </div>
+<!-- ============ Inicio: lo más buscado y los temas, o los resultados ============ -->
+<main class="g-inicio" id="gInicio">
+  <div id="gPortada">
+    <p class="g-rotulo">Lo más buscado</p>
+    <div class="g-chips" id="gChips"></div>
+    <p class="g-rotulo">Temas</p>
+    <nav class="g-temas" id="gTemas" aria-label="Temas de la guía"></nav>
   </div>
-  <div class="hero-visual">
-    <svg class="deco-grid deco-grid-1" viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg">
-      <g stroke="var(--pc-yellow)" stroke-width="3" fill="none" opacity="0.9">
-        <path d="M10,40 Q60,10 130,25 Q190,35 185,90 Q180,140 110,145 Q40,150 15,100 Q0,65 10,40 Z"/>
-        <path d="M10,40 Q60,60 185,90"/>
-        <path d="M25,20 Q80,80 100,145"/>
-        <path d="M60,15 Q100,80 150,140"/>
-        <path d="M140,20 Q120,80 175,120"/>
-      </g>
-    </svg>
-    <div class="hero-photo">
-      <img src="marca/luisa.jpg" alt="Luisa Navarro, de PorContar, explicando en un taller" width="640" height="800">
-      <span class="hero-photo-tag"><span class="hb-yellow" style="border-radius:999px;">PorContar</span></span>
-    </div>
-  </div>
-</div>
+  <div class="g-res" id="gRes" hidden></div>
+</main>
 
-<!-- ================= TOC ================= -->
-<section class="section" id="indice" style="padding-top:8px;padding-bottom:44px;">
-  <span class="section-tag">Índice</span>
-  <h2>Tabla de contenido</h2>
-  <p class="section-intro">Quince secciones. Haz clic en cualquiera para ir directo.</p>
-  <div class="toc-list">
-    <a href="#tipos-claude" class="toc-row"><span class="toc-num">01</span><span class="toc-title">¿Qué es Claude?</span><span class="toc-dots"></span><span class="toc-desc">Historia, modelos y los 5 tipos</span></a>
-    <a href="#vocabulario" class="toc-row"><span class="toc-num">02</span><span class="toc-title">Vocabulario base</span><span class="toc-dots"></span><span class="toc-desc">Los ocho términos más usados</span></a>
-    <a href="#archivos-md" class="toc-row"><span class="toc-num">03</span><span class="toc-title">Archivos .md y Skills</span><span class="toc-dots"></span><span class="toc-desc">Qué son y cómo se arman</span></a>
-    <a href="#generar-memoria" class="toc-row"><span class="toc-num">04</span><span class="toc-title">Generar tu memoria</span><span class="toc-dots"></span><span class="toc-desc">El prompt que arma tu memory.md</span></a>
-    <a href="#estructura-prompt" class="toc-row"><span class="toc-num">05</span><span class="toc-title">Estructura de un prompt</span><span class="toc-dots"></span><span class="toc-desc">Las seis partes de un buen prompt</span></a>
-    <a href="#tecnicas" class="toc-row"><span class="toc-num">06</span><span class="toc-title">Técnicas de prompting</span><span class="toc-dots"></span><span class="toc-desc">17 formas de pedirle algo a la IA</span></a>
-    <a href="#conectores" class="toc-row"><span class="toc-num">07</span><span class="toc-title">Catálogo de conectores</span><span class="toc-dots"></span><span class="toc-desc">737 conectores, buscables</span></a>
-    <a href="#automatizar" class="toc-row"><span class="toc-num">08</span><span class="toc-title">Qué automatizar primero</span><span class="toc-dots"></span><span class="toc-desc">Columnas y criterio de prioridad</span></a>
-    <a href="#prd" class="toc-row"><span class="toc-num">09</span><span class="toc-title">Pensamiento sistemático y PRD</span><span class="toc-dots"></span><span class="toc-desc">Antes de construir cualquier cosa</span></a>
-    <a href="#estructura-app" class="toc-row"><span class="toc-num">10</span><span class="toc-title">Estructura de una app</span><span class="toc-dots"></span><span class="toc-desc">El diagrama completo, capa por capa</span></a>
-    <a href="#google-script" class="toc-row"><span class="toc-num">11</span><span class="toc-title">Google Apps Script</span><span class="toc-dots"></span><span class="toc-desc">Automatizar dentro de Sheets y Gmail</span></a>
-    <a href="#links" class="toc-row"><span class="toc-num">12</span><span class="toc-title">Links importantes</span><span class="toc-dots"></span><span class="toc-desc">Composio, Netlify, GitHub, Behance</span></a>
-    <a href="#organizacion" class="toc-row"><span class="toc-num">13</span><span class="toc-title">Configurar la organización</span><span class="toc-dots"></span><span class="toc-desc">Miembros, asientos, SSO y permisos</span></a>
-    <a href="#plan-accion" class="toc-row"><span class="toc-num">14</span><span class="toc-title">Tu plan de acción</span><span class="toc-dots"></span><span class="toc-desc">Tres pasos para arrancar hoy</span></a>
-    <a href="#lecturas" class="toc-row"><span class="toc-num">15</span><span class="toc-title">Lecturas recomendadas</span><span class="toc-dots"></span><span class="toc-desc">Documentos oficiales de Anthropic</span></a>
-  </div>
-</section>
-<div style="max-width:var(--maxw);margin:0 auto;height:1px;background:#E7EAF4;"></div>
 
 <!-- ================= TIPOS DE CLAUDE ================= -->
 <section class="section" id="tipos-claude">
@@ -5025,6 +5106,8 @@ si lo tienes]</pre>
 
 <a href="#" class="back-top" title="Volver arriba">↑</a>
 
+<div id="gPie"></div>
+
 <script>
 function copyBlock(id, btn){
   const text = document.getElementById(id).innerText;
@@ -5105,235 +5188,200 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 
-/* ================= BUSCADOR DE LA GUIA ================= */
+/* ================= LA GUÍA COMO BUSCADOR =================
+   Inicio: el buscador, lo más buscado y los temas. Se abre un tema a la vez
+   (#id en la dirección) y buscar muestra la respuesta en la misma lista. */
 (function(){
-  const input   = document.getElementById('navSearch');
-  const results = document.getElementById('navResults');
-  const secBtn  = document.getElementById('navSectionsBtn');
-  const secPane = document.getElementById('navSections');
-  if(!input) return;
+  const $  = id => document.getElementById(id);
+  const input = $('gBuscar'), res = $('gRes'), portada = $('gPortada');
+  const norm  = s => (s || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  const clean = s => (s || '').replace(/↗/g, '').replace(/\s+/g, ' ').trim();
+  const esc   = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  const norm  = s => (s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'');
-  const clean = s => (s||'').replace(/↗/g,'').replace(/\s+/g,' ').trim();
-  const esc   = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const TEMAS = [{"id":"tipos-claude","titulo":"¿Qué es Claude?","desc":"Historia, modelos y los 5 tipos"},{"id":"vocabulario","titulo":"Vocabulario base","desc":"Los ocho términos más usados"},{"id":"archivos-md","titulo":"Archivos .md y Skills","desc":"Qué son y cómo se arman"},{"id":"generar-memoria","titulo":"Generar tu memoria","desc":"El prompt que arma tu memory.md"},{"id":"estructura-prompt","titulo":"Estructura de un prompt","desc":"Las seis partes de un buen prompt"},{"id":"tecnicas","titulo":"Técnicas de prompting","desc":"17 formas de pedirle algo a la IA"},{"id":"conectores","titulo":"Catálogo de conectores","desc":"737 conectores, buscables"},{"id":"automatizar","titulo":"Qué automatizar primero","desc":"Columnas y criterio de prioridad"},{"id":"prd","titulo":"Pensamiento sistemático y PRD","desc":"Antes de construir cualquier cosa"},{"id":"estructura-app","titulo":"Estructura de una app","desc":"El diagrama completo, capa por capa"},{"id":"google-script","titulo":"Google Apps Script","desc":"Automatizar dentro de Sheets y Gmail"},{"id":"links","titulo":"Links importantes","desc":"Composio, Netlify, GitHub, Behance"},{"id":"organizacion","titulo":"Configurar la organización","desc":"Miembros, asientos, SSO y permisos"},{"id":"plan-accion","titulo":"Tu plan de acción","desc":"Tres pasos para arrancar hoy"},{"id":"lecturas","titulo":"Lecturas recomendadas","desc":"Documentos oficiales de Anthropic"}];
+  const MAS_BUSCADO = ['Artefacto', 'Proyecto', 'Skill', 'Conector', 'MCP', 'API', 'Plugin', 'Prompt', 'memory.md', 'PRD'];
+  const TIPO = { 'vc-term':'Término', 'tech-name':'Técnica', 'lc-name':'Enlace', 'model-name':'Modelo' };
+  const CAJA = '.vocab-card, .tech-card, .link-card, .pf-item, .model-card, .car-card, .stack-card, details';
 
-  const CHIP = {
-    'vc-term':'Término', 'tech-name':'Técnica', 'lc-name':'Link',
-    'pf-title':'Prompt', 'model-name':'Modelo', 'cat-name':'Categoría'
-  };
-
-  const index = [], sections = [], connectors = [];
+  const secciones = [...document.querySelectorAll('section.section, .section-dark')].filter(s => s.id && s.id !== 'indice');
+  const temaDe = id => TEMAS.find(t => t.id === id);
+  const indice = [];
   let uid = 0;
 
-  document.querySelectorAll('section.section, .section-dark').forEach(sec => {
-    const h2 = sec.querySelector('h2');
-    if(!h2) return;
-    const tagEl = sec.querySelector('.section-tag');
-    const tag   = clean(tagEl ? tagEl.textContent : '');
-    const num   = (tag.match(/^(\d+)/) || [])[1] || '';
-    const title = clean(h2.textContent);
-    const intEl = sec.querySelector('.section-intro');
-    const intro = clean(intEl ? intEl.textContent : '');
-    if(!sec.id) sec.id = 'sec-' + (++uid);
-
-    if(sec.id !== 'indice'){
-      const entry = {
-        id: sec.id, num: num || '—', title: title,
-        desc: intro || tag.replace(/^\d+\s*·\s*/,''), chip: 'Sección', weight: 14,
-        hay: norm(title + ' ' + tag + ' ' + intro)
-      };
-      sections.push(entry);
-      index.push(entry);
-    }
-
-    const sel = sec.id === 'conectores'
-      ? '.cat-name'
-      : 'h3, h4, .vc-term, .tech-name, .lc-name, .pf-title, .model-name';
-    const seen = new Set();
-    sec.querySelectorAll(sel).forEach(el => {
-      const t = clean(el.textContent);
-      if(!t || t.length > 80) return;
-      const key = norm(t);
-      if(!key || seen.has(key)) return;
-      seen.add(key);
-      if(!el.id) el.id = 'nv' + (++uid);
-      let chip = 'Apartado';
-      for(const c in CHIP){ if(el.classList.contains(c)){ chip = CHIP[c]; break; } }
-      const near = el.parentElement ? clean(el.parentElement.textContent).slice(0, 120) : '';
-      index.push({
-        id: el.id, num: num || '—', title: t, desc: title, chip: chip, weight: 0,
-        hay: norm(t + ' ' + near)
-      });
+  // Temas
+  secciones.forEach(sec => {
+    const t = temaDe(sec.id); if (!t) return;
+    const intro = clean((sec.querySelector('.section-intro') || {}).textContent);
+    indice.push({ id:sec.id, titulo:t.titulo, texto:intro || t.desc, tipo:'Tema', donde:'', peso:14,
+                  hay:norm(t.titulo + ' ' + t.desc + ' ' + clean((sec.querySelector('h2') || {}).textContent)) });
+  });
+  // Términos, técnicas, enlaces y apartados de cada tema
+  secciones.forEach(sec => {
+    const t = temaDe(sec.id); if (!t || sec.id === 'conectores') return;
+    const vistos = new Set();
+    sec.querySelectorAll('.vc-term, .tech-name, .lc-name, .pf-title, .model-name, h3, h4').forEach(el => {
+      const titulo = clean(el.textContent);
+      if (!titulo || titulo.length > 80 || vistos.has(norm(titulo))) return;
+      vistos.add(norm(titulo));
+      if (!el.id) el.id = 'g' + (++uid);
+      const caja = el.closest(CAJA);
+      // La definición es el párrafo de la caja; si no tiene, todo su texto
+      const parrafo = caja && !caja.matches('details') ? caja.querySelector('p') : null;
+      let texto = parrafo ? clean(parrafo.textContent) : caja ? clean(caja.textContent) : clean((el.nextElementSibling || {}).textContent);
+      // El texto de la caja sin su propio título ni el número que lo precede
+      const k = texto.indexOf(titulo);
+      if (k >= 0 && k < 12) texto = texto.slice(k + titulo.length).trim();
+      let tipo = 'Apartado';
+      for (const c in TIPO){ if (el.classList.contains(c)){ tipo = TIPO[c]; break; } }
+      indice.push({ id:el.id, titulo, texto, tipo, donde:t.titulo, peso:tipo === 'Término' ? 10 : tipo === 'Apartado' ? 0 : 5,
+                    hay:norm(titulo + ' ' + texto.slice(0, 400)) });
     });
   });
+  // Conectores: cada uno es un resultado
+  const conectores = [...document.querySelectorAll('#conectores .conn-row')].map(row => {
+    const n = clean((row.querySelector('.conn-name') || {}).textContent), d = clean((row.querySelector('.conn-desc') || {}).textContent);
+    return n ? { nombre:n, texto:d, hay:norm(n + ' ' + d), nn:norm(n) } : null;
+  }).filter(Boolean);
 
-  document.querySelectorAll('#conectores .conn-row').forEach(row => {
-    const nEl = row.querySelector('.conn-name');
-    const dEl = row.querySelector('.conn-desc');
-    const n = clean(nEl ? nEl.textContent : '');
-    const d = clean(dEl ? dEl.textContent : '');
-    if(n) connectors.push({ name: n, hay: norm(n + ' ' + d) });
-  });
+  /* ---------- portada ---------- */
+  $('gTemas').innerHTML = TEMAS.map(t => '<a href="#' + t.id + '"><b>' + esc(t.titulo) + '</b><span>' + esc(t.desc) + '</span></a>').join('');
+  $('gChips').innerHTML = MAS_BUSCADO.map(t => '<button type="button" data-chip="' + esc(t) + '">' + esc(t) + '</button>').join('');
 
-  function hl(text, q){
-    if(!q) return esc(text);
-    const i = norm(text).indexOf(q);
-    if(i < 0) return esc(text);
-    return esc(text.slice(0,i)) + '<mark>' + esc(text.slice(i, i+q.length)) + '</mark>' + esc(text.slice(i+q.length));
-  }
-
-  function score(e, q, tokens){
-    if(!tokens.every(t => e.hay.includes(t))) return 0;
-    const t = norm(e.title);
-    if(t === q)             return 130 + e.weight;
-    if(t.startsWith(q))     return 100 + e.weight;
-    if(t.includes(' ' + q)) return  82 + e.weight;
-    if(t.includes(q))       return  66 + e.weight;
-    return 40 + e.weight;
-  }
-
-  function rowHtml(e, q){
-    return '<button class="np-item" type="button" data-go="' + e.id + '">' +
-      '<span class="np-num">' + e.num + '</span>' +
-      '<span class="np-body"><span class="np-title">' + hl(e.title, q) + '</span>' +
-      '<span class="np-desc">' + esc(e.desc) + '</span></span>' +
-      '<span class="np-chip">' + e.chip + '</span></button>';
-  }
-
-  const FOOT = '<div class="np-foot"><span><b>&uarr;</b> <b>&darr;</b> moverse</span>' +
-               '<span><b>Enter</b> ir</span><span><b>Esc</b> cerrar</span></div>';
-
-  function render(raw){
-    const q = norm(raw).trim();
-    if(!q){
-      results.innerHTML = '<div class="np-head">Ir a una sección</div>' +
-        sections.map(e => rowHtml(e, '')).join('') + FOOT;
-      return;
+  /* ---------- buscar ---------- */
+  function marcar(texto, tokens, largo, desdeInicio){
+    const n = norm(texto);
+    let i = -1, tok = '';
+    tokens.forEach(t => { const k = n.indexOf(t); if (k >= 0 && (i < 0 || k < i)){ i = k; tok = t; } });
+    let ini = 0;
+    if (largo && texto.length > largo){
+      ini = !desdeInicio && i > largo * .6 ? Math.max(0, i - 80) : 0;
+      const corte = texto.slice(ini, ini + largo);
+      texto = (ini ? '…' : '') + corte + (ini + largo < n.length ? '…' : '');
+      if (i >= 0) i = i - ini + (ini ? 1 : 0);
+      if (i + tok.length > texto.length) i = -1;
     }
-    const tokens = q.split(/\s+/).filter(Boolean);
-    const hits = index.map(e => ({ e: e, s: score(e, q, tokens) }))
-                      .filter(x => x.s > 0)
-                      .sort((a,b) => b.s - a.s || a.e.title.length - b.e.title.length)
-                      .slice(0, 12);
-    const conn = connectors.filter(c => tokens.every(t => c.hay.includes(t)));
-    let html = '';
-    if(hits.length){
-      html += '<div class="np-head">' + hits.length + ' resultado' + (hits.length === 1 ? '' : 's') + ' en la guía</div>' +
-              hits.map(x => rowHtml(x.e, q)).join('');
-    }
-    if(conn.length){
-      html += '<div class="np-head">Catálogo de conectores</div>' +
-        '<button class="np-item" type="button" data-conn="' + esc(raw.trim()) + '">' +
-        '<span class="np-num">07</span><span class="np-body">' +
-        '<span class="np-title">' + conn.length + ' conector' + (conn.length === 1 ? '' : 'es') + ' coinciden</span>' +
-        '<span class="np-desc">' + esc(conn.slice(0,4).map(c => c.name).join(' · ')) + (conn.length > 4 ? ' …' : '') + '</span>' +
-        '</span><span class="np-chip">Buscar</span></button>';
-    }
-    results.innerHTML = html
-      ? html + FOOT
-      : '<div class="np-empty">Nada coincide con <b>' + esc(raw.trim()) + '</b>.<br>Prueba con una palabra más corta.</div>';
+    if (i < 0) return esc(texto);
+    return esc(texto.slice(0, i)) + '<mark>' + esc(texto.slice(i, i + tok.length)) + '</mark>' + esc(texto.slice(i + tok.length));
   }
+  function puntos(e, q, tokens){
+    if (!tokens.every(t => e.hay.includes(t))) return 0;
+    const t = norm(e.titulo);
+    if (t === q)             return 130 + e.peso;
+    if (t.startsWith(q))     return 100 + e.peso;
+    if (t.includes(' ' + q)) return  82 + e.peso;
+    if (t.includes(q))       return  66 + e.peso;
+    return 30 + e.peso;
+  }
+  const fila = (e, tokens) =>
+    '<button class="g-r" type="button" data-ir="' + e.id + '">' +
+      '<span class="g-r-cab"><b>' + marcar(e.titulo, tokens) + '</b><em>' + esc(e.tipo + (e.donde ? ' · ' + e.donde : '')) + '</em></span>' +
+      (e.texto ? '<p>' + marcar(e.texto, tokens, 300, tokens.some(t => norm(e.titulo).includes(t))) + '</p>' : '') + '</button>';
 
   let cursor = -1;
-  function items(){ return results.querySelectorAll('.np-item'); }
-  function move(dir){
-    const list = items();
-    if(!list.length) return;
-    if(cursor >= 0 && list[cursor]) list[cursor].classList.remove('active');
-    cursor = (cursor + dir + list.length) % list.length;
-    list[cursor].classList.add('active');
-    list[cursor].scrollIntoView({ block: 'nearest' });
+  function buscar(crudo){
+    const q = norm(crudo).trim();
+    $('gLimpiar').hidden = !crudo;
+    if (!q){ res.hidden = true; portada.hidden = false; return; }
+    if (document.body.classList.contains('g-tema')) verInicio(true);
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const hallados = indice.map(e => ({ e, s:puntos(e, q, tokens) })).filter(x => x.s > 0)
+      .sort((a, b) => b.s - a.s || a.e.titulo.length - b.e.titulo.length).slice(0, 12);
+    const conn = conectores.filter(c => tokens.every(t => c.hay.includes(t)))
+      .sort((a, b) => (b.nn.startsWith(q) - a.nn.startsWith(q)) || (b.nn.includes(q) - a.nn.includes(q)) || a.nombre.length - b.nombre.length);
+    let h = '';
+    if (hallados.length) h += '<p class="g-res-n">' + hallados.length + (hallados.length === 1 ? ' resultado' : ' resultados') + '</p>' +
+      '<div class="g-lista">' + hallados.map(x => fila(x.e, tokens)).join('') + '</div>';
+    if (conn.length) h += '<p class="g-res-n">' + conn.length + (conn.length === 1 ? ' conector' : ' conectores') + '</p><div class="g-lista">' +
+      conn.slice(0, 6).map(c => '<button class="g-r" type="button" data-conn="' + esc(c.nombre) + '"><span class="g-r-cab"><b>' + marcar(c.nombre, tokens) +
+        '</b><em>Conector</em></span><p>' + marcar(c.texto, tokens, 200) + '</p></button>').join('') +
+      (conn.length > 6 ? '<button class="g-r" type="button" data-conn="' + esc(crudo.trim()) + '"><span class="g-r-cab"><b>Ver los ' + conn.length + ' en el catálogo</b></span></button>' : '') + '</div>';
+    res.innerHTML = h || '<div class="g-nada">Nada coincide con <b>' + esc(crudo.trim()) + '</b>. Prueba con una palabra más corta.</div>';
+    res.hidden = false; portada.hidden = true; cursor = -1;
   }
 
-  function closeResults(){ results.classList.remove('open'); cursor = -1; }
-  function closeSections(){
-    secPane.classList.remove('open');
-    secBtn.classList.remove('open');
-    secBtn.setAttribute('aria-expanded','false');
+  /* ---------- ir a un tema o a un punto dentro de él ---------- */
+  function verInicio(sinTocarDireccion){
+    document.body.className = document.body.className.replace(/\bg-tema\b/, '').trim() + ' g-home';
+    secciones.forEach(s => s.classList.remove('g-actual'));
+    $('gVolver').hidden = true;
+    if (!sinTocarDireccion && location.hash) history.replaceState(null, '', location.pathname + location.search);
+    window.scrollTo(0, 0);
   }
-  function openResults(){ results.classList.add('open'); closeSections(); }
+  function abrir(id, guardar){
+    const el = $(id); if (!el) return verInicio();
+    const sec = el.closest('section.section, .section-dark'); if (!sec || !temaDe(sec.id)) return verInicio();
+    secciones.forEach(s => s.classList.toggle('g-actual', s === sec));
+    document.body.classList.remove('g-home'); document.body.classList.add('g-tema');
+    $('gVolver').hidden = false;
+    res.hidden = true; portada.hidden = false; input.value = ''; $('gLimpiar').hidden = true; input.blur();
+    if (guardar !== false) history.pushState(null, '', '#' + id);
 
-  function goTo(id){
-    const el = document.getElementById(id);
-    if(!el) return;
-    const det = el.closest('details');
-    if(det) det.open = true;
+    // Los temas vecinos, al pie
+    const i = TEMAS.findIndex(t => t.id === sec.id), ant = TEMAS[i - 1], sig = TEMAS[i + 1];
+    $('gPie').innerHTML = (ant ? '<button type="button" data-ir="' + ant.id + '"><em>Anterior</em><b>' + esc(ant.titulo) + '</b></button>' : '<i></i>') +
+                          (sig ? '<button type="button" data-ir="' + sig.id + '"><em>Siguiente</em><b>' + esc(sig.titulo) + '</b></button>' : '<i></i>');
+
+    if (el === sec){ window.scrollTo(0, 0); return; }
+    const det = el.closest('details'); if (det) det.open = true;
     const panel = el.closest('.ppanel');
-    if(panel && !panel.classList.contains('active')){
-      const key = panel.id.replace('panel-','');
-      const tab = document.querySelector('.ptab[onclick*="' + key + '"]');
-      if(tab) tab.click();
+    if (panel && !panel.classList.contains('active')){
+      const tab = document.querySelector('.ptab[onclick*="' + panel.id.replace('panel-', '') + '"]');
+      if (tab) tab.click();
     }
-    closeResults(); closeSections(); input.blur();
-    const box = el.closest('.link-card, .vocab-card, .tech-card, .pf-item, .model-card, .cat-acc') || el;
-    setTimeout(function(){
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      history.replaceState(null, '', '#' + id);
-      box.classList.remove('nav-flash');
-      void box.offsetWidth;
-      box.classList.add('nav-flash');
-      setTimeout(function(){ box.classList.remove('nav-flash'); }, 2200);
-    }, 30);
+    const caja = el.closest('.link-card, .vocab-card, .tech-card, .pf-item, .model-card, .cat-acc, .car-card, .stack-card') || el;
+    setTimeout(() => {
+      const y = caja.getBoundingClientRect().top + window.scrollY - 96;
+      window.scrollTo(0, Math.max(0, y));
+      caja.classList.remove('nav-flash'); void caja.offsetWidth; caja.classList.add('nav-flash');
+    }, 40);
   }
-
-  function goToConnectors(q){
-    closeResults();
-    const box = document.getElementById('connSearch');
-    if(box){ box.value = q; filterConnectors(q); }
-    input.blur();
-    setTimeout(function(){
-      document.getElementById('conectores').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 30);
+  function abrirConector(q){
+    abrir('conectores');
+    const caja = $('connSearch');
+    if (caja){ caja.value = q; filterConnectors(q); }
+    setTimeout(() => { const y = (caja || $('conectores')).getBoundingClientRect().top + window.scrollY - 100; window.scrollTo(0, Math.max(0, y)); }, 40);
   }
+  const ruta = () => { const id = decodeURIComponent(location.hash.slice(1)); id ? abrir(id, false) : verInicio(true); };
 
-  input.addEventListener('input', function(){ render(input.value); openResults(); cursor = -1; });
-  input.addEventListener('focus', function(){ render(input.value); openResults(); });
-  input.addEventListener('keydown', function(e){
-    if(e.key === 'ArrowDown'){ e.preventDefault(); move(1); }
-    else if(e.key === 'ArrowUp'){ e.preventDefault(); move(-1); }
-    else if(e.key === 'Enter'){
-      const list = items();
-      const pick = (cursor >= 0 && list[cursor]) ? list[cursor] : list[0];
-      if(pick){ e.preventDefault(); pick.click(); }
-    }
-    else if(e.key === 'Escape'){ closeResults(); input.blur(); }
+  /* ---------- eventos ---------- */
+  input.addEventListener('input', () => buscar(input.value));
+  $('gLimpiar').addEventListener('click', () => { input.value = ''; buscar(''); input.focus(); });
+  $('gVolver').addEventListener('click', () => { history.pushState(null, '', location.pathname + location.search); verInicio(true); });
+  window.addEventListener('hashchange', ruta);
+  window.addEventListener('popstate', ruta);
+  window.addEventListener('scroll', () => document.querySelector('.g-top').classList.toggle('con-linea', window.scrollY > 6), { passive:true });
+
+  document.addEventListener('click', e => {
+    const chip = e.target.closest('[data-chip]');
+    if (chip){ input.value = chip.dataset.chip; buscar(input.value); input.focus(); return; }
+    const c = e.target.closest('[data-conn]');
+    if (c) return abrirConector(c.dataset.conn);
+    const ir = e.target.closest('[data-ir]');
+    if (ir) return abrir(ir.dataset.ir);
+    // Los enlaces internos de la guía (#tema) abren ese tema en vez de desplazar
+    const a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    e.preventDefault();
+    if (a.getAttribute('href').length > 1) abrir(a.getAttribute('href').slice(1));
+    else window.scrollTo({ top:0, behavior:'smooth' });   // la flecha de «volver arriba»
   });
-
-  [results, secPane].forEach(function(pane){
-    pane.addEventListener('click', function(e){
-      const it = e.target.closest('.np-item');
-      if(!it) return;
-      if(it.dataset.conn !== undefined) goToConnectors(it.dataset.conn);
-      else goTo(it.dataset.go);
-    });
-  });
-
-  secBtn.addEventListener('click', function(){
-    const isOpen = secPane.classList.contains('open');
-    closeResults();
-    if(isOpen){ closeSections(); return; }
-    secPane.classList.add('open');
-    secBtn.classList.add('open');
-    secBtn.setAttribute('aria-expanded','true');
-  });
-
-  document.addEventListener('click', function(e){
-    if(!e.target.closest('.navsearch')) closeResults();
-    if(!e.target.closest('.nav-dd')) closeSections();
-  });
-
-  document.addEventListener('keydown', function(e){
-    const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
-    if((e.key === '/' && !typing) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')){
+  input.addEventListener('keydown', e => {
+    const filas = res.hidden ? [] : [...res.querySelectorAll('.g-r')];
+    if (e.key === 'Escape'){ input.value = ''; buscar(''); return; }
+    if (!filas.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
       e.preventDefault();
-      input.focus();
-      input.select();
-    }
-    if(e.key === 'Escape'){ closeResults(); closeSections(); }
+      if (filas[cursor]) filas[cursor].classList.remove('activo');
+      cursor = (cursor + (e.key === 'ArrowDown' ? 1 : -1) + filas.length) % filas.length;
+      filas[cursor].classList.add('activo'); filas[cursor].scrollIntoView({ block:'nearest' });
+    } else if (e.key === 'Enter'){ e.preventDefault(); (filas[cursor] || filas[0]).click(); }
+  });
+  document.addEventListener('keydown', e => {
+    const escribiendo = /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if ((e.key === '/' && !escribiendo) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')){ e.preventDefault(); input.focus(); input.select(); }
   });
 
-  secPane.innerHTML = '<div class="np-head">Las ' + sections.length + ' secciones de la guía</div>' +
-    '<div class="np-grid">' + sections.map(function(e){ return rowHtml(e, ''); }).join('') + '</div>';
+  ruta();
 })();
 </script>
 

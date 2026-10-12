@@ -37,6 +37,16 @@ const grupoCorto = () => {
   const gs = PERFIL?.grupos || [];
   return gs.length && gs.every(g => g.formato === 'corto') ? gs[0] : null;
 };
+/* Extras del menú que se pueden apagar por grupo (grupos.extras_off). */
+const EXTRAS = ['tareas', 'skills', 'resumen', 'config', 'tuto', 'faq'];
+const sinExtra = (g, k) => (g.extras_off || []).includes(k) || (k === 'tareas' && g.formato === 'corto');
+/** ¿Ese extra está apagado para quien mira? (admin: en el espacio abierto; quien está en varios grupos lo ve si alguno lo tiene) */
+function extraApagado(k){
+  if (IS_ADMIN){ const g = grupoPorId(vistaComo); return !!g && sinExtra(g, k); }
+  const gs = PERFIL?.grupos || [];
+  return gs.length > 0 && gs.every(g => sinExtra(g, k));
+}
+
 /** Deja en SESSIONS las del espacio actual. El estudiante ya recibe solo las suyas. */
 function repartirSesiones(){
   if (!IS_ADMIN) return;
@@ -878,7 +888,14 @@ function pintarNav(){
   const corto = !!grupoCorto();
   $('#navSesTit').textContent = corto ? 'Sesiones' : 'Sesiones del reto';
   $('#railSesTit').textContent = corto ? 'Sesiones' : 'El reto';
-  $('.nav-tareas').hidden = corto;
+  // Extras apagados: el estudiante no los ve; el admin los ve atenuados en el espacio de ese grupo
+  EXTRAS.forEach(k => {
+    const b = $(`#sidebar .nav-item[data-view="${k}"]`), off = extraApagado(k);
+    const noAplica = k === 'tareas' && corto;   // un bootcamp no tiene trabajo autónomo: ni el admin lo ve
+    b.hidden = off && (!IS_ADMIN || noAplica);
+    b.classList.toggle('is-off', off && IS_ADMIN && !noAplica);
+  });
+  const cursos = $('#subnav [data-sub="tuto"]'); if (cursos) cursos.hidden = !IS_ADMIN && extraApagado('tuto');
   $('#navSessions').innerHTML = SESSIONS.map(s => `
     <div class="nav-row ${s.visible === false ? 'is-apagada' : ''}" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
@@ -3149,6 +3166,8 @@ function abrirGrupoForm(g = null){
   $('#grClaveNota').hidden = true;
   $('#grActivo').checked = g ? g.activo : true;
   $('#grFormato').value = g?.formato || 'reto';
+  $$('#grExtras [data-extra]').forEach(c => { c.checked = !(g?.extras_off || []).includes(c.dataset.extra); });
+  extrasSegunFormato();
 
   // Ficha
   const campos = { grNit:'nit', grSector:'sector', grPlazas:'plazas', grWhatsapp:'whatsapp_url',
@@ -3195,6 +3214,9 @@ $('#grGenerar').addEventListener('click', () => {
   $('#grClave').value = 'PC-' + [...azar].map(n => abc[n % abc.length]).join('');
   avisoClave();
 });
+// Un bootcamp o charla no tiene trabajo autónomo: ese interruptor no aplica
+const extrasSegunFormato = () => { $('#grExtras [data-extra="tareas"]').closest('.aj-fila').hidden = $('#grFormato').value === 'corto'; };
+$('#grFormato').addEventListener('change', extrasSegunFormato);
 const avisoClave = () => { $('#grClaveNota').hidden = !(editandoGrupo && $('#grClave').value.trim()); };
 $('#grClave').addEventListener('input', avisoClave);
 
@@ -3228,6 +3250,7 @@ $('#grSave').addEventListener('click', async () => {
         fecha_inicio:v('grInicio'), fecha_fin:v('grFin'), contacto_nombre:v('grCNombre'),
         contacto_cargo:v('grCCargo'), contacto_email:v('grCEmail'), contacto_telefono:v('grCTel'),
         formato:$('#grFormato').value,
+        extras_off:$$('#grExtras [data-extra]').filter(c => !c.checked).map(c => c.dataset.extra),
       });
     }
     cerrarGrupoForm();

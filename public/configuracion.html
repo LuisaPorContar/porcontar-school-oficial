@@ -190,15 +190,6 @@ section{margin:0 0 42px;scroll-margin-top:78px}
   border-radius:0 8px 8px 0;font-size:13.6px;color:var(--ink-2);margin:10px 0;
 }
 
-/* ---------- plan ---------- */
-.plan{background:var(--night);color:var(--on-night-soft);border-radius:18px;padding:26px 28px;margin-top:14px}
-.plan h2{margin:0 0 4px;color:#fff;font-size:21px;font-weight:700}
-.plan p.sub{margin:0 0 16px;color:var(--on-night-soft);opacity:.8;font-size:14px}
-.plan ol{margin:0;padding-left:20px}
-.plan li{margin-bottom:9px;font-size:14.5px}
-.plan li b{color:#fff}
-.plan li::marker{color:var(--pc-yellow)}
-.plan .vacio{color:var(--on-night-soft);opacity:.8}
 
 footer{max-width:900px;margin:0 auto;padding:28px 32px 0;color:var(--ink-3);font-size:13px;border-top:1px solid var(--line)}
 
@@ -250,9 +241,6 @@ footer{max-width:900px;margin:0 auto;padding:28px 32px 0;color:var(--ink-3);font
 
   <div class="wrap" id="contenido"></div>
 
-  <div class="wrap">
-    <div class="plan" id="plan"></div>
-  </div>
 
   <footer>
     <p>Cada tarjeta enlaza el artículo de Anthropic donde está documentado.</p>
@@ -1031,24 +1019,8 @@ document.querySelectorAll('.filtro').forEach(b => {
   });
 });
 
-/* ---------- plan y progreso ---------- */
-function refrescar() {
-  const todos = Object.values(estado).filter(x => x.rec !== 'info');
-
-  const pendientes = todos.filter(x => x.rec === 'decidir' && !x.tocado);
-  const encender  = todos.filter(x => x.on && x.rec === 'activar');
-  const apagar    = todos.filter(x => !x.on && x.rec === 'desactivar');
-
-  let h = '<h2>Tu plan de acción</h2><ol>';
-  h += '<li><b>Vacía la cola de solicitudes y asigna los asientos sueltos</b> antes de tocar nada más. Sin asientos libres, cada aprobación compra una licencia nueva.</li>';
-  h += '<li><b>Cierra los dominios en estado Pendiente.</b> O los verificas o los retiras, porque a medias no protegen nada y ensucian la lista.</li>';
-  if (encender.length) h += '<li><b>Enciende:</b> ' + encender.map(x => x.titulo).join(', ') + '.</li>';
-  if (apagar.length)   h += '<li><b>Deja apagado:</b> ' + apagar.map(x => x.titulo).join(', ') + '.</li>';
-  if (pendientes.length) h += '<li><b>Todavía sin decidir:</b> ' + pendientes.map(x => x.titulo).join(', ') + '.</li>';
-  else h += '<li class="vacio">Ya no queda nada por decidir en esta guía.</li>';
-  h += '</ol>';
-  document.getElementById('plan').innerHTML = h;
-}
+/* (el plan de acción se quitó; refrescar queda vacía porque los interruptores la llaman) */
+function refrescar(){}
 const totalAjustes = document.getElementById('tAjustes');   // la portada ya no lo muestra
 if (totalAjustes) totalAjustes.textContent = Object.keys(estado).length;
 refrescar();

@@ -1775,3 +1775,7 @@ body.vista-clase .rail{top:140px}
 }
 .modal-ajustes .btn-mini{padding:7px 13px;font-size:13px}
 .modal-ajustes .aj-pie .btn{padding:9px 18px;font-size:14px}
+
+/* Extra apagado para el grupo del espacio abierto (solo lo ve así el admin) */
+.nav-item.is-off{opacity:.42}
+.nav-item.is-off .nav-label::after{content:" · apagado";font-size:11px;font-weight:500}
