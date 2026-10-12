@@ -2099,17 +2099,3 @@ body.ruta-admin .login-btn{background:var(--ink);box-shadow:none}
 /* La dona, en blanco suave para que se vea sobre el azul */
 body.ruta-admin .dona g{stroke:#fff}
 body.ruta-admin .dona{opacity:.3}
-
-/* Franja de empresas que han trabajado con PorContar: discreta, en grises; al pasar el cursor recupera el color */
-.clientes{width:min(980px,100%);margin:26px auto 0;text-align:center}
-.clientes p{margin:0 0 12px;font-size:12.5px;font-weight:600;color:var(--ink-mute)}
-.clientes-logos{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:14px 28px}
-.clientes-logos img{height:26px;width:auto;max-width:112px;object-fit:contain;filter:grayscale(1);opacity:.6;mix-blend-mode:multiply;transition:filter .2s,opacity .2s}
-.clientes-logos img:hover{filter:none;opacity:1}
-/* En la entrada va sobre fondo oscuro: una franja blanca suave debajo de la tarjeta */
-.login{align-content:center;gap:18px}
-.login .clientes{position:relative;z-index:1;width:min(760px,100%);margin:0;padding:14px 20px 16px;border-radius:18px;background:rgba(255,255,255,.94)}
-.login .clientes-logos{gap:10px 22px}
-.login .clientes-logos img{height:20px;max-width:88px}
-@media (max-width:600px){ .clientes-logos img{height:20px;max-width:84px} .login .clientes-logos img{height:16px;max-width:70px} .login .clientes{padding:12px 14px} }
-@media (max-height:720px){ .login .clientes{display:none} }

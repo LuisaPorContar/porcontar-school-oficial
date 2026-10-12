@@ -215,7 +215,7 @@ function inicioHtml(){
   // Lo primero que ve el cliente es siempre el cronograma; después lo que sigue y su programa
   // El admin ve primero la ficha de la empresa (con Editar cronograma); el cliente, su cronograma
   return IS_ADMIN ? hero + lista + prox
-                  : selector + lista + prox + continua + hero + ($('#tplClientes')?.innerHTML || '');
+                  : selector + lista + prox + continua + hero;
 }
 
 /** Logo de la empresa, o sus iniciales si no hay logo. */
