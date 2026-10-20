@@ -57,7 +57,7 @@ function repartirSesiones(){
   SESSIONS = todas.filter(s => (s.grupoId || null) === id).sort((x, y) => (x.orden || 0) - (y.orden || 0));
   OTRAS_SESIONES = todas.filter(s => (s.grupoId || null) !== id);
 }
-const TIPOS_SESION = { kickoff:'Kick off', clase:'Clase', proyecto:'Proyecto', cierre:'Cierre' };
+const TIPOS_SESION = { kickoff:'Kick off', clase:'Clase', qa:'QA', proyecto:'Proyecto', cierre:'Cierre' };
 const ICONOS_SESION = ['s-0','s-base','s-funnel','s-design','s-web','s-video','s-viral','s-1','s-agent',
                        's-crm','s-prospec','s-dash','s-ads','s-ecom','s-pre','s-2','s-3','s-4','s-5'];
 
@@ -388,7 +388,10 @@ function cloudStore(){
       if (error) throw error;
       // La fecha siempre como AAAA-MM-DD y la hora como HH:MM, venga como venga
       return data.map(r => ({ ...r, fecha:r.fecha ? String(r.fecha).slice(0, 10) : null,
-                              hora:r.hora ? String(r.hora).slice(0, 5) : null }));
+                              hora:r.hora ? String(r.hora).slice(0, 5) : null,
+                              // el segundo encuentro (supabase-agenda.sql): solo si la base ya tiene la columna
+                              ...('fecha2' in r ? { fecha2:r.fecha2 ? String(r.fecha2).slice(0, 10) : null,
+                                                    hora2:r.hora2 ? String(r.hora2).slice(0, 5) : null } : {}) }));
     },
     async guardarCronograma(filas){
       if (filas.length) check(await sb.from('cronograma').upsert(filas));

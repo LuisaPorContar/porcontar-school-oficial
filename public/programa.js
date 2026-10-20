@@ -23,7 +23,14 @@ const hoyLocal = () => new Date().toLocaleDateString('en-CA');
 const momentoDe = r => r?.fecha ? new Date(`${r.fecha}T${(r.hora || '00:00').slice(0, 5)}:00`) : null;
 const diaTxt  = r => new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long' });
 const horaTxt = r => r.hora ? new Date(`2000-01-01T${r.hora.slice(0, 5)}:00`).toLocaleTimeString('es-CO', { hour:'numeric', minute:'2-digit' }) : '';
-const fechaCorta = d => new Date(d + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'long' });
+const diaCortoTxt = d => new Date(d + 'T12:00:00').toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' }).replace(/\./g, '');
+const fechaCorta = d =>new Date(d + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'long' });
+/** Los encuentros de una sesión: uno, o dos cuando la clase de 2 horas se parte en dos de 1 hora. */
+const encuentrosDe = r => !r?.fecha ? [] : r.fecha2
+  ? [{ ...r, parte:1 }, { ...r, fecha:r.fecha2, hora:r.hora2 || r.hora, parte:2 }]
+  : [{ ...r, parte:0 }];
+/** El encuentro que sigue (o el que está en curso, con 2 horas de margen); null si ya pasaron todos. */
+const siguienteDe = (r, ahora = Date.now()) => encuentrosDe(r).find(e => momentoDe(e).getTime() + 2 * 36e5 >= ahora) || null;
 const rangoTxt = (ini, fin) => ini && fin ? `Del ${fechaLarga(ini)} al ${fechaLarga(fin)}`
                              : ini ? `Desde el ${fechaLarga(ini)}` : fin ? `Hasta el ${fechaLarga(fin)}` : '';
 
@@ -95,8 +102,9 @@ function inicioHtml(){
       </div>
       <button class="btn btn-primary" data-reto-nueva><svg class="ico"><use href="#i-plus"/></svg> Nueva sesión</button>
     </section>`;
-  // El próximo encuentro: el primero que todavía no termina (se da 2 horas de margen)
-  const proxima = filas.filter(f => momentoDe(f.r))
+  // El próximo encuentro: el primero que todavía no termina (se da 2 horas de margen).
+  // Una clase partida en dos cuenta como dos encuentros.
+  const proxima = filas.flatMap(f => encuentrosDe(f.r).map(r => ({ s:f.s, r })))
     .sort((a, b) => momentoDe(a.r) - momentoDe(b.r))
     .find(f => momentoDe(f.r).getTime() + 2 * 36e5 >= ahora);
   const nombre = (PERFIL?.nombre || '').split(' ')[0];
@@ -142,7 +150,7 @@ function inicioHtml(){
       </div>
       <div class="ini-prox-txt">
         <em>Tu próximo encuentro · ${escapeHtml(cuandoTxt(proxima.r) || diaTxt(proxima.r))}</em>
-        <h3>${escapeHtml(proxima.s.title)}</h3>
+        <h3>${escapeHtml(proxima.s.title)}${proxima.r.parte ? ` · ${proxima.r.parte}.ª parte` : ''}</h3>
         <p>${escapeHtml(diaTxt(proxima.r))}${proxima.r.hora ? ' · ' + escapeHtml(horaTxt(proxima.r)) : ''}${
            proxima.r.plataforma ? ' · ' + escapeHtml(proxima.r.plataforma) : ''}</p>
       </div>
@@ -203,6 +211,8 @@ function inicioHtml(){
               <b>${futura ? '<svg class="ico ini-candado"><use href="#i-lock"/></svg>' : ''}${escapeHtml(s.name)}</b>
               ${r?.hora || (r?.fecha && r?.plataforma) ? `<small>
                 ${r.hora ? `<span><svg class="ico"><use href="#i-reloj"/></svg>${escapeHtml(horaTxt(r))}</span>` : ''}
+                ${r.fecha2 ? `<span><svg class="ico"><use href="#i-cal"/></svg>2.ª parte: ${escapeHtml(diaCortoTxt(r.fecha2))}${
+                  r.hora2 && r.hora2 !== r.hora ? ' · ' + escapeHtml(horaTxt({ hora:r.hora2 })) : ''}</span>` : ''}
                 ${r.plataforma ? `<span><svg class="ico"><use href="#i-video"/></svg>${escapeHtml(r.plataforma)}</span>` : ''}
               </small>` : ''}
             </span>
@@ -234,11 +244,11 @@ function inicioPrincipalHtml(){
     </div>`;
   const ahora = Date.now();
   // Una fila por empresa: toda la fila abre su espacio. A la derecha, solo su próximo encuentro.
-  const corta = r => new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' }).replace(/\./g, '');
+  const corta = r => diaCortoTxt(r.fecha);
   return `
     <div class="ini-emps">${GRUPOS.map(g => {
       const crono = CRONO.filter(r => r.grupo_id === g.id && r.fecha);
-      const prox = crono.filter(r => momentoDe(r).getTime() + 2 * 36e5 >= ahora).sort((a, b) => momentoDe(a) - momentoDe(b))[0];
+      const prox = crono.flatMap(r => encuentrosDe(r)).filter(r => momentoDe(r).getTime() + 2 * 36e5 >= ahora).sort((a, b) => momentoDe(a) - momentoDe(b))[0];
       const s = prox && [...SESSIONS, ...OTRAS_SESIONES].find(x => x.id === prox.sesion_id);
       return `
       <button class="ini-emp ${g.vigente ? '' : 'is-off'}" data-ini-espacio="${g.id}">
@@ -256,9 +266,9 @@ function inicioPrincipalHtml(){
 /** Admin: el cronograma de la empresa para editar, sesión por sesión. */
 /** Una fila del editor del cronograma. En un bootcamp o charla (propias = true) el nombre
     de la sesión se escribe ahí mismo y la sesión se puede quitar; las del reto son fijas. */
-function ceFilaHtml(s, r, propias, nueva){
+function ceFilaHtml(s, r, propias, nueva, partible){
   return `
-          <div class="ce-fila" data-ce="${s.id}" ${nueva ? 'data-ce-nueva' : ''}>
+          <div class="ce-fila" data-ce="${s.id}" ${nueva ? 'data-ce-nueva' : ''} ${partible ? 'data-ce-partible' : ''}>
             ${propias ? `<span class="ce-ses ce-ses-edit">
                 <input type="text" data-ce-campo="nombre" maxlength="120" placeholder="Nombre de la sesión" value="${escapeHtml(s.name)}" aria-label="Nombre de la sesión" />
                 <button type="button" class="icon-btn" data-ce-quitar title="Quitar esta sesión" aria-label="Quitar esta sesión"><svg class="ico"><use href="#i-trash"/></svg></button>
@@ -270,7 +280,109 @@ function ceFilaHtml(s, r, propias, nueva){
               ${PLATAFORMAS.map(p => `<option ${(r.plataforma || 'Google Meet') === p ? 'selected' : ''}>${p}</option>`).join('')}
             </select>
             <input type="text" inputmode="url" data-ce-campo="enlace" placeholder="meet.google.com/…" value="${escapeHtml(r.enlace || '')}" aria-label="Enlace" />
+            ${partible ? `
+            <span class="ce-p2 ce-p2-lbl">2.ª parte · 1 hora</span>
+            <input class="ce-p2" type="date" data-ce-campo="fecha2" value="${escapeHtml(r.fecha2 || '')}" aria-label="Fecha de la 2.ª parte" />
+            <input class="ce-p2" type="time" data-ce-campo="hora2" value="${escapeHtml((r.hora2 || '').slice(0, 5))}" aria-label="Hora de la 2.ª parte" />` : ''}
           </div>`;
+}
+
+/* ---------- Agenda automática ----------
+   Preconfiguración y Kickoff van a mano. Lo que sigue al Kickoff (clases, QA y
+   Presentación) toma, en orden, los días de la semana elegidos desde la primera clase.
+   Agenda «semanal»: cada clase es un encuentro de 2 horas.
+   Agenda «partida»: cada clase de 2 horas se parte en dos encuentros de 1 hora. */
+const DIAS_SEMANA = [[1, 'Lun'], [2, 'Mar'], [3, 'Mié'], [4, 'Jue'], [5, 'Vie'], [6, 'Sáb'], [0, 'Dom']];
+
+/** Las sesiones que se agendan solas: las encendidas que vienen después del Kickoff. */
+function sesionesAuto(){
+  const k = SESSIONS.findIndex(s => s.tipo === 'kickoff');
+  return SESSIONS.slice(k + 1).filter(s => s.visible !== false);
+}
+/** Las que se parten en dos en la agenda partida: las clases (no la QA ni la Presentación). */
+const esPartible = s => s.tipo === 'clase' && sesionesAuto().includes(s);
+
+function ceAutoHtml(partida){
+  const autos = sesionesAuto();
+  if (!autos.length) return '';
+  return `
+      <div class="ce-auto">
+        <div class="ce-auto-cab">
+          <h3 class="ini-tit">Agenda automática</h3>
+          <p class="quiz-desc">Preconfiguración y Kickoff van a mano. Elige los días fijos y la hora, y se llenan solas las fechas de
+            ${autos.length} ${autos.length === 1 ? 'sesión' : 'sesiones'}: ${autos.map(s => escapeHtml(s.short)).join(', ')}.</p>
+        </div>
+        <div class="ce-agenda" role="radiogroup" aria-label="Tipo de agenda">
+          <label><input type="radio" name="ceAgenda" value="semanal" ${partida ? '' : 'checked'} />
+            <span><b>1 clase de 2 horas</b><small>una vez por semana</small></span></label>
+          <label><input type="radio" name="ceAgenda" value="partida" ${partida ? 'checked' : ''} />
+            <span><b>2 encuentros de 1 hora</b><small>cada clase partida en dos, en la misma semana</small></span></label>
+        </div>
+        <div class="ce-auto-campos">
+          <div class="field"><span>Días fijos</span>
+            <div class="ce-dias">${DIAS_SEMANA.map(([n, t]) => `
+              <label><input type="checkbox" value="${n}" data-ce-dia /><span>${t}</span></label>`).join('')}
+            </div>
+          </div>
+          <label class="field"><span>Primera clase</span><input type="date" id="ceAutoInicio" /></label>
+          <label class="field"><span>Hora</span><input type="time" id="ceAutoHora" /></label>
+        </div>
+        <div class="ce-auto-campos ce-auto-enlace">
+          <label class="field"><span>Plataforma</span>
+            <select id="ceAutoPlat">${PLATAFORMAS.map(p => `<option>${p}</option>`).join('')}</select></label>
+          <label class="field"><span>Enlace fijo (opcional)</span>
+            <input type="text" inputmode="url" id="ceAutoEnlace" placeholder="meet.google.com/… para todas" /></label>
+          <button class="btn btn-primary" data-ce-generar><svg class="ico"><use href="#i-cal"/></svg> Generar fechas</button>
+        </div>
+      </div>`;
+}
+
+/** Muestra u oculta la 2.ª parte de las clases según el tipo de agenda. */
+function ceAgendaCambio(){
+  const partida = $('[name="ceAgenda"]:checked')?.value === 'partida';
+  $('.ce-tabla')?.classList.toggle('is-partida', partida);
+}
+
+/** Llena las fechas de lo que sigue al Kickoff. No guarda: el admin revisa y toca Guardar cronograma. */
+function generarAgenda(){
+  const msg = $('#ceMsg');
+  const partida = $('[name="ceAgenda"]:checked').value === 'partida';
+  const dias = $$('[data-ce-dia]:checked').map(c => Number(c.value));
+  const ini = $('#ceAutoInicio').value, hora = $('#ceAutoHora').value;
+  if (!dias.length) return void toast('Elige al menos un día de la semana.');
+  if (partida && dias.length < 2) return void toast('Para 2 encuentros por semana elige 2 días (por ejemplo martes y miércoles).');
+  if (!ini) return void ($('#ceAutoInicio').focus(), toast('Pon la fecha de la primera clase.'));
+  if (!hora) return void ($('#ceAutoHora').focus(), toast('Pon la hora de los encuentros.'));
+
+  const filas = sesionesAuto().map(s => $(`[data-ce="${s.id}"]`)).filter(Boolean);
+  const conFecha = filas.filter(f => $('[data-ce-campo="fecha"]', f).value).length;
+  if (conFecha && !confirm(`${conFecha} ${conFecha === 1 ? 'sesión ya tiene fecha' : 'sesiones ya tienen fecha'}: se reemplazan con la agenda nueva. ¿Seguir?`)) return;
+
+  // Recorre el calendario desde la primera clase y entrega, uno a uno, los días elegidos
+  const d = new Date(ini + 'T12:00:00');
+  const siguiente = () => {
+    while (!dias.includes(d.getDay())) d.setDate(d.getDate() + 1);
+    const f = d.toLocaleDateString('en-CA');
+    d.setDate(d.getDate() + 1);
+    return f;
+  };
+  const plat = $('#ceAutoPlat').value, url = $('#ceAutoEnlace').value.trim();
+  const poner = (f, campo, v) => { const c = $(`[data-ce-campo="${campo}"]`, f); if (c) c.value = v; };
+  let primera = '', ultima = '';
+  for (const f of filas){
+    const fecha = siguiente();
+    primera ||= fecha; ultima = fecha;
+    poner(f, 'fecha', fecha); poner(f, 'hora', hora);
+    if (partida && f.hasAttribute('data-ce-partible')){
+      ultima = siguiente();
+      poner(f, 'fecha2', ultima); poner(f, 'hora2', hora);
+    } else { poner(f, 'fecha2', ''); poner(f, 'hora2', ''); }
+    poner(f, 'plataforma', plat);
+    if (url) poner(f, 'enlace', url);
+  }
+  msg.textContent = '';
+  toast(`Listo: del ${fechaCorta(primera)} al ${fechaCorta(ultima)}. Revisa y toca «Guardar cronograma».`);
+  $('.ce-tabla').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 /** Agrega una fila vacía al editor (la sesión se crea al guardar). */
 function ceAgregarFila(){
@@ -292,6 +404,9 @@ function ceQuitarFila(fila){
 }
 
 function cronoEditorHtml(g, crono){
+  const propias = g.formato === 'corto';
+  // La agenda partida se recuerda por las fechas: si alguna clase ya tiene 2.ª parte
+  const partida = [...crono.values()].some(r => r.fecha2);
   return `
     <section class="card ini-editor">
       <h3 class="ini-tit">Programa de ${escapeHtml(g.nombre)}</h3>
@@ -302,13 +417,15 @@ function cronoEditorHtml(g, crono){
       <label class="field"><span>Grupo de WhatsApp</span>
         <input type="text" inputmode="url" id="ceWhatsapp" maxlength="300" placeholder="chat.whatsapp.com/…" value="${escapeHtml(g.whatsapp_url || '')}" /></label>
 
+      ${propias ? '' : ceAutoHtml(partida)}
+
       <h3 class="ini-tit">Sesiones</h3>
-      <p class="quiz-desc">${g.formato === 'corto' ? 'Agrega las sesiones que necesites y ponles fecha.' : 'Pon la fecha de cada encuentro.'} Lo que dejes vacío sale como «Por definir».</p>
-      <div class="ce-tabla">
+      <p class="quiz-desc">${propias ? 'Agrega las sesiones que necesites y ponles fecha.' : 'Pon la fecha de cada encuentro, o genéralas arriba y ajusta la que cambie.'} Lo que dejes vacío sale como «Por definir».</p>
+      <div class="ce-tabla ${partida ? 'is-partida' : ''}">
         <div class="ce-cab"><span>Sesión</span><span>Fecha</span><span>Hora</span><span>Plataforma</span><span>Enlace</span></div>
-        ${SESSIONS.map(s => ceFilaHtml(s, crono.get(s.id) || {}, g.formato === 'corto')).join('')}
+        ${SESSIONS.map(s => ceFilaHtml(s, crono.get(s.id) || {}, propias, false, !propias && esPartible(s))).join('')}
       </div>
-      ${g.formato === 'corto' ? `<button class="btn ce-agregar" data-ce-agregar><svg class="ico"><use href="#i-plus"/></svg> Agregar sesión</button>` : ''}
+      ${propias ? `<button class="btn ce-agregar" data-ce-agregar><svg class="ico"><use href="#i-plus"/></svg> Agregar sesión</button>` : ''}
       <div class="quiz-enviar">
         <span class="quiz-msg" id="ceMsg"></span>
         <button class="btn btn-primary" data-ce-guardar>Guardar cronograma</button>
@@ -342,11 +459,20 @@ async function guardarCronograma(){
     }
   }
 
+  // La 2.ª parte solo cuenta en la agenda partida; en la semanal se vacía
+  const partida = $('[name="ceAgenda"]:checked')?.value === 'partida';
   const filas = $$('[data-ce]:not(.is-quitar)').map(f => {
     const v = c => $(`[data-ce-campo="${c}"]`, f).value.trim();
+    const p2 = partida && f.hasAttribute('data-ce-partible');
     return { grupo_id:g.id, sesion_id:f.dataset.ce, fecha:v('fecha') || null, hora:v('hora') || null,
+             fecha2:p2 ? v('fecha2') || null : null, hora2:p2 ? v('hora2') || null : null,
              plataforma:v('plataforma') || 'Google Meet', enlace:enlace(v('enlace')) || null, updated_at:new Date().toISOString() };
   });
+  const sinFecha2 = partida && filas.some(f => f.fecha && !f.fecha2 && $(`[data-ce="${f.sesion_id}"]`).hasAttribute('data-ce-partible'));
+  if (sinFecha2) return void (msg.textContent = 'Falta la fecha de la 2.ª parte de alguna clase (o cambia a 1 clase de 2 horas).');
+  // fecha2 y hora2 solo viajan si la base ya tiene las columnas (supabase-agenda.sql) o si se usan
+  if (!CRONO.some(r => 'fecha2' in r) && !filas.some(f => f.fecha2 || f.hora2))
+    filas.forEach(f => { delete f.fecha2; delete f.hora2; });
 
   btn.disabled = true; btn.textContent = 'Guardando…'; msg.textContent = '';
   try {
@@ -590,8 +716,8 @@ function pintarGrabacion(forzar = false){
   // Sin grabación todavía: el estudiante ve un aviso del tamaño del video, con la fecha si la hay
   if (!lista.length && !IS_ADMIN){
     const gi = grupoInicio();
-    const r = gi && cronoDe(gi.id).get(view.id);
-    const futura = r?.fecha && momentoDe(r).getTime() + 2 * 36e5 >= Date.now();
+    const r = gi && siguienteDe(cronoDe(gi.id).get(view.id));   // el encuentro que sigue
+    const futura = !!r;
     caja.innerHTML = `
       <div class="vsl vsl-vacio">
         <div><svg class="ico"><use href="#i-play"/></svg>
@@ -824,6 +950,7 @@ $('#posts').addEventListener('click', e => {
     if (e.target.closest('[data-ini-editar]')){ inicioEditando = !inicioEditando; return render(); }
     if (e.target.closest('[data-ce-guardar]')) return guardarCronograma();
     if (e.target.closest('[data-ce-agregar]')) return ceAgregarFila();
+    if (e.target.closest('[data-ce-generar]')) return generarAgenda();
     if (e.target.closest('[data-ce-quitar]')) return ceQuitarFila(e.target.closest('[data-ce]'));
     if (e.target.closest('[data-reto-nueva]')) return abrirSesionForm();
   }
@@ -862,7 +989,7 @@ function claseHtml(lista){
   const ant = SESSIONS[i - 1], sig = SESSIONS[i + 1];
   const gi = grupoInicio();
   const r = gi && cronoDe(gi.id).get(s.id);
-  const futura = r?.fecha && momentoDe(r).getTime() + 2 * 36e5 >= Date.now();
+  const futura = !!siguienteDe(r);   // hasta que pase el último encuentro sigue el botón de entrar
   const vistosN = lista.filter(p => vistos.has(p.id)).length;
 
   const recursos = lista.length ? lista.map((p, k) => recursoHtml(p, k, lista)).join('') : `
@@ -873,7 +1000,7 @@ function claseHtml(lista){
   return `
     <section class="clase">
       <div class="clase-cab">
-        <em>${escapeHtml(s.short)}${r?.fecha ? ' · ' + escapeHtml(diaTxt(r)) + (r.hora ? ', ' + escapeHtml(horaTxt(r)) : '') : ''}</em>
+        <em>${escapeHtml(s.short)}${encuentrosDe(r).map(e => ' · ' + escapeHtml(diaTxt(e)) + (e.hora ? ', ' + escapeHtml(horaTxt(e)) : '')).join('')}</em>
         <h2>${escapeHtml(s.name)}</h2>
         ${s.desc ? `<p>${escapeHtml(s.desc)}</p>` : ''}
         <div class="clase-acc">
@@ -958,10 +1085,10 @@ function retoRailHtml(){
     const qz = PERFIL ? quizDeSesion(s.id) : null;
     const faltaQuiz = !!(qz && qz.obligatorio && !qz.aprobado);
     const vista = grabs.length > 0 && grabs.every(g => progresoVideo[g.id]?.completado) && !faltaQuiz;
-    const futura = r?.fecha && momentoDe(r).getTime() + 2 * 36e5 >= ahora;
+    const sig = siguienteDe(r, ahora), futura = !!sig;
     const actual = view.type === 'session' && view.id === s.id;
     const estado = vista ? 'Vista'
-      : futura ? 'El ' + new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'long' }) + (r.hora ? ' · ' + horaTxt(r) : '')
+      : futura ? 'El ' + new Date(sig.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'long' }) + (sig.hora ? ' · ' + horaTxt(sig) : '')
       : grabs.some(g => !progresoVideo[g.id]?.completado) ? 'Te falta ver la grabación'
       : faltaQuiz ? 'Te falta el quiz'
       : s.name;
@@ -1314,6 +1441,11 @@ function gmailBienvenida(g){
   });
   return 'https://mail.google.com/mail/?' + q.toString();
 }
+
+/* Agenda automática: al cambiar el tipo de agenda aparece o se va la 2.ª parte de las clases */
+$('#posts').addEventListener('change', e => {
+  if (e.target.matches('[name="ceAgenda"]')) ceAgendaCambio();
+});
 
 /* Foto de cada administradora: se elige tocando su círculo en la lista */
 $('#posts').addEventListener('change', async e => {

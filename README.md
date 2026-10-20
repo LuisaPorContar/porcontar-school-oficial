@@ -57,4 +57,6 @@ Supabase: proyecto `lcbonixjumchbhffyxee`. Para montar la base, en Supabase → 
 2. `supabase-empresas.sql` — empresas y cohortes, acceso con correo, audiencias, videos vistos y panel.
 3. `supabase-fase1.sql` — ficha de empresa (logo, contacto, WhatsApp), sesiones editables, cronograma por empresa y grabaciones con progreso.
 
-Los tres se pueden correr más de una vez. Sin claves en `config.js`, el muro funciona en modo local (IndexedDB) solo para probar.
+Después, `supabase-agenda.sql` — la sesión QA antes de la Presentación y la 2.ª parte de cada clase en el cronograma, para la agenda automática de «Editar cronograma» (1 clase de 2 horas por semana, o 2 encuentros de 1 hora).
+
+Todos se pueden correr más de una vez. Sin claves en `config.js`, el muro funciona en modo local (IndexedDB) solo para probar.

@@ -9,6 +9,7 @@ LEEME.md
 !supabase-comunidad.sql
 !supabase-tareas.sql
 !supabase-cursos.sql
+!supabase-agenda.sql
 
 # Ruido del sistema
 .DS_Store

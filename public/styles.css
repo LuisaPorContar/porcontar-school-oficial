@@ -1197,6 +1197,32 @@ body{
 .ce-ses em{display:block;font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--pc-blue)}
 .ce-fila input,.ce-fila select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13.5px;outline:none}
 .ce-fila input:focus,.ce-fila select:focus{border-color:var(--pc-blue);box-shadow:0 0 0 3px var(--pc-blue-tint)}
+/* 2.ª parte de una clase (agenda de 2 encuentros de 1 hora): segunda línea de la fila */
+.ce-p2{display:none}
+.ce-tabla.is-partida .ce-p2{display:block}
+.ce-p2-lbl{grid-column:1;justify-self:end;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pc-blue)}
+
+/* Agenda automática */
+.ce-auto{display:flex;flex-direction:column;gap:14px;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:var(--paper-2)}
+.ce-auto .ini-tit{margin:0 0 4px}
+.ce-agenda{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ce-agenda label{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer}
+.ce-agenda label:has(input:checked){border-color:var(--pc-blue);box-shadow:0 0 0 3px var(--pc-blue-tint)}
+.ce-agenda input{margin-top:3px;accent-color:var(--pc-blue)}
+.ce-agenda b{display:block;font-size:14px;font-weight:600}
+.ce-agenda small{display:block;font-size:12.5px;color:var(--ink-soft)}
+.ce-auto-campos{display:grid;grid-template-columns:minmax(0,2fr) 160px 120px;gap:12px;align-items:end}
+.ce-auto-enlace{grid-template-columns:180px minmax(0,1fr) auto}
+.ce-auto-campos input,.ce-auto-campos select{width:100%}
+.ce-dias{display:flex;flex-wrap:wrap;gap:6px}
+.ce-dias label{cursor:pointer}
+.ce-dias input{position:absolute;opacity:0;pointer-events:none}
+.ce-dias span{display:inline-block;min-width:46px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:#fff;font-size:13px;font-weight:600;text-align:center;color:var(--ink-soft)}
+.ce-dias input:checked + span{background:var(--pc-blue);border-color:var(--pc-blue);color:#fff}
+.ce-dias input:focus-visible + span{box-shadow:0 0 0 3px var(--pc-blue-tint)}
+@media (max-width:720px){
+  .ce-agenda,.ce-auto-campos,.ce-auto-enlace{grid-template-columns:1fr}
+}
 
 /* ---------- Reto (admin) ---------- */
 .reto-lista{padding:8px}
