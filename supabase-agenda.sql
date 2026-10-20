@@ -13,6 +13,7 @@
 -- 1) Segundo encuentro de cada sesión ---------------------------------
 alter table public.cronograma add column if not exists fecha2 date;
 alter table public.cronograma add column if not exists hora2  time;
+alter table public.cronograma add column if not exists enlace2 text;   -- cada encuentro con su propio enlace
 
 -- 2) El tipo «qa» (preguntas y respuestas) ----------------------------
 alter table public.reto_sesiones drop constraint if exists reto_sesiones_tipo_check;
@@ -41,4 +42,4 @@ notify pgrst, 'reload schema';
 -- y el cronograma con sus columnas nuevas
 select orden, id, corto, nombre, tipo from public.reto_sesiones where grupo_id is null order by orden;
 select column_name from information_schema.columns
- where table_schema = 'public' and table_name = 'cronograma' and column_name in ('fecha2', 'hora2');
+ where table_schema = 'public' and table_name = 'cronograma' and column_name in ('fecha2', 'hora2', 'enlace2');

@@ -27,7 +27,7 @@ const diaCortoTxt = d => new Date(d + 'T12:00:00').toLocaleDateString('es-CO', {
 const fechaCorta = d =>new Date(d + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'long' });
 /** Los encuentros de una sesión: uno, o dos cuando la clase de 2 horas se parte en dos de 1 hora. */
 const encuentrosDe = r => !r?.fecha ? [] : r.fecha2
-  ? [{ ...r, parte:1 }, { ...r, fecha:r.fecha2, hora:r.hora2 || r.hora, parte:2 }]
+  ? [{ ...r, parte:1 }, { ...r, fecha:r.fecha2, hora:r.hora2 || r.hora, enlace:r.enlace2 || r.enlace, parte:2 }]
   : [{ ...r, parte:0 }];
 /** El encuentro que sigue (o el que está en curso, con 2 horas de margen); null si ya pasaron todos. */
 const siguienteDe = (r, ahora = Date.now()) => encuentrosDe(r).find(e => momentoDe(e).getTime() + 2 * 36e5 >= ahora) || null;
@@ -283,7 +283,8 @@ function ceFilaHtml(s, r, propias, nueva, partible){
             ${partible ? `
             <span class="ce-p2 ce-p2-lbl">2.ª parte · 1 hora</span>
             <input class="ce-p2" type="date" data-ce-campo="fecha2" value="${escapeHtml(r.fecha2 || '')}" aria-label="Fecha de la 2.ª parte" />
-            <input class="ce-p2" type="time" data-ce-campo="hora2" value="${escapeHtml((r.hora2 || '').slice(0, 5))}" aria-label="Hora de la 2.ª parte" />` : ''}
+            <input class="ce-p2" type="time" data-ce-campo="hora2" value="${escapeHtml((r.hora2 || '').slice(0, 5))}" aria-label="Hora de la 2.ª parte" />
+            <input class="ce-p2 ce-p2-enlace" type="text" inputmode="url" data-ce-campo="enlace2" placeholder="Enlace de la 2.ª parte" value="${escapeHtml(r.enlace2 || '')}" aria-label="Enlace de la 2.ª parte" />` : ''}
           </div>`;
 }
 
@@ -378,7 +379,7 @@ function generarAgenda(){
       poner(f, 'fecha2', ultima); poner(f, 'hora2', hora);
     } else { poner(f, 'fecha2', ''); poner(f, 'hora2', ''); }
     poner(f, 'plataforma', plat);
-    if (url) poner(f, 'enlace', url);
+    if (url){ poner(f, 'enlace', url); poner(f, 'enlace2', url); }
   }
   msg.textContent = '';
   toast(`Listo: del ${fechaCorta(primera)} al ${fechaCorta(ultima)}. Revisa y toca «Guardar cronograma».`);
@@ -466,6 +467,7 @@ async function guardarCronograma(){
     const p2 = partida && f.hasAttribute('data-ce-partible');
     return { grupo_id:g.id, sesion_id:f.dataset.ce, fecha:v('fecha') || null, hora:v('hora') || null,
              fecha2:p2 ? v('fecha2') || null : null, hora2:p2 ? v('hora2') || null : null,
+             enlace2:p2 ? enlace(v('enlace2')) || null : null,
              plataforma:v('plataforma') || 'Google Meet', enlace:enlace(v('enlace')) || null, updated_at:new Date().toISOString() };
   });
   const sinFecha2 = partida && filas.some(f => f.fecha && !f.fecha2 && $(`[data-ce="${f.sesion_id}"]`).hasAttribute('data-ce-partible'));
@@ -473,6 +475,8 @@ async function guardarCronograma(){
   // fecha2 y hora2 solo viajan si la base ya tiene las columnas (supabase-agenda.sql) o si se usan
   if (!CRONO.some(r => 'fecha2' in r) && !filas.some(f => f.fecha2 || f.hora2))
     filas.forEach(f => { delete f.fecha2; delete f.hora2; });
+  if (!CRONO.some(r => 'enlace2' in r) && !filas.some(f => f.enlace2))
+    filas.forEach(f => { delete f.enlace2; });
 
   btn.disabled = true; btn.textContent = 'Guardando…'; msg.textContent = '';
   try {
@@ -1004,7 +1008,7 @@ function claseHtml(lista){
         <h2>${escapeHtml(s.name)}</h2>
         ${s.desc ? `<p>${escapeHtml(s.desc)}</p>` : ''}
         <div class="clase-acc">
-          ${futura && r.enlace ? `<a class="btn btn-entrar" href="${escapeHtml(r.enlace)}" target="_blank" rel="noopener">
+          ${futura && siguienteDe(r).enlace ? `<a class="btn btn-entrar" href="${escapeHtml(siguienteDe(r).enlace)}" target="_blank" rel="noopener">
               <svg class="ico"><use href="#i-video"/></svg> Entrar al encuentro</a>` : ''}
           ${IS_ADMIN && fase1 ? `<button class="btn" data-clase-editar><svg class="ico"><use href="#i-edit"/></svg> Editar clase</button>` : ''}
         </div>

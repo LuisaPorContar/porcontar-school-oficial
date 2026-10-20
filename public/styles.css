@@ -1200,6 +1200,7 @@ body{
 /* 2.ª parte de una clase (agenda de 2 encuentros de 1 hora): segunda línea de la fila */
 .ce-p2{display:none}
 .ce-tabla.is-partida .ce-p2{display:block}
+.ce-p2-enlace{grid-column:5}
 .ce-p2-lbl{grid-column:1;justify-self:end;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pc-blue)}
 
 /* Agenda automática */
