@@ -203,6 +203,21 @@ footer{max-width:1100px;margin:0 auto;padding:28px 32px 0;color:var(--ink-3);fon
   .sw small{display:none}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+    /* lista de arranque */
+    .arranque{margin:18px 0 6px}
+    .arranque details{border:1px solid rgba(0,0,0,.12);border-radius:14px;background:#fff;padding:0 18px}
+    .arranque summary{cursor:pointer;padding:14px 0;font-weight:700;font-size:1.05rem;list-style:none;display:flex;align-items:center;gap:10px}
+    .arranque summary::-webkit-details-marker{display:none}
+    .arranque summary::after{content:'+';margin-left:auto;font-weight:400;opacity:.6}
+    .arranque details[open] summary::after{content:'–'}
+    .arranque ol{margin:0 0 16px;padding-left:22px}
+    .arranque li{margin:10px 0 14px}
+    .arranque li>strong{display:block;margin-bottom:4px}
+    .arranque .l{margin:3px 0;line-height:1.5}
+    .arranque .l .marca{margin-right:6px}
+    .arranque .l em{font-style:normal;font-weight:600;opacity:.75;display:block;margin-top:8px}
+    .arranque .nota{font-size:.92rem;opacity:.8;margin:0 0 14px}
 </style>
 </head>
 <body>
@@ -232,6 +247,93 @@ footer{max-width:1100px;margin:0 auto;padding:28px 32px 0;color:var(--ink-3);fon
 
   <div class="wrap">
     <p class="intro">Si acabas de crear la organización, aplica tal cual lo marcado <strong>Encender</strong> y <strong>Apagar</strong>. Lo marcado <strong>Por decidir</strong> depende de tu empresa: revísalo con tu administrador después de la primera semana de uso. Cada tarjeta explica el criterio y enlaza el artículo de Anthropic donde está documentado.</p>
+  </div>
+
+  <div class="wrap arranque">
+    <details>
+      <summary>Lista de arranque: todo lo que va encendido y apagado, en el orden de la consola</summary>
+      <p class="nota">Para una organización nueva. “Depende” se revisa con el administrador después de la primera semana. Al terminar, guarda una captura con fecha de cada pantalla.</p>
+      <ol>
+        <li><strong>Organización</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Instrucciones de la organización, dominio verificado, aprobación del administrador para nuevos miembros, restringir la creación de organizaciones, SSO si el dominio ya está verificado.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Enlace de invitación, aprovisionamiento automático (JIT), invitaciones por miembros, fusionar organizaciones.</p>
+          <p class="l"><span class="marca m-decidir">Depende</span>Detectable.</p>
+        </li>
+        <li><strong>Facturación</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Créditos de uso.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Recarga automática.</p>
+        </li>
+        <li><strong>Uso</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Límite de gasto mensual, solicitudes de créditos de uso.</p>
+          <p class="l"><span class="marca m-decidir">Depende</span>Activar créditos de uso para los miembros.</p>
+        </li>
+        <li><strong>Miembros</strong>
+          <p class="l"><span class="marca m-decidir">Depende</span>Sin interruptores: cada persona entra con correo del dominio, tipo de asiento y rol. Revisar las invitaciones pendientes, que ocupan asiento desde que se envían.</p>
+        </li>
+        <li><strong>Datos y privacidad</strong>
+          <p class="l"><em>Uso compartido</em></p>
+          <p class="l"><span class="marca m-activar">Encender</span>Compartir chats, compartir chats que usan conectores, compartir sesiones en la nube, compartir proyectos.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Compartir chats externamente, proyectos públicos.</p>
+          <p class="l"><span class="marca m-decidir">Depende</span>Comparte chats con todas las personas de tu organización: apagar si hay varias áreas.</p>
+          <p class="l"><em>Controles de datos</em></p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Permitir que los miembros exporten sus propios datos.</p>
+          <p class="l"><em>Controles de privacidad</em></p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Valoración de chats, metadatos de ubicación.</p>
+          <p class="l"><em>Monitorización</em></p>
+          <p class="l"><span class="marca m-decidir">Depende</span>Vacía, salvo que TI tenga una herramienta de observabilidad.</p>
+        </li>
+        <li><strong>Capacidades</strong>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Chat y Cowork unificados.</p>
+          <p class="l"><em>Fuentes de datos</em></p>
+          <p class="l"><span class="marca m-activar">Encender</span>Búsqueda web, contenido interactivo, navegador integrado, visualizaciones integradas.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Pregunta a tu organización, hasta revisar los permisos de carpetas.</p>
+          <p class="l"><span class="marca m-decidir">Depende</span>Conectores de artefactos: apagado hasta tener el caso.</p>
+          <p class="l"><em>Aprobaciones de herramientas</em></p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Aprobar automáticamente, iniciar nuevas tareas en aprobar automáticamente, omitir todas las aprobaciones, “permitir siempre” para herramientas de conector.</p>
+          <p class="l"><em>Ejecución de código</em></p>
+          <p class="l"><span class="marca m-activar">Encender</span>Ejecución de código en la nube y creación de archivos; acceso de red saliente con la lista de dominios en “solo gestores de paquetes”.</p>
+          <p class="l"><em>Sesiones remotas</em></p>
+          <p class="l"><span class="marca m-activar">Encender</span>Requerir dispositivos de confianza, tareas programadas (antes Rutinas).</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Acceso al ordenador.</p>
+          <p class="l"><em>Memoria</em></p>
+          <p class="l"><span class="marca m-activar">Encender</span>Habilitar memoria para el equipo.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Temas sensibles en la memoria.</p>
+        </li>
+        <li><strong>Claude Code</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Escritorio, web y móvil; requerir dispositivos de confianza; flujos de trabajo dinámicos; analíticas de Claude Code.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Control remoto (hasta tener el caso), configuración rápida de sesiones en la nube, canales, modo rápido, analíticas de GitHub.</p>
+        </li>
+        <li><strong>Claude in Chrome</strong>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Habilitar para tu equipo, gestores de contraseñas. Si se enciende: piloto con dos personas y lista de sitios permitidos.</p>
+        </li>
+        <li><strong>Claude Tag</strong>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Apagado salvo que la empresa use Slack. Si se usa: encender mensajes directos e instrucciones por alcance; apagar acceso federado a la nube.</p>
+        </li>
+        <li><strong>Cowork</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Habilitar Cowork, ejecutar Cowork en la nube, navegador integrado.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Acceso al ordenador (antes Dispatch), control remoto, aprobación automática, omitir todas las aprobaciones, “permitir siempre” para conectores.</p>
+          <p class="l"><span class="marca m-decidir">Depende</span>Monitorización con OpenTelemetry.</p>
+        </li>
+        <li><strong>Artefactos</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Crear y publicar artefactos, presencia en artefactos.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Uso compartido externo.</p>
+        </li>
+        <li><strong>Claude Design</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Habilitar Claude Design.</p>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Permitir enlaces públicos.</p>
+        </li>
+        <li><strong>Office Agents</strong>
+          <p class="l"><span class="marca m-activar">Encender</span>Permitir que Claude funcione en todas las aplicaciones.</p>
+        </li>
+        <li><strong>Claude Science</strong>
+          <p class="l"><span class="marca m-desactivar">Apagar</span>Completo, salvo que un equipo técnico lo pida.</p>
+        </li>
+        <li><strong>Plugins, conectores y habilidades</strong>
+          <p class="l"><span class="marca m-decidir">Depende</span>Solo fuentes aprobadas por TI. Lista de extensiones de escritorio permitidas. Cada conector nuevo se revisa antes de habilitarlo para la organización.</p>
+        </li>
+      </ol>
+      <p class="nota">Si un ajuste no está en esta lista, déjalo como viene y anótalo para revisarlo.</p>
+    </details>
   </div>
 
   <div class="barra">
@@ -400,6 +502,11 @@ items:[
   criterio:'Apágalo. Cada pulgar envía la conversación completa a Anthropic, que la guarda hasta cinco años y puede usarla para mejorar sus modelos. Con material de clientes no hay caso de uso que lo justifique.',
   fuente:{t:'Gestión de configuraciones de comentarios de usuarios', u:'https://support.anthropic.com/es/articles/10504844-gestion-de-configuraciones-de-comentarios-de-usuarios-en-claude-for-work-planes-team-y-enterprise'}},
 
+ {titulo:'Permitir que los miembros exporten sus propios datos', rec:'desactivar', resumen:'Cada persona puede descargar una copia de sus conversaciones.',
+  que:'Cuando está activo, cada miembro puede descargar una copia de sus propias conversaciones desde su configuración. Los administradores pueden seguir exportando todos los datos de la organización sin importar este ajuste. Viene apagado por defecto.',
+  criterio:'Apagado: la exportación la hace el Propietario Principal y la empresa controla qué sale y cuándo. Enciéndelo solo si la empresa quiere que cada persona pueda llevarse sus conversaciones, por ejemplo al retirarse.',
+  fuente:{t:'Exportar los datos de la organización', u:'https://support.claude.com/articles/13346720'}},
+
  {titulo:'Compartir chats dentro de la organización', rec:'activar', resumen:'Los enlaces de chat funcionan solo entre miembros de la organización.',
   que:'En Team y Enterprise los enlaces a chats solo funcionan para miembros de la misma organización. Al compartir, solo el resultado final y la conversación quedan visibles para quien la abre: los datos de las llamadas de herramientas subyacentes permanecen privados, de modo que la información de archivos y herramientas conectadas no se expone en la instantánea.',
   criterio:'Es la forma más barata de que el equipo aprenda de los prompts de los demás. Enciéndelo y usa los chats compartidos como material de formación interna.',
@@ -413,6 +520,11 @@ items:[
  {titulo:'Compartir chats externamente', rec:'desactivar', resumen:'Invitar por correo a alguien de fuera a ver un chat.',
   que:'Permite que las personas invitadas inviten a alguien fuera de la organización a un chat por correo. El destinatario inicia sesión con la dirección invitada y obtiene una copia de solo lectura.',
   criterio:'Apagado por defecto: es la puerta por la que sale material que no debía salir. Si más adelante necesitas mostrarle a un cliente cómo se llegó a un entregable, enciéndelo con una regla escrita en las instrucciones de la organización sobre cuándo se puede usar.',
+  fuente:{t:'Compartir y dejar de compartir chats', u:'https://support.claude.com/es/articles/10593882-compartir-y-dejar-de-compartir-chats'}},
+
+ {titulo:'Comparte chats con todas las personas de tu organización', rec:'decidir', resumen:'Permite compartir un chat con toda la organización, no solo con personas o grupos concretos.',
+  que:'Cuando está activo, al compartir un chat aparece la opción de hacerlo visible para todas las personas de la organización. Si se desactiva, los chats solo pueden compartirse con personas y grupos concretos. Viene encendido por defecto.',
+  criterio:'En un equipo pequeño donde todos ven lo mismo, déjalo encendido. En una empresa con varias áreas, apágalo: así nadie de contabilidad ve por accidente un chat de recursos humanos, y cada chat se comparte con quien debe verlo.',
   fuente:{t:'Compartir y dejar de compartir chats', u:'https://support.claude.com/es/articles/10593882-compartir-y-dejar-de-compartir-chats'}},
 
  {titulo:'Metadatos de ubicación', rec:'desactivar', resumen:'Ciudad y región aproximadas para mejorar las respuestas.',
@@ -435,6 +547,12 @@ S.push({
 id:'capacidades', nombre:'Capacidades', quien:'Propietario o Propietario Principal',
 intro:'Lo que Claude puede hacer además de escribir: buscar en internet, ejecutar código, crear archivos, recordar y mostrar contenido visual. De aquí depende que funcionen las skills que ya tienes cargadas.',
 items:[
+ {titulo:'Chat y Cowork unificados', rec:'desactivar', resumen:'La nueva experiencia en la que chat y Cowork son una sola cosa y las tareas largas corren en la nube.',
+  que:'Permite que los miembros usen la experiencia unificada de chat y Cowork, en la que Claude puede ejecutar código, trabajar con archivos y mantener tareas largas en la nube desde la misma conversación. Apagado, todo el mundo conserva el chat clásico y Cowork por separado. Viene apagado por defecto.',
+  aviso:'En la experiencia unificada, Claude puede editar un documento en Claude Docs sin pedir aprobación, incluso con la aprobación de conectores apagada.',
+  criterio:'Apagado hasta que salga de novedad. Cuando se encienda cambia la experiencia de todo el equipo de golpe, así que conviene hacerlo con aviso y después de revisar las aprobaciones de herramientas.',
+  fuente:null},
+
  {titulo:'Búsqueda web', rec:'activar', resumen:'Sin esto, Claude trabaja solo con lo que sabe hasta su fecha de corte.',
   que:'Un Propietario o Propietario Principal debe habilitar primero la búsqueda web para todo el espacio de trabajo. Una vez habilitada a nivel de organización, cada miembro puede activarla en su propia configuración. Cuando está encendida, Claude también puede buscar y mostrar imágenes en la conversación: no hay que habilitar nada aparte porque los resultados de imágenes son parte de la búsqueda web y vienen de Bing.',
   criterio:'Para cualquier equipo que trabaje con información de mercado o actualidad esto no se discute. Encendido.',
@@ -540,7 +658,7 @@ items:[
   criterio:'Déjalo apagado mientras GitHub no esté conectado a la organización. Cuando lo esté, el acceso a repositorios debería decidirse en la conexión, no con las credenciales sueltas de cada quien.',
   fuente:null},
 
- {titulo:'Rutinas', rec:'activar', resumen:'Apagarlas también apaga Claude Tag y las tareas programadas de Cowork.',
+ {titulo:'Tareas programadas (antes Rutinas)', rec:'activar', resumen:'Apagarlas también apaga Claude Tag y las tareas programadas de Cowork.',
   que:'Permite que el equipo cree rutinas programadas y activadas por webhook que ejecutan Claude Code de forma autónoma en la nube. Al desactivar esta opción también se desactivan Claude Tag y las tareas programadas para Cowork en la nube.',
   nodoc:'La dependencia entre Rutinas, Claude Tag y las tareas de Cowork está declarada en la consola. No encontré un artículo de soporte que la desarrolle.',
   criterio:'Déjalo encendido: apagarlo mata también las tareas programadas de Cowork y Claude Tag. Si algún día Claude Tag deja de responder en Slack sin explicación, este es el primer lugar donde mirar.',
@@ -716,10 +834,10 @@ items:[
   criterio:'Si un día dejan de correr, revisa Rutinas en Claude Code antes que nada: ese interruptor apaga estas tareas y también Claude Tag.',
   fuente:{t:'Rutinas de Claude Code', u:'https://code.claude.com/docs/en/routines'}},
 
- {titulo:'Habilitar Dispatch', rec:'desactivar', resumen:'Cowork sigue trabajando en tu computador mientras no estás.',
+ {titulo:'Acceso al ordenador (antes Dispatch)', rec:'desactivar', resumen:'Entrar a los archivos, aplicaciones y navegador del computador de cada persona desde claude.ai o el celular.',
   que:'Permite que los miembros mantengan Cowork ejecutándose en su computador para trabajar en tareas en segundo plano. Pueden enviar instrucciones desde cualquier dispositivo con sesión iniciada, y Cowork puede acceder a archivos, aplicaciones y sitios web en esa máquina sin supervisión directa.',
   aviso:'Sin supervisión directa es la parte que hay que leer dos veces.',
-  criterio:'Apagado al arrancar: es la misma exposición que el control remoto de Claude Code. Si lo enciendes después, que sea con dispositivos de confianza activo.',
+  criterio:'Apagado al arrancar: es la misma exposición que el control remoto de Claude Code. Si hoy lo tienes encendido con Requerir dispositivos de confianza apagado, esa es la combinación que hay que corregir primero: enciende los dispositivos de confianza y luego decide si este se queda.',
   fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
 
  {titulo:'Navegador integrado', rec:'activar', resumen:'Claude abre páginas y llena formularios dentro de Cowork.',
@@ -740,6 +858,11 @@ items:[
  {titulo:'Permitir el modo Aprobación automática', rec:'desactivar', resumen:'Claude avanza solo y se detiene ante lo que parece riesgoso.',
   que:'Cuando está habilitado, los usuarios pueden permitir que Claude apruebe acciones por su cuenta en lugar de aprobar cada una, incluido el uso de herramientas, la edición de archivos y la navegación. Claude revisa cada acción por seguridad y hace una pausa ante cualquier cosa que parezca insegura. Está disponible de forma predeterminada, y si el administrador lo desactiva, el modo no aparece en el selector de los usuarios.',
   criterio:'Apagado las primeras semanas: con archivos de clientes, aprobación por acción. Es una relajación de control, no una protección. Cuando el equipo ya sepa qué hace Claude y con qué material, enciéndelo para que la gente no apruebe cincuenta veces por tarea sin leer.',
+  fuente:{t:'Comienza con Claude Cowork', u:'https://support.claude.com/es/articles/13345190-comienza-con-claude-cowork'}},
+
+ {titulo:'Iniciar nuevas tareas en modo Aprobación automática', rec:'desactivar', resumen:'Si está activo, cada tarea nueva arranca aprobando sola; si no, arranca en aprobación manual.',
+  que:'Define en qué modo empiezan las tareas nuevas cuando la aprobación automática pasa a ser el valor por defecto del plan. Apagado, las tareas nuevas empiezan en modo Aprobar manualmente. Quien ya eligió un modo lo conserva para sus tareas nuevas, y cualquiera puede cambiar de modo dentro de una tarea. Las tareas programadas no se ven afectadas.',
+  criterio:'Apagado, junto con el interruptor anterior. Que cada persona decida por tarea cuándo soltar el control, y que el valor por defecto sea aprobar a mano.',
   fuente:{t:'Comienza con Claude Cowork', u:'https://support.claude.com/es/articles/13345190-comienza-con-claude-cowork'}},
 
  {titulo:'Permitir el modo Omitir todas las aprobaciones', rec:'desactivar', resumen:'Claude actúa sin preguntar y nada verifica sus acciones.',
