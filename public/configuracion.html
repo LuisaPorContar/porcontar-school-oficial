@@ -230,6 +230,10 @@ footer{max-width:1100px;margin:0 auto;padding:28px 32px 0;color:var(--ink-3);fon
   </div>
 
 
+  <div class="wrap">
+    <p class="intro">Si acabas de crear la organización, aplica tal cual lo marcado <strong>Encender</strong> y <strong>Apagar</strong>. Lo marcado <strong>Por decidir</strong> depende de tu empresa: revísalo con tu administrador después de la primera semana de uso. Cada tarjeta explica el criterio y enlaza el artículo de Anthropic donde está documentado.</p>
+  </div>
+
   <div class="barra">
     <div class="wrap">
       <button class="filtro" data-f="todo" aria-pressed="true">Todo</button>
@@ -271,14 +275,14 @@ items:[
   criterio:'Sin asientos libres, Detectable es una llave abierta hacia una fila de solicitudes que no puedes atender. Enciéndelo cuando haya asientos comprados y un criterio claro de quién entra.',
   fuente:{t:'Buscar y unirse a una organización de Team o Enterprise', u:'https://support.claude.com/es/articles/13566435-buscar-y-unirse-a-una-organizacion-de-team-o-enterprise'}},
 
- {titulo:'Verificación de dominio por registro TXT', rec:'info', resumen:'El paso técnico que falta para el dominio del colegio.',
+ {titulo:'Verificación de dominio por registro TXT', rec:'info', resumen:'El paso técnico que deja un dominio en Pendiente si no se completa.',
   que:'La pantalla de configuración muestra un registro TXT que empieza con anthropic-domain-verification-. En tu proveedor de DNS se agrega un registro TXT con Host o Nombre en @, que es la raíz del dominio, y el valor pegado exacto. Se suma a los registros TXT existentes, no los reemplaza. El valor distingue mayúsculas de minúsculas y hay que copiarlo completo. Guárdalo antes de salir de la pantalla: una vez que el dominio queda en Pendiente, la consola no vuelve a mostrarlo y hay que eliminar y volver a agregar el dominio para generar uno nuevo.',
   criterio:'Aquí es donde se atascan casi todos los dominios que quedan en Pendiente. Si nadie guardó ese valor TXT, la salida es eliminar el dominio y empezar de nuevo con el DNS abierto en otra pestaña.',
   fuente:{t:'Configurar inicio de sesión único (SSO)', u:'https://support.claude.com/es/articles/13132885-configurar-inicio-de-sesion-unico-sso'}},
 
- {titulo:'Inicio de sesión único (SSO)', rec:'decidir', resumen:'Permite entrar con las credenciales corporativas del dominio verificado.',
+ {titulo:'Inicio de sesión único (SSO)', rec:'activar', resumen:'Permite entrar con las credenciales corporativas del dominio verificado.',
   que:'Permite que las cuentas con correos de dominio verificado inicien sesión mediante SSO. Anthropic usa WorkOS como proveedor para la verificación de dominio y la configuración de SSO. Al activarlo, los usuarios existentes son forzados a cerrar sesión e iniciar sesión de nuevo. El descubrimiento de organizaciones deja de aplicar: el aprovisionamiento pasa a manejarse desde el proveedor de identidad.',
-  criterio:'En un equipo pequeño no vale la fricción. SSO empieza a pagar cuando entra y sale gente seguido o cuando un cliente corporativo lo exige por contrato.',
+  criterio:'Si el dominio ya está verificado, enciéndelo: es la forma de que la gente entre con la cuenta de la empresa y pierda el acceso el mismo día que se va. Solo déjalo apagado mientras el dominio siga en Pendiente.',
   fuente:{t:'Configurar inicio de sesión único (SSO)', u:'https://support.claude.com/es/articles/13132885-configurar-inicio-de-sesion-unico-sso'}},
 
  {titulo:'Aprovisionamiento justo a tiempo (JIT)', rec:'desactivar', resumen:'Crea las cuentas solas en el primer inicio de sesión. Requiere SSO.',
@@ -291,9 +295,9 @@ items:[
   criterio:'Es el ajuste que más rápido vacía el presupuesto sin que nadie decida nada. Déjalo apagado mientras el equipo sea pequeño y las licencias estén al tope.',
   fuente:{t:'Gestionar miembros en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13133750-gestionar-miembros-en-planes-team-y-enterprise'}},
 
- {titulo:'Invitaciones de miembros', rec:'decidir', resumen:'Deja que cualquiera del equipo invite gente sin pasar por un administrador.',
+ {titulo:'Invitaciones de miembros', rec:'desactivar', resumen:'Deja que cualquiera del equipo invite gente sin pasar por un administrador.',
   que:'Cualquier miembro accede al flujo de invitación desde el selector de cuenta en Claude. Lo que pasa después depende de tu configuración de aprobación: con aprobación individual la solicitud llega a un administrador y la invitación solo se envía cuando la apruebas; con aprobación automática se envía de inmediato. Las invitaciones enviadas por miembros siguen las mismas restricciones de dominio que cualquier otra vía de entrada.',
-  criterio:'Encendido tiene sentido justamente cuando la aprobación está en manual, porque la persona propone y un administrador confirma. Si algún día pasas a aprobación automática, apágalo el mismo día.',
+  criterio:'Apagado al arrancar: las personas entran por el administrador y nadie más. Enciéndelo solo si la aprobación está en manual y el equipo ya es grande; si algún día pasas a aprobación automática, apágalo el mismo día.',
   fuente:{t:'Gestionar miembros en planes Team y Enterprise', u:'https://support.claude.com/es/articles/13133750-gestionar-miembros-en-planes-team-y-enterprise'}},
 
  {titulo:'Aprobación de nuevos miembros: requerir aprobación del administrador', rec:'activar', resumen:'Es lo que produce la cola de solicitudes pendientes.',
@@ -391,9 +395,9 @@ items:[
   criterio:'Hazlo una vez al trimestre y guarda el archivo fuera de Claude. Es tu respaldo si algún día hay que migrar de plan o de organización.',
   fuente:null},
 
- {titulo:'Calificar conversaciones', rec:'decidir', resumen:'Los pulgares arriba y abajo que envían comentarios a Anthropic.',
+ {titulo:'Calificar conversaciones', rec:'desactivar', resumen:'Los pulgares arriba y abajo que envían comentarios a Anthropic.',
   que:'Como Propietario Principal o Propietario puedes gestionar la capacidad de los miembros de enviar comentarios a Anthropic mediante pulgar arriba o pulgar abajo, habilitándola o deshabilitándola para toda la organización.',
-  criterio:'Si el equipo trabaja con material de clientes que no debería salir ni siquiera en un reporte de calidad, apágalo. Si lo que se busca es que Claude mejore en esos casos de uso, déjalo encendido y explícale al equipo qué implica.',
+  criterio:'Apágalo. Cada pulgar envía la conversación completa a Anthropic, que la guarda hasta cinco años y puede usarla para mejorar sus modelos. Con material de clientes no hay caso de uso que lo justifique.',
   fuente:{t:'Gestión de configuraciones de comentarios de usuarios', u:'https://support.anthropic.com/es/articles/10504844-gestion-de-configuraciones-de-comentarios-de-usuarios-en-claude-for-work-planes-team-y-enterprise'}},
 
  {titulo:'Compartir chats dentro de la organización', rec:'activar', resumen:'Los enlaces de chat funcionan solo entre miembros de la organización.',
@@ -406,14 +410,14 @@ items:[
   criterio:'El corte que hace Claude aquí es sensato: se comparte el razonamiento, no la base de datos. Déjalo encendido.',
   fuente:{t:'Compartir y dejar de compartir chats', u:'https://support.claude.com/es/articles/10593882-compartir-y-dejar-de-compartir-chats'}},
 
- {titulo:'Compartir chats externamente', rec:'decidir', resumen:'Invitar por correo a alguien de fuera a ver un chat.',
+ {titulo:'Compartir chats externamente', rec:'desactivar', resumen:'Invitar por correo a alguien de fuera a ver un chat.',
   que:'Permite que las personas invitadas inviten a alguien fuera de la organización a un chat por correo. El destinatario inicia sesión con la dirección invitada y obtiene una copia de solo lectura.',
-  criterio:'Es útil para mostrarle a un cliente cómo se llegó a un entregable. También es la puerta por la que sale material que no debía salir. Si lo enciendes, que sea con una regla escrita en las instrucciones de la organización sobre cuándo se puede usar.',
+  criterio:'Apagado por defecto: es la puerta por la que sale material que no debía salir. Si más adelante necesitas mostrarle a un cliente cómo se llegó a un entregable, enciéndelo con una regla escrita en las instrucciones de la organización sobre cuándo se puede usar.',
   fuente:{t:'Compartir y dejar de compartir chats', u:'https://support.claude.com/es/articles/10593882-compartir-y-dejar-de-compartir-chats'}},
 
- {titulo:'Metadatos de ubicación', rec:'decidir', resumen:'Ciudad y región aproximadas para mejorar las respuestas.',
+ {titulo:'Metadatos de ubicación', rec:'desactivar', resumen:'Ciudad y región aproximadas para mejorar las respuestas.',
   que:'Permite que Claude use metadatos de ubicación aproximada, a nivel de ciudad o región, para mejorar la experiencia de producto de los miembros del equipo.',
-  criterio:'Si el equipo trabaja en varios países, ahorra tener que aclarar la ubicación en cada consulta. Es dato de las personas, no de la empresa, así que decídelo con la misma regla que uses para cualquier otro dato personal.',
+  criterio:'Apagado: es dato de las personas, no de la empresa, y la ubicación se aclara en una línea cuando hace falta. Enciéndelo solo si el equipo trabaja en varios países y lo pide.',
   fuente:null},
 
  {titulo:'Compartir sesiones en la nube', rec:'activar', resumen:'Lo que corre en la nube queda en la cuenta de Claude; lo local, en el computador de cada quien.',
@@ -441,15 +445,15 @@ items:[
   criterio:'El detalle que importa aquí es que la consulta original no viaja completa a Google ni a Bing. Con eso claro, no hay razón para apagarlo.',
   fuente:{t:'Contenido visual e interactivo para planes Team y Enterprise', u:'https://support.claude.com/es/articles/13663666-contenido-visual-e-interactivo-para-planes-team-y-enterprise'}},
 
- {titulo:'Pregunta a tu organización', rec:'decidir', resumen:'Un proyecto que busca en todas las fuentes conectadas de la organización.',
+ {titulo:'Pregunta a tu organización', rec:'desactivar', resumen:'Un proyecto que busca en todas las fuentes conectadas de la organización.',
   que:'La búsqueda empresarial agrega un proyecto preconfigurado que aparece en la barra lateral de cada miembro y que busca en las fuentes de datos conectadas de la organización para dar respuestas citadas. Viene habilitado por defecto en Team y Enterprise, pero el Propietario debe completar la configuración inicial antes de que otros miembros puedan usarlo, y es quien controla qué aplicaciones quedan conectadas al proyecto. Cada usuario debe autenticarse por su cuenta en esas aplicaciones antes de usarlas.',
-  criterio:'Suele estar encendido pero sin configurar, que es lo mismo que apagado con ruido visual. Dedícale veinte minutos. Con Drive y el correo conectados deja de existir la pregunta de dónde quedó tal documento.',
+  criterio:'Apagado hasta revisar los permisos de Drive o SharePoint: busca en todo lo que cada persona pueda abrir, incluidas las carpetas compartidas con todos por error. Cuando los permisos estén limpios, enciéndelo y dedícale veinte minutos de configuración.',
   fuente:{t:'Usar búsqueda empresarial', u:'https://support.claude.com/es/articles/12489464-usar-busqueda-empresarial'}},
 
- {titulo:'Conectores de artefactos', rec:'decidir', resumen:'Artefactos que leen y escriben en herramientas externas.',
+ {titulo:'Conectores de artefactos', rec:'desactivar', resumen:'Artefactos que leen y escriben en herramientas externas.',
   que:'Los artefactos pueden conectarse a servicios externos mediante MCP, lo que permite aplicaciones interactivas que leen y escriben en herramientas como Asana, Google Calendar o Slack, incluidos servidores MCP personalizados. Cuando un artefacto necesita acceder a una herramienta, se pide aprobación en la primera interacción. Cada usuario debe autenticar los servidores por separado, incluso con artefactos compartidos. Los administradores pueden habilitar o deshabilitar el acceso MCP de artefactos a nivel de organización, pero no pueden administrar qué servidores MCP específicos usan los artefactos.',
   aviso:'Esa última parte es la que hay que sopesar: puedes abrir o cerrar la puerta, pero no elegir por dónde entran una vez abierta.',
-  criterio:'Enciéndelo si vas a construir tableros vivos para clientes. Si no tienes ese caso todavía, no abras una puerta que no puedes acotar.',
+  criterio:'Apagado hasta tener el caso de uso: no abras una puerta que no puedes acotar. Enciéndelo cuando vayas a construir tableros vivos para clientes.',
   fuente:{t:'Qué son los artefactos y cómo los uso', u:'https://support.claude.com/es/articles/9487310-que-son-los-artefactos-y-como-los-uso'}},
 
  {titulo:'Visualizaciones integradas', rec:'activar', resumen:'Gráficos y diagramas dentro de la conversación.',
@@ -536,10 +540,10 @@ items:[
   criterio:'Déjalo apagado mientras GitHub no esté conectado a la organización. Cuando lo esté, el acceso a repositorios debería decidirse en la conexión, no con las credenciales sueltas de cada quien.',
   fuente:null},
 
- {titulo:'Rutinas', rec:'decidir', resumen:'Apagarlas también apaga Claude Tag y las tareas programadas de Cowork.',
+ {titulo:'Rutinas', rec:'activar', resumen:'Apagarlas también apaga Claude Tag y las tareas programadas de Cowork.',
   que:'Permite que el equipo cree rutinas programadas y activadas por webhook que ejecutan Claude Code de forma autónoma en la nube. Al desactivar esta opción también se desactivan Claude Tag y las tareas programadas para Cowork en la nube.',
   nodoc:'La dependencia entre Rutinas, Claude Tag y las tareas de Cowork está declarada en la consola. No encontré un artículo de soporte que la desarrolle.',
-  criterio:'Ojo con este: es un interruptor que apaga tres cosas. Si algún día Claude Tag deja de responder en Slack sin explicación, este es el primer lugar donde mirar.',
+  criterio:'Déjalo encendido: apagarlo mata también las tareas programadas de Cowork y Claude Tag. Si algún día Claude Tag deja de responder en Slack sin explicación, este es el primer lugar donde mirar.',
   fuente:{t:'Rutinas de Claude Code', u:'https://code.claude.com/docs/en/routines'}},
 
  {titulo:'Canales', rec:'desactivar', resumen:'Mensajes entrantes de servidores MCP dentro de una sesión.',
@@ -591,9 +595,9 @@ S.push({
 id:'chrome', nombre:'Claude in Chrome', quien:'Propietario, más capacidad por rol en Enterprise',
 intro:'La extensión que deja a Claude leer páginas, hacer clic y llenar formularios en el navegador. Es la sección con más superficie de riesgo de toda la consola.',
 items:[
- {titulo:'Habilitar para tu equipo', rec:'decidir', resumen:'Dos controles la gobiernan: este interruptor y una capacidad por rol.',
+ {titulo:'Habilitar para tu equipo', rec:'desactivar', resumen:'Dos controles la gobiernan: este interruptor y una capacidad por rol.',
   que:'Claude in Chrome tiene su propio permiso, separado del de Cowork, y no hereda el acceso de Cowork de un usuario. Dos configuraciones lo controlan: un interruptor a nivel de organización y una capacidad por rol que se otorga o se retiene, esta última aplicable a organizaciones Enterprise con roles personalizados. El tráfico de chat de la extensión pasa por los mismos puntos de conexión de Claude que ya usas, así que los controles de red que tengas ahí también aplican.',
-  criterio:'Si lo enciendes, hazlo como piloto con dos personas y con lista de permitidos, no para todo el equipo de golpe.',
+  criterio:'Apagado al arrancar: Claude ve todo lo que hay en pantalla. Cuando lo enciendas, hazlo como piloto con dos personas y con lista de permitidos, no para todo el equipo de golpe.',
   fuente:{t:'Controles de administrador de Claude en Chrome', u:'https://support.claude.com/es/articles/13065128-controles-de-administrador-de-claude-en-chrome'}},
 
 
@@ -712,10 +716,10 @@ items:[
   criterio:'Si un día dejan de correr, revisa Rutinas en Claude Code antes que nada: ese interruptor apaga estas tareas y también Claude Tag.',
   fuente:{t:'Rutinas de Claude Code', u:'https://code.claude.com/docs/en/routines'}},
 
- {titulo:'Habilitar Dispatch', rec:'decidir', resumen:'Cowork sigue trabajando en tu computador mientras no estás.',
+ {titulo:'Habilitar Dispatch', rec:'desactivar', resumen:'Cowork sigue trabajando en tu computador mientras no estás.',
   que:'Permite que los miembros mantengan Cowork ejecutándose en su computador para trabajar en tareas en segundo plano. Pueden enviar instrucciones desde cualquier dispositivo con sesión iniciada, y Cowork puede acceder a archivos, aplicaciones y sitios web en esa máquina sin supervisión directa.',
   aviso:'Sin supervisión directa es la parte que hay que leer dos veces.',
-  criterio:'Si lo enciendes, que sea con dispositivos de confianza activo. Es la misma exposición que el control remoto de Claude Code.',
+  criterio:'Apagado al arrancar: es la misma exposición que el control remoto de Claude Code. Si lo enciendes después, que sea con dispositivos de confianza activo.',
   fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
 
  {titulo:'Navegador integrado', rec:'activar', resumen:'Claude abre páginas y llena formularios dentro de Cowork.',
@@ -733,9 +737,9 @@ items:[
   criterio:'Los ajustes están en la sección Artefactos de esta guía: crear y publicar encendido, uso compartido externo apagado.',
   fuente:null},
 
- {titulo:'Permitir el modo Aprobación automática', rec:'decidir', resumen:'Claude avanza solo y se detiene ante lo que parece riesgoso.',
+ {titulo:'Permitir el modo Aprobación automática', rec:'desactivar', resumen:'Claude avanza solo y se detiene ante lo que parece riesgoso.',
   que:'Cuando está habilitado, los usuarios pueden permitir que Claude apruebe acciones por su cuenta en lugar de aprobar cada una, incluido el uso de herramientas, la edición de archivos y la navegación. Claude revisa cada acción por seguridad y hace una pausa ante cualquier cosa que parezca insegura. Está disponible de forma predeterminada, y si el administrador lo desactiva, el modo no aparece en el selector de los usuarios.',
-  criterio:'Es el punto medio razonable: sin él, la gente aprueba cincuenta veces por tarea y termina aprobando sin leer. Aun así es una relajación de control, no una protección, así que decídelo según con qué material trabaje el equipo. Con archivos de clientes, aprobación por acción.',
+  criterio:'Apagado las primeras semanas: con archivos de clientes, aprobación por acción. Es una relajación de control, no una protección. Cuando el equipo ya sepa qué hace Claude y con qué material, enciéndelo para que la gente no apruebe cincuenta veces por tarea sin leer.',
   fuente:{t:'Comienza con Claude Cowork', u:'https://support.claude.com/es/articles/13345190-comienza-con-claude-cowork'}},
 
  {titulo:'Permitir el modo Omitir todas las aprobaciones', rec:'desactivar', resumen:'Claude actúa sin preguntar y nada verifica sus acciones.',
@@ -748,10 +752,10 @@ items:[
   criterio:'Apagado. Una instrucción escondida en un correo o en un documento de cliente no debería poder escribir en el CRM sin que alguien lo vea.',
   fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
 
- {titulo:'Control remoto de Cowork', rec:'decidir', resumen:'Controlar Cowork desde claude.ai o el móvil. Solo junto con dispositivos de confianza.',
+ {titulo:'Control remoto de Cowork', rec:'desactivar', resumen:'Controlar Cowork desde claude.ai o el móvil. Solo junto con dispositivos de confianza.',
   que:'Permite que el equipo controle Cowork en sus computadoras desde claude.ai o la aplicación móvil. Esas sesiones pueden acceder a archivos, herramientas y aplicaciones en la computadora del usuario. Es un interruptor distinto al de Claude Code, pero Requerir dispositivos de confianza es uno solo: aplica sin importar cuál de los dos controles remotos esté activo.',
   aviso:'Acceder a archivos, herramientas y aplicaciones de la computadora es exactamente lo que suena. Sin dispositivos de confianza, basta una sesión abierta en un navegador ajeno.',
-  criterio:'Enciéndelo junto con Requerir dispositivos de confianza, nunca solo. Si hoy tienes el control remoto encendido y los dispositivos de confianza apagados, ese es el primer ajuste que hay que cambiar.',
+  criterio:'Apagado al arrancar. Si lo enciendes después, hazlo junto con Requerir dispositivos de confianza, nunca solo. Si hoy tienes el control remoto encendido y los dispositivos de confianza apagados, ese es el primer ajuste que hay que cambiar.',
   fuente:{t:'Usar Claude Cowork de forma segura', u:'https://support.claude.com/es/articles/13364135-usar-claude-cowork-de-forma-segura'}},
 
  {titulo:'Monitoreo con OpenTelemetry', rec:'decidir', resumen:'Enviar eventos a tus herramientas de observabilidad.',
