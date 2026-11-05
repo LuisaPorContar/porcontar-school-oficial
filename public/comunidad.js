@@ -1,5 +1,5 @@
 /* ================================================================
-   COMUNIDAD — un muro compartido por toda la academia
+   COMUNIDAD — una por empresa o cohorte (más los avisos generales del equipo)
    Cualquier persona con acceso y el equipo de PorContar publican
    (texto, imágenes, archivos, video, notas de voz y encuestas),
    dan «Me gusta», comentan y se responden. Cada quien borra lo suyo;
@@ -55,7 +55,7 @@ setTimeout(comunidadRefrescarCuenta, 4500);
 setInterval(comunidadRefrescarCuenta, 120000);
 
 async function cargarComunidad(){
-  try { COMU.posts = await store.comunidadFeed(); COMU.falla = ''; }
+  try { COMU.posts = await store.comunidadFeed(IS_ADMIN ? vistaComo || null : null); COMU.falla = ''; }
   catch (err){
     console.warn(err);
     COMU.posts = [];
@@ -97,6 +97,7 @@ function comuTexto(t){
 const comuFirma = x => `
   <b>${escapeHtml(x.autor)}</b>
   ${x.es_admin ? '<span class="cm-equipo">Equipo PorContar</span>' : x.grupo ? `<span class="cm-grupo">${escapeHtml(x.grupo)}</span>` : ''}
+  ${IS_ADMIN && 'grupo_id' in x ? `<span class="cm-para ${x.grupo_id ? '' : 'is-todos'}">${x.grupo_id ? 'Para ' + escapeHtml(x.para || 'un grupo') : 'Para todos'}</span>` : ''}
   <time>${x.programada ? 'Programada' : escapeHtml(haceTxt(x.created_at))}</time>`;
 const comuIco = id => `<svg class="ico"><use href="#${id}"/></svg>`;
 /** «el mar 3 nov, 8:00 a. m.» para una fecha y hora futura o reciente. */
@@ -145,7 +146,7 @@ function comunidadHtml(){
   const crear = `
     <button class="card cm-crear" data-cm-crear>
       ${comuAvatar(comuYo(), IS_ADMIN, comuMiFoto())}
-      <span>Crear una publicación</span>
+      <span>${IS_ADMIN ? (grupoPorId(vistaComo) ? 'Publicar para ' + escapeHtml(grupoPorId(vistaComo).nombre) : 'Publicar para todos los grupos') : 'Crear una publicación'}</span>
       <i>${comuIco('i-plus')}</i>
     </button>`;
   const lista = COMU.posts.length ? COMU.posts.map(comuPostHtml).join('') : `
@@ -589,7 +590,8 @@ async function comuPublicar(){
     }
     btn.textContent = publicarEn ? 'Programando…' : 'Publicando…';
     const encuesta = opciones ? { opciones, ...(COMP.encDias ? { dias:+COMP.encDias } : {}) } : null;
-    await store.comunidadPublicar(titulo, texto, adjuntos, encuesta, publicarEn);
+    // El admin publica para el grupo de su espacio; en el Principal, para todos
+    await store.comunidadPublicar(titulo, texto, adjuntos, encuesta, publicarEn, IS_ADMIN ? vistaComo || null : null);
     comuCerrar();
     await cargarComunidad(); pintarComunidad();
     toast(publicarEn ? `Programada: se publica ${comuCuandoTxt(publicarEn)}` : 'Publicado en la comunidad');

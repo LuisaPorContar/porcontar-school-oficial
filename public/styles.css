@@ -1873,6 +1873,8 @@ body.vista-clase .rail{top:140px}
 .cm-firma time{color:var(--ink-mute);font-size:13px}
 .cm-equipo{background:var(--night);color:#fff;border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:600}
 .cm-grupo{background:var(--paper-2);color:var(--ink-soft);border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:600}
+.cm-para{background:#EEF2FF;color:#22348F;border-radius:99px;padding:2px 9px;font-size:11.5px;font-weight:600}
+.cm-para.is-todos{background:#FFF8C2;color:#5A4D00}
 .cm-ops{display:flex;align-items:center;gap:2px;flex:none}
 .cm-fijada{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--ink-soft);margin-right:4px}
 .cm-fijada .ico{width:14px;height:14px}
@@ -2079,8 +2081,9 @@ body.vista-clase .rail{top:140px}
 /* La respuesta del equipo se ve sin abrir los comentarios */
 .cm-resp-equipo{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;margin:4px 0 14px;padding:12px 14px;border:1px solid #d9e0fb;
   background:#f6f8ff;border-radius:14px;font:inherit;color:var(--ink);cursor:pointer}
-.cm-resp-equipo .cm-av{width:32px;height:32px;font-size:11.5px}
-.cm-resp-equipo>span{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.cm-resp-equipo .cm-av{width:32px;height:32px;font-size:11.5px;flex:none}
+/* Solo la columna del texto se estira: el avatar (también un span) queda de su tamaño */
+.cm-resp-equipo>span:not(.cm-av){flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .cm-resp-equipo .cm-firma{font-size:13px}
 .cm-resp-equipo .cm-texto{font-size:14.5px}
 .cm-com{align-items:flex-start}

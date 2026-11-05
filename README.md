@@ -65,6 +65,8 @@ Después, `supabase-agenda.sql` — la sesión QA antes de la Presentación y la
 
 `supabase-avisos.sql` (después de `supabase-comunidad.sql`, `supabase-admins.sql` y `supabase-soporte.sql`) — cuando una persona publica o comenta en la Comunidad, les llega un correo a las admin activas (función `supabase/functions/avisos-comunidad`, que envía por el SMTP de Hostinger con el secreto `SMTP_PASS`; *Verify JWT* apagado) y un contador en «Comunidad». Además, solo el **responsable** de cada grupo abre tickets de soporte.
 
+`supabase-comunidad-empresas.sql` (después de `supabase-comunidad-programar.sql`) — **una Comunidad por empresa o cohorte**: cada persona ve y comenta lo de su grupo y los avisos generales; el admin, en el espacio de un grupo, ve y publica solo para él, y en el Principal publica para todos. Después, `supabase-faq-a-comunidad.sql` pasa una sola vez las preguntas frecuentes de Maper a su Comunidad.
+
 `supabase-soporte.sql` — tickets de soporte: cada persona abre los suyos y conversa con el equipo; el admin ve todos, responde, cierra y abre tickets a nombre de alguien.
 
 Todos se pueden correr más de una vez. Sin claves en `config.js`, el muro funciona en modo local (IndexedDB) solo para probar.

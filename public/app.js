@@ -359,12 +359,17 @@ function cloudStore(){
     adminAgregar: (email, nombre, clave) => rpc('admin_agregar', { p_email:email, p_nombre:nombre, p_clave:clave }),
     adminActivar: (email, activo)        => rpc('admin_activar', { p_email:email, p_activo:activo }),
     adminCambiarClave: (actual, nueva)   => rpc('admin_cambiar_clave', { p_actual:actual, p_nueva:nueva }),
-    // Comunidad: un muro para toda la academia (supabase-comunidad.sql)
-    comunidadFeed:        ()              => rpc('comunidad_feed'),
+    // Comunidad: una por empresa o cohorte, más lo general (supabase-comunidad-empresas.sql).
+    // El admin pasa el grupo de su espacio; sin ese SQL todavía, se ve el muro de siempre.
+    async comunidadFeed(grupo){
+      if (!grupo) return rpc('comunidad_feed');
+      try { return await rpc('comunidad_feed', { p_grupo:grupo }); }
+      catch (err){ console.warn('Comunidad por empresa no disponible todavía:', err); return rpc('comunidad_feed'); }
+    },
     // La fecha programada solo viaja si hay: así publicar sigue funcionando sin supabase-comunidad-programar.sql
-    comunidadPublicar:    (titulo, texto, adjuntos, encuesta, publicarEn) =>
+    comunidadPublicar:    (titulo, texto, adjuntos, encuesta, publicarEn, grupo) =>
       rpc('comunidad_publicar', { p_titulo:titulo, p_texto:texto, p_adjuntos:adjuntos || [], p_encuesta:encuesta || null,
-                                  ...(publicarEn ? { p_publicar_en:publicarEn } : {}) }),
+                                  ...(publicarEn ? { p_publicar_en:publicarEn } : {}), ...(grupo ? { p_grupo:grupo } : {}) }),
     comunidadPublicarYa:  id              => rpc('comunidad_publicar_ya', { p_id:id }),
     comunidadVotar:       (id, opcion)    => rpc('comunidad_votar', { p_id:id, p_opcion:opcion }),
     comunidadGustarComentario: id         => rpc('comunidad_gustar_comentario', { p_id:id }),
@@ -1368,7 +1373,9 @@ function renderVista(){
       : 'Las tareas de cada sesión: marca cada paso a medida que lo termines';
   } else if (view.type === 'comunidad'){
     $('#viewTitle').textContent = 'Comunidad';
-    $('#viewSubtitle').textContent = 'El muro de toda la academia: comparte, pregunta y comenta';
+    $('#viewSubtitle').textContent = !IS_ADMIN ? 'El muro de tu equipo: comparte, pregunta y comenta'
+      : grupoPorId(vistaComo) ? 'La comunidad de ' + grupoPorId(vistaComo).nombre + ' y los avisos para todos'
+      : 'Todas las comunidades: lo que publiques aquí lo ven todos los grupos';
   } else if (view.type === 'soporte'){
     $('#viewTitle').textContent = 'Soporte';
     $('#viewSubtitle').textContent = IS_ADMIN ? 'Los tickets de todas las personas: responde, cierra o abre uno a nombre de alguien'
@@ -3229,6 +3236,7 @@ function cambiarEspacio(id){
   toast(g ? `Estás en el espacio de ${g.nombre}` : 'Estás en el espacio Principal');
   // En el panel se pasa al de ese grupo; en lo demás se redibuja con lo del espacio
   if (view.type === 'panel') setView('panel', vistaComo || null);
+  else if (view.type === 'comunidad') setView('comunidad');
   else render();
   $('#sidebar').classList.remove('is-open');
 }
