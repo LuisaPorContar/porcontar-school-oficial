@@ -36,6 +36,24 @@ const COMU_BLOQUES = [
   { id:'emoji',    ico:'i-emoji',    txt:'Emoji' },
 ];
 
+/* ---------- Admin: cuántas publicaciones y comentarios nuevos hay (supabase-avisos.sql) ---------- */
+function comunidadCuenta(n){
+  const c = $('#countComunidad'); if (!c) return;
+  c.textContent = n > 99 ? '99+' : n;
+  c.hidden = !n;
+}
+async function comunidadRefrescarCuenta(){
+  if (!CLOUD || !IS_ADMIN || document.visibilityState !== 'visible') return;
+  if (view.type === 'comunidad') return comunidadCuenta(0);
+  try { comunidadCuenta(await store.comunidadNovedades() || 0); } catch { /* sin el SQL todavía: sin número */ }
+}
+async function comunidadVista(){
+  comunidadCuenta(0);
+  try { await store.comunidadVisto(); } catch { /* sin el SQL todavía */ }
+}
+setTimeout(comunidadRefrescarCuenta, 4500);
+setInterval(comunidadRefrescarCuenta, 120000);
+
 async function cargarComunidad(){
   try { COMU.posts = await store.comunidadFeed(); COMU.falla = ''; }
   catch (err){

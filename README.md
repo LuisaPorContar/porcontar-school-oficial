@@ -13,7 +13,7 @@ Muro de la **Academia de PorContar**. Sitio estático, sin build ni dependencias
   - **Quizzes** — para evaluar lo aprendido.
   - **Catálogo de prompts** — fichas de skills por área; el admin las prende y apaga, o las sube desde un `.md`.
   - **Vocabulario y términos** — la guía embebida.
-  - **Preguntas frecuentes** y **Guardados**. Los videos cortos van en **Cursos** (el interruptor «Cursos» de cada grupo).
+  - **Guardados**. Las dudas van a la **Comunidad** (Preguntas frecuentes se quitó). Los videos cortos van en **Cursos** (el interruptor «Cursos» de cada grupo).
   - **Configurar Claude** — oculto por ahora (`hidden` en `index.html`).
 
 ## Accesos
@@ -62,6 +62,8 @@ Después, `supabase-agenda.sql` — la sesión QA antes de la Presentación y la
 `supabase-comunidad-programar.sql` (después de `supabase-comunidad.sql`) — en la Comunidad, publicaciones programadas (entre 1 minuto y 90 días) y encuestas con fecha de cierre.
 
 `supabase-clases.sql` (después de `supabase-formatos.sql`, `supabase-cursos.sql` y `supabase-agenda.sql`) — las tres modalidades de grupo (**Estándar virtual**, **Estándar presencial** y **Hiperpersonalizado**), el **candado por grupo** (cada clase nace cerrada y el admin la abre desde el menú, en el espacio del grupo; lo cerrado no lo entrega la base) y la **clase** de cada prompt y de cada cápsula de curso. En el presencial no hay grabaciones: en cada clase se ven las cápsulas marcadas con esa clase. La primera vez deja abiertas las clases de los grupos que ya existían.
+
+`supabase-avisos.sql` (después de `supabase-comunidad.sql`, `supabase-admins.sql` y `supabase-soporte.sql`) — cuando una persona publica o comenta en la Comunidad, les llega un correo a las admin activas (función `supabase/functions/avisos-comunidad`, que envía por el SMTP de Hostinger con el secreto `SMTP_PASS`; *Verify JWT* apagado) y un contador en «Comunidad». Además, solo el **responsable** de cada grupo abre tickets de soporte.
 
 `supabase-soporte.sql` — tickets de soporte: cada persona abre los suyos y conversa con el equipo; el admin ve todos, responde, cierra y abre tickets a nombre de alguien.
 

@@ -17,8 +17,7 @@ const EXTRAS_INFO = [
   { k:'skills',  n:'Catálogo de prompts',    d:'Prompts listos para copiar', ico:'i-skill' },
   { k:'resumen', n:'Vocabulario y términos', d:'El diccionario de la academia', ico:'i-resumen' },
   { k:'config',  n:'Configurar Claude',      d:'Qué dejar activo en la organización', ico:'i-config' },
-  { k:'tuto',    n:'Tutoriales express',     d:'Videos cortos con el paso a paso', ico:'i-tuto' },
-  { k:'faq',     n:'Preguntas frecuentes',   d:'Preguntas de la gente y sus respuestas', ico:'i-faq' },
+  { k:'tuto',    n:'Cursos',                 d:'Cursos a tu ritmo y videos cortos con el paso a paso', ico:'i-libro' },
   { k:'comunidad', n:'Comunidad',            d:'El muro compartido de toda la academia', ico:'i-users' },
 ];
 

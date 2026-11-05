@@ -47,7 +47,7 @@ function soporteCuenta(){
   c.hidden = !SOP.pendientes;
 }
 async function soporteRefrescarCuenta(){
-  if (!CLOUD || (!IS_ADMIN && !PERFIL) || document.visibilityState !== 'visible') return;
+  if (!CLOUD || (!IS_ADMIN && !gruposResponsable().length) || document.visibilityState !== 'visible') return;
   try { SOP.pendientes = await store.soportePendientes() || 0; soporteCuenta(); } catch { /* sin el SQL todavía: sin número */ }
 }
 setTimeout(soporteRefrescarCuenta, 4000);

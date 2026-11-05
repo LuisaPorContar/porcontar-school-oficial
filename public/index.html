@@ -188,11 +188,6 @@
         <svg class="ico"><use href="#i-config"/></svg>
         <span class="nav-label">Configurar Claude</span>
       </button>
-      <button class="nav-item" data-view="faq">
-        <svg class="ico"><use href="#i-faq"/></svg>
-        <span class="nav-label">Preguntas frecuentes</span>
-        <span class="count" id="countFaq">0</span>
-      </button>
       <button class="nav-item" data-view="saved">
         <svg class="ico"><use href="#i-bookmark"/></svg>
         <span class="nav-label">Guardados</span>
@@ -253,7 +248,7 @@
       <nav class="subnav" id="subnav" aria-label="Atajos">
         <button data-sub="cursos"><svg class="ico"><use href="#i-libro"/></svg>Cursos</button>
         <button data-sub="inicio"><svg class="ico"><use href="#i-envivo"/></svg>Clases en vivo</button>
-        <button data-sub="comunidad"><svg class="ico"><use href="#i-users"/></svg>Comunidad</button>
+        <button data-sub="comunidad"><svg class="ico"><use href="#i-users"/></svg>Comunidad<span class="sub-cuenta" id="countComunidad" hidden></span></button>
         <button data-sub="soporte" hidden><svg class="ico"><use href="#i-soporte"/></svg>Soporte<span class="sub-cuenta" id="countSoporte" hidden></span></button>
         <a href="https://porcontar.substack.com/" target="_blank" rel="noopener"><svg class="ico"><use href="#i-feed"/></svg>Newsletter<svg class="ico ico-ext"><use href="#i-ext"/></svg></a>
       </nav>
@@ -549,8 +544,6 @@
           <span class="aj-switch"><input type="checkbox" data-extra="config" checked /><i></i></span></label>
         <label class="aj-fila"><span>Cursos</span>
           <span class="aj-switch"><input type="checkbox" data-extra="tuto" checked /><i></i></span></label>
-        <label class="aj-fila"><span>Preguntas frecuentes</span>
-          <span class="aj-switch"><input type="checkbox" data-extra="faq" checked /><i></i></span></label>
         <label class="aj-fila"><span>Comunidad</span>
           <span class="aj-switch"><input type="checkbox" data-extra="comunidad" checked /><i></i></span></label>
       </div>

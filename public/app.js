@@ -392,6 +392,8 @@ function cloudStore(){
     soporteResponder:     (id, texto)     => rpc('soporte_responder', { p_id:id, p_texto:texto }),
     soporteEstado:        (id, estado)    => rpc('soporte_estado', { p_id:id, p_estado:estado }),
     soportePendientes:    ()              => rpc('soporte_pendientes'),
+    comunidadNovedades:   ()              => rpc('comunidad_novedades'),
+    comunidadVisto:       ()              => rpc('comunidad_marcar_visto'),
     async subirLogo(grupoId, file){
       const ext = (file.name.match(/\.(\w+)$/) || [, 'png'])[1].toLowerCase();
       const path = `logos/${grupoId}-${Date.now().toString(36)}.${ext}`;
@@ -663,7 +665,7 @@ function localStore(){
     comunidadBorrarComentario:soloNube, comunidadGrupo:soloNube, comunidadVotar:soloNube,
     comunidadGustarComentario:soloNube, comunidadSubir:soloNube, comunidadPublicarYa:soloNube,
     soporteTickets:soloNube, soporteAbrir:soloNube, soporteMensajes:soloNube, soporteResponder:soloNube,
-    soporteEstado:soloNube, soportePendientes:async () => 0,
+    soporteEstado:soloNube, soportePendientes:async () => 0, comunidadNovedades:async () => 0, comunidadVisto:async () => {},
     fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
     guardarCronograma:soloNube, guardarGrabacion:soloNube, borrarGrabacion:soloNube,
     async sesiones(){ return SESIONES_BASE.slice(); },
@@ -1119,13 +1121,13 @@ function pintarNav(){
     b.classList.toggle('is-off', off && IS_ADMIN && !noAplica);
   });
   // Sin preguntas frecuentes no hay dónde preguntar: la tarjeta de preguntas tampoco se muestra
-  $('#railPregunta').style.display = extraApagado('faq') ? 'none' : '';
+  $('#railPregunta').style.display = 'none';   // sin Preguntas frecuentes: las dudas van a la Comunidad
   const sinCursos = typeof CURSOS === 'undefined' || CURSOS === null;      // sin el módulo, «Cursos» son los tutoriales
   const cursos = $('#subnav [data-sub="cursos"]');
   if (cursos){ cursos.hidden = !IS_ADMIN && extraApagado('tuto'); cursos.classList.toggle('is-off', IS_ADMIN && extraApagado('tuto') && !sinCursos); }
   const comu = $('#subnav [data-sub="comunidad"]');
   if (comu){ comu.hidden = !CLOUD || (!IS_ADMIN && extraApagado('comunidad')); comu.classList.toggle('is-off', IS_ADMIN && extraApagado('comunidad')); }
-  const sop = $('#subnav [data-sub="soporte"]'); if (sop) sop.hidden = !CLOUD || (!IS_ADMIN && !PERFIL);
+  const sop = $('#subnav [data-sub="soporte"]'); if (sop) sop.hidden = !CLOUD || (!IS_ADMIN && !gruposResponsable().length);
   $('#navSessions').innerHTML = SESSIONS.map(s => `
     <div class="nav-row ${s.visible === false ? 'is-apagada' : ''}" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
@@ -1145,8 +1147,7 @@ function pintarNav(){
     </div>`).join('');
 
   $('#fSession').innerHTML = SESSIONS
-    .map(s => `<option value="${s.id}">${escapeHtml(s.title)}</option>`).join('')
-    + `<option value="${FAQ_ID}">${escapeHtml(FAQ.title)}</option>`;
+    .map(s => `<option value="${s.id}">${escapeHtml(s.title)}</option>`).join('');
 
   $('#railSessions').innerHTML = SESSIONS.map(s => `
     <li data-rail="${s.id}"><button data-id="${s.id}">
@@ -1213,7 +1214,10 @@ function setView(type, id){
     (grupoAbierto ? cargarMiembros() : cargarGrupos()).then(render);
   }
   if (type === 'admins') cargarAdmins().then(render);
-  if (type === 'comunidad'){ COMU.posts = null; cargarComunidad().then(() => { if (view.type === 'comunidad') render(); }); }
+  if (type === 'comunidad'){
+    COMU.posts = null; cargarComunidad().then(() => { if (view.type === 'comunidad') render(); });
+    if (IS_ADMIN) comunidadVista();   // lo nuevo ya se vio: el contador vuelve a cero
+  }
   if (type === 'soporte') soporteEntrar(id);   // id: el correo de una persona (admin, desde su fila)
   if (type === 'panel'){
     if (id) panelGrupo = id;
