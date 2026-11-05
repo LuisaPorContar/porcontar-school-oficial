@@ -61,6 +61,8 @@
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M10.6 5.6A9.7 9.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.5 7.3C3.9 9 2.5 12 2.5 12S6 18.5 12 18.5c1.9 0 3.5-.6 4.9-1.5"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/><path d="m3.5 3.5 17 17"/></symbol>
     <!-- empresas y grupos · panel de avance · salir · visto -->
+    <symbol id="i-globo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5Z"/></symbol>
+    <symbol id="i-soporte" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><path d="m6 6 3.5 3.5M14.5 14.5 18 18M18 6l-3.5 3.5M9.5 14.5 6 18"/></symbol>
     <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 5.8a3 3 0 0 1 .5 5.9M17.5 19a5.5 5.5 0 0 0-1.8-4.1"/></symbol>
     <symbol id="i-chart" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 16.5v-4M12 16.5v-8M16 16.5v-5.5"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4.5h4a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-4"/><path d="M10 16.5 5.5 12 10 7.5M5.5 12H15"/></symbol>
@@ -76,6 +78,7 @@
     <symbol id="i-flecha" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
     <symbol id="i-chev" viewBox="0 0 24 24"><path d="m8 10 4-4 4 4M8 14l4 4 4-4"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 6.9-.8"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
     <!-- redes -->
     <symbol id="i-ig" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></symbol>
@@ -185,11 +188,6 @@
         <svg class="ico"><use href="#i-config"/></svg>
         <span class="nav-label">Configurar Claude</span>
       </button>
-      <button class="nav-item" data-view="tuto" title="Videos cortos con el paso a paso">
-        <svg class="ico"><use href="#i-tuto"/></svg>
-        <span class="nav-label">Tutoriales express</span>
-        <span class="count" id="countTuto">0</span>
-      </button>
       <button class="nav-item" data-view="faq">
         <svg class="ico"><use href="#i-faq"/></svg>
         <span class="nav-label">Preguntas frecuentes</span>
@@ -237,6 +235,10 @@
         </div>
       </div>
       <div class="topbar-right">
+        <div class="idioma notranslate" translate="no" role="group" aria-label="Idioma · Language">
+          <svg class="ico"><use href="#i-globo"/></svg>
+          <button type="button" data-idioma="es" title="Español">ES</button><span aria-hidden="true">·</span><button type="button" data-idioma="en" title="English (traducción automática)">EN</button>
+        </div>
         <label class="search">
           <svg class="ico"><use href="#i-search"/></svg>
           <input type="search" id="search" placeholder="Buscar en el muro" />
@@ -252,6 +254,7 @@
         <button data-sub="cursos"><svg class="ico"><use href="#i-libro"/></svg>Cursos</button>
         <button data-sub="inicio"><svg class="ico"><use href="#i-envivo"/></svg>Clases en vivo</button>
         <button data-sub="comunidad"><svg class="ico"><use href="#i-users"/></svg>Comunidad</button>
+        <button data-sub="soporte" hidden><svg class="ico"><use href="#i-soporte"/></svg>Soporte<span class="sub-cuenta" id="countSoporte" hidden></span></button>
         <a href="https://porcontar.substack.com/" target="_blank" rel="noopener"><svg class="ico"><use href="#i-feed"/></svg>Newsletter<svg class="ico ico-ext"><use href="#i-ext"/></svg></a>
       </nav>
     </div>
@@ -453,6 +456,12 @@
         <textarea id="skfPrompt" rows="12" placeholder="Pega aquí el prompt tal cual lo usas."></textarea>
       </label>
 
+      <label class="field">
+        <span>Clase</span>
+        <select id="skfSesion"></select>
+        <small class="gr-nota">Con una clase, el prompt aparece en esa clase y en el catálogo solo cuando abras esa clase para el grupo.</small>
+      </label>
+
       <div class="field">
         <span>¿Quién la ve?</span>
         <div class="aud" id="skfAudiencia"></div>
@@ -517,10 +526,11 @@
 
       <p class="aj-tit">Programa</p>
       <div class="aj-caja">
-        <label class="aj-fila"><span>Formato</span>
+        <label class="aj-fila"><span>Modalidad</span>
           <select id="grFormato">
-            <option value="reto">Reto completo</option>
-            <option value="corto">Bootcamp o charla</option>
+            <option value="reto">Estándar virtual</option>
+            <option value="presencial">Estándar presencial</option>
+            <option value="corto">Hiperpersonalizado</option>
           </select></label>
         <label class="aj-fila"><span>Inicio</span><input type="date" id="grInicio" /></label>
         <label class="aj-fila"><span>Fin</span><input type="date" id="grFin" /></label>
@@ -537,7 +547,7 @@
           <span class="aj-switch"><input type="checkbox" data-extra="resumen" checked /><i></i></span></label>
         <label class="aj-fila"><span>Configurar Claude</span>
           <span class="aj-switch"><input type="checkbox" data-extra="config" checked /><i></i></span></label>
-        <label class="aj-fila"><span>Tutoriales express</span>
+        <label class="aj-fila"><span>Cursos</span>
           <span class="aj-switch"><input type="checkbox" data-extra="tuto" checked /><i></i></span></label>
         <label class="aj-fila"><span>Preguntas frecuentes</span>
           <span class="aj-switch"><input type="checkbox" data-extra="faq" checked /><i></i></span></label>
@@ -619,6 +629,10 @@
 
 <!-- ============ ENTRAR ============ -->
 <div class="login" id="login" hidden>
+  <div class="idioma idioma-login notranslate" translate="no" role="group" aria-label="Idioma · Language">
+    <svg class="ico"><use href="#i-globo"/></svg>
+    <button type="button" data-idioma="es" title="Español">ES</button><span aria-hidden="true">·</span><button type="button" data-idioma="en" title="English (traducción automática)">EN</button>
+  </div>
   <svg class="dona login-dona" viewBox="0 0 200 200" aria-hidden="true">
     <g fill="none" stroke="#4668ff" stroke-width="1" opacity=".85">
       <ellipse cx="100" cy="100" rx="86" ry="34"/>
@@ -648,12 +662,16 @@
 
 <div class="toast" id="toast" hidden></div>
 
+<!-- Aquí se monta, escondido, el traductor de Google cuando alguien elige inglés (idioma.js) -->
+<div id="gTraductor" hidden></div>
 <script src="config.js"></script>
 <script src="vendor/supabase.min.js"></script>
 <script src="sesion.js"></script>
+<script src="idioma.js"></script>
 <script src="app.js"></script>
 <script src="programa.js"></script>
 <script src="comunidad.js"></script>
+<script src="soporte.js"></script>
 <script src="tareas.js"></script>
 <script src="cursos.js"></script>
 </body>

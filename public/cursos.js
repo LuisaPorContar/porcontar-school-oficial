@@ -13,8 +13,9 @@ let CURSOS = null;                 // null = la base aún no tiene el módulo
 let CAPSULAS = [];
 let capsHechas = new Set();        // estudiante: cápsulas que ya vio
 let capComentarios = {};           // id de cápsula → comentarios
-let capPanel = 'lista';            // en la cápsula: 'lista' (avance del curso) o 'coment'
-let capRecursos = false;           // «Resumen y recursos» abierto
+let capPanel = 'coment';           // en la cápsula, el panel junto al video: 'coment' (comentarios) o 'mat' (materiales)
+// El panel abierto o colapsado se recuerda en este navegador
+let capPanelAbierto = (() => { try { return localStorage.getItem('pc-cap-panel') !== 'cerrado'; } catch { return true; } })();
 let editandoCurso = null, editandoCapsula = null;
 
 const NIVELES_CURSO = ['Básico', 'Intermedio', 'Avanzado'];
@@ -229,7 +230,7 @@ function capsulaHtml(){
         ${principal}
       </div>
     </header>
-    <div class="cu-foco-cuerpo">
+    <div class="cu-foco-cuerpo ${capPanelAbierto ? '' : 'is-panel-cerrado'}">
       <aside class="cu-foco-lista">
         <div class="cu-lado-cab">
           <div><b>${hechas} de ${ks.length} completadas</b><span>${pct(hechas, ks.length)}%</span></div>
@@ -246,38 +247,80 @@ function capsulaHtml(){
       </aside>
       <div class="cu-foco-main">
         ${capsulaVideoHtml(k)}
-        ${k.resumen || (k.recursos || []).length ? `<section class="card cu-recursos">
-          ${k.resumen ? `<h4>Resumen</h4><p>${typeof comuTexto === 'function' ? comuTexto(k.resumen) : escapeHtml(k.resumen)}</p>` : ''}
-          ${(k.recursos || []).length ? `<h4>Recursos</h4>${k.recursos.map(r => `
-            <a class="cm-archivo" href="${escapeHtml(r.url)}" target="_blank" rel="noopener"><svg class="ico"><use href="#i-clip"/></svg><span>${escapeHtml(r.nombre || r.url)}</span><svg class="ico"><use href="#i-ext"/></svg></a>`).join('')}` : ''}
-        </section>` : ''}
-        <section class="card cu-comentarios">
-          <h4>Comentarios${coms ? ` (${coms.length})` : ''}</h4>
-          <form class="cu-comentar" data-cu-comentar>
-            <input type="text" maxlength="2000" placeholder="Escribe tu comentario o aporte" aria-label="Comentario" />
-            <button class="icon-btn" type="submit" aria-label="Enviar"><svg class="ico"><use href="#i-flecha"/></svg></button>
-          </form>
-          <div class="cu-coms">${!coms ? '<p class="cm-cargando">Cargando comentarios…</p>'
-            : coms.length ? coms.map(x => `
-              <div class="cm-com ${x.es_admin ? 'es-equipo' : ''}" data-cu-com="${x.id}">
-                ${av(x.autor, x.es_admin, x.foto)}
-                <div class="cm-com-col"><div class="cm-com-caja">
-                  <div class="cm-firma">${typeof comuFirma === 'function' ? comuFirma(x) : escapeHtml(x.autor)}</div>
-                  <div class="cm-texto">${typeof comuTexto === 'function' ? comuTexto(x.texto) : escapeHtml(x.texto)}</div></div>
-                  ${IS_ADMIN || x.mio ? '<div class="cm-com-acc"><button data-cu-com-borrar>Eliminar</button></div>' : ''}</div>
-              </div>`).join('')
-            : '<p class="cm-cargando">Todavía no hay comentarios. Deja el primero.</p>'}</div>
-        </section>
       </div>
+      ${capsulaPanelHtml(k, coms, av)}
     </div>
   </div>`;
 }
 
+/** El panel junto al video: Comentarios y Materiales en pestañas. Colapsado, queda una
+    franja con los dos íconos para volver a abrirlo. */
+function capsulaPanelHtml(k, coms, av){
+  const recursos = k.recursos || [];
+  const nMat = recursos.length + (k.resumen ? 1 : 0);
+  const nCom = coms ? coms.length : 0;
+  const ico = id => `<svg class="ico"><use href="#${id}"/></svg>`;
+  const texto = t => typeof comuTexto === 'function' ? comuTexto(t) : escapeHtml(t);
+  if (!capPanelAbierto) return `
+      <aside class="cu-foco-panel is-cerrado" aria-label="Comentarios y materiales">
+        <button class="cu-panel-riel" data-cu-panel-abrir title="Mostrar el panel" aria-label="Mostrar el panel">${ico('i-flecha')}</button>
+        <button class="cu-panel-riel" data-cu-panel="coment" title="Comentarios" aria-label="Comentarios">${ico('i-comentario')}${nCom ? `<i>${nCom}</i>` : ''}</button>
+        <button class="cu-panel-riel" data-cu-panel="mat" title="Materiales" aria-label="Materiales">${ico('i-clip')}${nMat ? `<i>${nMat}</i>` : ''}</button>
+      </aside>`;
+
+  const comentarios = `
+        <form class="cu-comentar" data-cu-comentar>
+          <input type="text" maxlength="2000" placeholder="Escribe un comentario…" aria-label="Comentario" />
+          <button class="icon-btn" type="submit" aria-label="Enviar">${ico('i-flecha')}</button>
+        </form>
+        <div class="cu-coms">${!coms ? '<p class="cm-cargando">Cargando comentarios…</p>'
+          : coms.length ? coms.map(x => `
+            <div class="cm-com ${x.es_admin ? 'es-equipo' : ''}" data-cu-com="${x.id}">
+              ${av(x.autor, x.es_admin, x.foto)}
+              <div class="cm-com-col"><div class="cm-com-caja">
+                <div class="cm-firma">${typeof comuFirma === 'function' ? comuFirma(x) : escapeHtml(x.autor)}</div>
+                <div class="cm-texto">${texto(x.texto)}</div></div>
+                ${IS_ADMIN || x.mio ? '<div class="cm-com-acc"><button data-cu-com-borrar>Eliminar</button></div>' : ''}</div>
+            </div>`).join('')
+          : '<p class="cu-panel-vacio">Sé la primera persona en comentar esta cápsula.</p>'}</div>`;
+
+  const materiales = nMat ? `
+        <div class="cu-mat">
+          ${k.resumen ? `<h4>Resumen</h4><div class="cu-mat-resumen">${texto(k.resumen)}</div>` : ''}
+          ${recursos.length ? `<h4>Recursos</h4>${recursos.map(r => `
+            <a class="cm-archivo" href="${escapeHtml(r.url)}" target="_blank" rel="noopener">${ico('i-clip')}<span>${escapeHtml(r.nombre || r.url)}</span>${ico('i-ext')}</a>`).join('')}` : ''}
+        </div>`
+    : '<p class="cu-panel-vacio">Esta cápsula no tiene materiales.</p>';
+
+  return `
+      <aside class="cu-foco-panel" aria-label="Comentarios y materiales">
+        <div class="cu-panel-tabs" role="tablist">
+          <button role="tab" class="${capPanel === 'coment' ? 'is-on' : ''}" aria-selected="${capPanel === 'coment'}" data-cu-panel="coment">
+            ${ico('i-comentario')} Comentarios${nCom ? ` <i>${nCom}</i>` : ''}</button>
+          <button role="tab" class="${capPanel === 'mat' ? 'is-on' : ''}" aria-selected="${capPanel === 'mat'}" data-cu-panel="mat">
+            ${ico('i-clip')} Materiales${nMat ? ` <i>${nMat}</i>` : ''}</button>
+          <button class="cu-panel-cerrar" data-cu-panel-cerrar title="Ocultar el panel" aria-label="Ocultar el panel">${ico('i-flecha')}</button>
+        </div>
+        <div class="cu-panel-cuerpo">${capPanel === 'mat' ? materiales : comentarios}</div>
+      </aside>`;
+}
+function capPanelGuardar(abierto){
+  capPanelAbierto = abierto;
+  try { localStorage.setItem('pc-cap-panel', abierto ? 'abierto' : 'cerrado'); } catch {}
+}
+/** Vuelve a pintar solo el panel: el video sigue sonando donde iba. */
+function pintarPanelCapsula(){
+  const k = capsulaPorId(view.id), panel = $('.cu-foco-panel');
+  if (view.type !== 'capsula' || !k || !panel) return render();
+  const av = (nombre, admin, foto) => typeof comuAvatar === 'function' ? comuAvatar(nombre, admin, foto) : '';
+  panel.outerHTML = capsulaPanelHtml(k, capComentarios[k.id], av);
+  $('.cu-foco-cuerpo').classList.toggle('is-panel-cerrado', !capPanelAbierto);
+}
+
 async function abrirCapsula(id){
-  capRecursos = false;
   setView('capsula', id);
   try { capComentarios[id] = await store.capsulaComentarios(id); } catch (err){ capComentarios[id] = []; }
-  if (view.type === 'capsula' && view.id === id) render();
+  if (view.type === 'capsula' && view.id === id) pintarPanelCapsula();
   window.scrollTo(0, 0);
 }
 async function marcarCapsula(id, vista){
@@ -342,6 +385,7 @@ function cuVentanas(){
         <div class="aj-caja" style="margin-top:10px">
           <label class="aj-fila"><span>Título</span><input type="text" id="ckTitulo" maxlength="160" placeholder="Cómo escribir un buen prompt" /></label>
           <label class="aj-fila"><span>Sección</span><input type="text" id="ckSeccion" maxlength="80" list="ckSecciones" placeholder="Introducción" /><datalist id="ckSecciones"></datalist></label>
+          <label class="aj-fila"><span>Clase del reto</span><select id="ckSesion"></select></label>
           <label class="aj-fila"><span>Video</span><input type="text" inputmode="url" id="ckVideo" maxlength="500" placeholder="Enlace de YouTube, Drive, Vimeo, Loom…" /></label>
           <label class="aj-fila"><span>Duración</span><input type="text" id="ckDuracion" maxlength="8" placeholder="04:28" /></label>
         </div>
@@ -400,6 +444,10 @@ function abrirCapsulaForm(k = null){
   $('#ckTitulo').value = k ? k.titulo : '';
   $('#ckSeccion').value = k ? k.seccion : (caps[caps.length - 1]?.seccion || '');
   $('#ckSecciones').innerHTML = [...new Set(caps.map(x => x.seccion).filter(Boolean))].map(s => `<option value="${escapeHtml(s)}">`).join('');
+  // Presencial: la cápsula con clase se ve dentro de esa clase, en el lugar de la grabación
+  $('#ckSesion').innerHTML = '<option value="">Ninguna</option>' + [...SESSIONS, ...OTRAS_SESIONES].filter(x => !x.grupoId)
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(x => `<option value="${x.id}">${escapeHtml(x.title)}</option>`).join('');
+  $('#ckSesion').value = k?.sesion_id || '';
   $('#ckVideo').value = k?.video_url || '';
   $('#ckDuracion').value = k ? k.duracion : '';
   $('#ckResumen').value = k ? k.resumen : '';
@@ -424,7 +472,9 @@ async function guardarCapsula(){
   const k = editandoCapsula ? { ...editandoCapsula }
     : { id:'k' + Date.now().toString(36), curso_id:view.id, orden:Math.max(-1, ...caps.map(x => x.orden || 0)) + 1, visible:true };
   Object.assign(k, { titulo, seccion:$('#ckSeccion').value.trim(), video_url:enlace($('#ckVideo').value) || null, duracion:dur,
-                     resumen:$('#ckResumen').value.trim(), recursos });
+                     resumen:$('#ckResumen').value.trim(), recursos,
+                     sesion_id:$('#ckSesion').value || null });
+  k.cambioSesion = (editandoCapsula?.sesion_id || null) !== k.sesion_id;
   btn.disabled = true; msg.textContent = '';
   try {
     await store.guardarCapsulas([k]);
@@ -503,13 +553,14 @@ $('#posts').addEventListener('click', async e => {
 
   if (view.type !== 'capsula') return;
   if (t('[data-cu-vista]')){ await marcarCapsula(view.id, !capsHechas.has(view.id)); return render(); }
-  if (t('[data-cu-recursos]')){ capRecursos = !capRecursos; return render(); }
   const pn = t('[data-cu-panel]');
-  if (pn){ capPanel = pn.dataset.cuPanel; return render(); }
+  if (pn){ capPanel = pn.dataset.cuPanel; capPanelGuardar(true); return pintarPanelCapsula(); }   // desde la franja, también lo abre
+  if (t('[data-cu-panel-abrir]')){ capPanelGuardar(true); return pintarPanelCapsula(); }
+  if (t('[data-cu-panel-cerrar]')){ capPanelGuardar(false); return pintarPanelCapsula(); }
   if (t('[data-cu-com-borrar]')){
     const id = t('[data-cu-com]').dataset.cuCom;
     if (!(await confirmar({ titulo:'¿Eliminar este comentario?', texto:'No se puede deshacer.', boton:'Eliminar' }))) return;
-    try { await store.capsulaBorrarComentario(id); capComentarios[view.id] = capComentarios[view.id].filter(x => x.id !== id); render(); }
+    try { await store.capsulaBorrarComentario(id); capComentarios[view.id] = capComentarios[view.id].filter(x => x.id !== id); pintarPanelCapsula(); }
     catch (err){ toast(errorMsg(err)); }
   }
 });
@@ -519,7 +570,11 @@ $('#posts').addEventListener('submit', async e => {
   const input = f.querySelector('input'), texto = input.value.trim(), id = view.id;
   if (!texto) return;
   input.disabled = true;
-  try { await store.capsulaComentar(id, texto); capComentarios[id] = await store.capsulaComentarios(id); input.value = ''; render(); }
+  try {
+    await store.capsulaComentar(id, texto); capComentarios[id] = await store.capsulaComentarios(id);
+    pintarPanelCapsula();
+    $('[data-cu-comentar] input')?.focus();
+  }
   catch (err){ toast(errorMsg(err)); input.disabled = false; }
 });
 

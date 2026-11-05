@@ -196,7 +196,7 @@ function inicioHtml(){
       </div>
       <ol class="ini-lista">${filas.map(({ s, r }) => {
         const m = momentoDe(r);
-        const futura = m && m.getTime() > ahora + 36e5 * 2 && !(proxima && proxima.s.id === s.id);
+        const futura = !claseAbierta(s.id);   // cerrada para el grupo: atenuada y con candado
         const esProx = proxima && proxima.s.id === s.id;
         const grabs = grabsG.filter(x => x.sesion_id === s.id);
         const vista = grabs.length && grabs.every(x => progresoVideo[x.id]?.completado);
@@ -254,7 +254,7 @@ function inicioPrincipalHtml(){
       <button class="ini-emp ${g.vigente ? '' : 'is-off'}" data-ini-espacio="${g.id}">
         ${logoHtml(g)}
         <span class="ini-emp-txt"><b>${escapeHtml(g.nombre)}</b>
-          <em>${g.vigente ? (g.formato === 'corto' ? 'Bootcamp o charla' : g.tipo === 'b2c' ? 'Cohorte' : 'Empresa') : 'Acceso vencido o inactivo'}</em></span>
+          <em>${g.vigente ? (g.tipo === 'b2c' ? 'Cohorte' : 'Empresa') + ' · ' + escapeHtml(modalidadTxt(g)) : 'Acceso vencido o inactivo'}</em></span>
         <span class="ini-emp-prox">${prox
           ? `<b>${escapeHtml(s ? s.name : 'Sesión')}</b><em>${escapeHtml(corta(prox))}${prox.hora ? ' · ' + escapeHtml(horaTxt(prox)) : ''}</em>`
           : `<em>${crono.length ? 'Ya terminó' : 'Sin cronograma'}</em>`}</span>
@@ -698,11 +698,13 @@ function destruirReproductor(){
 /** Pinta el bloque de grabaciones de la sesión abierta. No toca el reproductor si nada cambió. */
 function pintarGrabacion(forzar = false){
   const caja = $('#grabacion'); if (!caja) return;
-  const enSesion = view.type === 'session' && !query && fase1 && !isHidden(view.id);
-  const lista = enSesion ? grabacionesDe(view.id) : [];
+  const enSesion = view.type === 'session' && !query && fase1 && !isHidden(view.id) && (IS_ADMIN || claseAbierta(view.id));
+  const presencial = enSesion && esPresencial();
+  const lista = enSesion && !presencial ? grabacionesDe(view.id) : [];
   const avisoAdmin = enSesion && IS_ADMIN && CLOUD && !vistaComo;
   const sel = lista.find(g => g.id === grabElegida[view.id]) || lista[0];
-  const clave = [view.type, view.id, vistaComo, sel?.id, lista.map(g => g.id).join(','), grabAgregando].join('|');
+  const clave = [view.type, view.id, vistaComo, sel?.id, lista.map(g => g.id).join(','), grabAgregando, enSesion, presencial,
+                 presencial ? videosDeClase(view.id).map(k => k.id + (capsHechas.has(k.id) ? '+' : '')).join(',') : ''].join('|');
   if (!forzar && clave === grabPintada) return;
   grabPintada = clave;
   destruirReproductor();
@@ -716,6 +718,7 @@ function pintarGrabacion(forzar = false){
     return;
   }
   if (!enSesion){ caja.innerHTML = ''; return; }
+  if (presencial){ caja.innerHTML = videosClaseHtml(view.id); return; }
 
   // Sin grabación todavía: el estudiante ve un aviso del tamaño del video, con la fecha si la hay
   if (!lista.length && !IS_ADMIN){
@@ -763,6 +766,31 @@ function pintarGrabacion(forzar = false){
         </div>` : ''}
     </section>`;
   if (sel && !sel.drive_id) prepararReproductor(sel);
+}
+
+/** Presencial: los videos del curso marcados con esta clase (los que el estudiante puede ver). */
+function videosDeClase(sesionId){
+  if (typeof CAPSULAS === 'undefined' || !CAPSULAS) return [];
+  return CAPSULAS.filter(k => k.sesion_id === sesionId && (IS_ADMIN || k.visible !== false))
+    .sort((a, b) => (cursoPorId(a.curso_id)?.orden || 0) - (cursoPorId(b.curso_id)?.orden || 0) || a.orden - b.orden);
+}
+function videosClaseHtml(sesionId){
+  const caps = videosDeClase(sesionId);
+  if (!caps.length) return `
+    <div class="vsl vsl-vacio"><div><svg class="ico"><use href="#i-libro"/></svg>
+      <b>${IS_ADMIN ? 'Aquí van los videos del curso para esta clase' : 'Los videos de esta clase todavía no están'}</b>
+      <span>${IS_ADMIN ? 'Este grupo es presencial: no lleva grabación. En Cursos, edita una cápsula y elige esta clase en «Clase del reto».'
+                       : 'Apenas el equipo los suba, los ves aquí.'}</span></div></div>`;
+  return `
+    <section class="cl-videos">
+      <span class="grab-lbl"><svg class="ico"><use href="#i-libro"/></svg> Videos de esta clase</span>
+      <div class="cl-videos-lista">${caps.map(k => `
+        <button class="cl-video ${capsHechas.has(k.id) ? 'is-vista' : ''}" data-cl-capsula="${k.id}">
+          ${miniaturaHtml(k)}
+          <span class="cl-video-txt"><b>${escapeHtml(k.titulo)}</b>
+            <em>${escapeHtml(cursoPorId(k.curso_id)?.titulo || '')}${k.duracion ? ' · ' + escapeHtml(k.duracion) : ''}${capsHechas.has(k.id) ? ' · Visto' : ''}</em></span>
+        </button>`).join('')}</div>
+    </section>`;
 }
 
 function reproductorHtml(g){
@@ -996,6 +1024,17 @@ function claseHtml(lista){
   const futura = !!siguienteDe(r);   // hasta que pase el último encuentro sigue el botón de entrar
   const vistosN = lista.filter(p => vistos.has(p.id)).length;
 
+  const gEsp = IS_ADMIN && vistaComo ? grupoPorId(vistaComo) : null;
+  const candado = gEsp && ABIERTAS ? (claseAbierta(s.id)
+    ? `<div class="cl-candado is-abierta"><svg class="ico"><use href="#i-unlock"/></svg>
+         <span>Abierta para <b>${escapeHtml(gEsp.nombre)}</b>: sus personas ya ven esta clase.</span>
+         <button class="btn" data-candado="${s.id}">Cerrar clase</button></div>`
+    : `<div class="cl-candado"><svg class="ico"><use href="#i-lock"/></svg>
+         <span>Cerrada para <b>${escapeHtml(gEsp.nombre)}</b>: sus personas la ven con candado y sin contenido.</span>
+         <button class="btn btn-primary" data-candado="${s.id}">Abrir clase</button></div>`) : '';
+  const promptsClase = typeof skills !== 'undefined' && !extraApagado('skills')
+    ? skills.filter(k => k.sesionId === s.id && (IS_ADMIN ? alcance(k) : k.visible !== false)) : [];
+
   const recursos = lista.length ? lista.map((p, k) => recursoHtml(p, k, lista)).join('') : `
     <div class="rec-vacio">${IS_ADMIN
       ? 'Todavía no hay recursos en esta clase. Agrega textos, PDF, videos, imágenes o enlaces con <b>Agregar recurso</b>.'
@@ -1003,6 +1042,7 @@ function claseHtml(lista){
 
   return `
     <section class="clase">
+      ${candado}
       <div class="clase-cab">
         <em>${escapeHtml(s.short)}${encuentrosDe(r).map(e => ' · ' + escapeHtml(diaTxt(e)) + (e.hora ? ', ' + escapeHtml(horaTxt(e)) : '')).join('')}</em>
         <h2>${escapeHtml(s.name)}</h2>
@@ -1021,6 +1061,14 @@ function claseHtml(lista){
           : lista.length ? `<span class="rec-cuenta">${vistosN} de ${lista.length} ${lista.length === 1 ? 'visto' : 'vistos'}</span>` : ''}
       </div>
       <div class="recursos">${recursos}</div>
+
+      ${promptsClase.length ? `
+      <div class="rec-cab"><span>Prompts de esta clase</span></div>
+      <div class="cl-prompts">${promptsClase.map(k => `
+        <button class="cl-prompt ${k.visible === false ? 'is-off' : ''}" data-cl-skill="${k.id}">
+          <svg class="ico"><use href="#i-skill"/></svg>
+          <span><b>${escapeHtml(k.title)}</b><em>${escapeHtml(k.area)}${k.visible === false ? ' · Oculta' : ''}</em></span>
+        </button>`).join('')}</div>` : ''}
 
       ${quizClaseHtml(s)}
 
@@ -1076,6 +1124,15 @@ $('#posts').addEventListener('click', e => {
   const ir = e.target.closest('[data-clase-ir]');
   if (ir) return setView('session', ir.dataset.claseIr);
   if (e.target.closest('[data-clase-editar]')) return abrirSesionForm(SESSIONS.find(s => s.id === view.id));
+  const cand = e.target.closest('[data-candado]');
+  if (cand) return alternarCandado(cand.dataset.candado);
+  const sk = e.target.closest('[data-cl-skill]');
+  if (sk) return openSkill(sk.dataset.clSkill);
+});
+// Los videos del presencial están en el bloque de arriba (fuera de #posts)
+document.addEventListener('click', e => {
+  const k = e.target.closest('[data-cl-capsula]');
+  if (k) setView('capsula', k.dataset.clCapsula);
 });
 
 /* ---------- El reto (columna derecha): el estado de cada sesión ---------- */
@@ -1091,14 +1148,15 @@ function retoRailHtml(){
     const vista = grabs.length > 0 && grabs.every(g => progresoVideo[g.id]?.completado) && !faltaQuiz;
     const sig = siguienteDe(r, ahora), futura = !!sig;
     const actual = view.type === 'session' && view.id === s.id;
-    const estado = vista ? 'Vista'
+    const cerrada = !claseAbierta(s.id);
+    const estado = cerrada && !futura ? 'Cerrada' : vista ? 'Vista'
       : futura ? 'El ' + new Date(sig.fecha + 'T12:00:00').toLocaleDateString('es-CO', { day:'numeric', month:'long' }) + (sig.hora ? ' · ' + horaTxt(sig) : '')
       : grabs.some(g => !progresoVideo[g.id]?.completado) ? 'Te falta ver la grabación'
       : faltaQuiz ? 'Te falta el quiz'
       : s.name;
-    const ico = vista ? 'i-check' : futura ? 'i-cal' : 'i-play';
+    const ico = cerrada ? 'i-lock' : vista ? 'i-check' : futura ? 'i-cal' : 'i-play';
     return `
-      <li data-rail="${s.id}" class="${futura ? 'is-futura' : ''} ${vista ? 'is-vista' : ''}">
+      <li data-rail="${s.id}" class="${futura || cerrada ? 'is-futura' : ''} ${vista ? 'is-vista' : ''}">
         <button data-id="${s.id}" class="${actual ? 'is-on' : ''}" title="${escapeHtml(s.title)}">
           <span class="rr-ico"><svg class="ico"><use href="#${ico}"/></svg></span>
           <span class="rr-txt"><b>${escapeHtml(s.short)}</b><em>${escapeHtml(estado)}</em></span>
@@ -1107,16 +1165,27 @@ function retoRailHtml(){
   }).join('');
 }
 
-/** Las clases que todavía no llegan, sin contar la próxima: van atenuadas y con candado. */
+/** Las clases cerradas para quien mira (admin: para el grupo de su espacio): van atenuadas y con candado. */
 function sesionesBloqueadas(){
-  const gi = PERFIL ? grupoInicio() : null;
-  if (!gi) return new Set();
-  const limite = Date.now() + 2 * 36e5;
-  const futuras = [...cronoDe(gi.id).values()].filter(r => r.fecha && momentoDe(r).getTime() > limite)
-    .sort((a, b) => momentoDe(a) - momentoDe(b));
-  const proxima = [...cronoDe(gi.id).values()].filter(r => r.fecha && momentoDe(r).getTime() + 2 * 36e5 >= Date.now())
-    .sort((a, b) => momentoDe(a) - momentoDe(b))[0];
-  return new Set(futuras.filter(r => r !== proxima).map(r => r.sesion_id));
+  return new Set(SESSIONS.filter(s => !claseAbierta(s.id)).map(s => s.id));
+}
+
+/** Admin en el espacio de un grupo: abre o cierra esa clase solo para ese grupo. */
+async function alternarCandado(id){
+  const g = grupoPorId(vistaComo);
+  if (!g || !ABIERTAS) return;
+  const abrir = !claseAbierta(id), s = sesionPorId(id);
+  try {
+    await store.abrirClase(g.id, id, abrir);
+    ABIERTAS = abrir ? [...ABIERTAS, { grupo_id:g.id, sesion_id:id }]
+                     : ABIERTAS.filter(r => !(r.grupo_id === g.id && r.sesion_id === id));
+    pintarNav();
+    render();
+    toast(abrir ? `«${s?.short || 'Clase'}» abierta: ya la ve ${g.nombre}` : `«${s?.short || 'Clase'}» cerrada para ${g.nombre}`);
+  } catch (err){
+    console.error(err);
+    toast(/clases_abiertas/i.test(err?.message || '') ? 'Falta correr supabase-clases.sql en Supabase' : errorMsg(err));
+  }
 }
 
 

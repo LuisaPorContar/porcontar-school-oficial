@@ -41,6 +41,26 @@ const grupoCorto = () => {
 };
 /* Extras del menú que se pueden apagar por grupo (grupos.extras_off). */
 const EXTRAS = ['tareas', 'skills', 'resumen', 'config', 'tuto', 'faq'];
+/* Modalidades: corto = Hiperpersonalizado (sesiones propias), reto = Estándar virtual,
+   presencial = Estándar presencial (las clases del reto, sin grabaciones: en cada clase, los videos del curso). */
+const MODALIDADES = { reto:'Estándar virtual', presencial:'Estándar presencial', corto:'Hiperpersonalizado' };
+const modalidadTxt = g => MODALIDADES[g?.formato] || MODALIDADES.reto;
+/** ¿Quien mira sigue la modalidad presencial? (admin: el espacio abierto; estudiante: todos sus grupos) */
+function esPresencial(){
+  if (IS_ADMIN){ const g = grupoPorId(vistaComo); return !!g && g.formato === 'presencial'; }
+  const gs = PERFIL?.grupos || [];
+  return gs.length > 0 && gs.every(g => g.formato === 'presencial');
+}
+/* Candado por grupo (supabase-clases.sql): cada clase nace cerrada para cada grupo y el admin la abre.
+   El estudiante recibe solo las filas de sus grupos; lo de una clase cerrada no se lo entrega la base. */
+let ABIERTAS = null;   // null = la base todavía no tiene el candado: todo abierto, como antes
+function claseAbierta(id){
+  if (!ABIERTAS) return true;
+  if (IS_ADMIN) return !vistaComo || ABIERTAS.some(r => r.grupo_id === vistaComo && r.sesion_id === id);
+  return ABIERTAS.some(r => r.sesion_id === id);
+}
+/** La sesión con ese id, de cualquier espacio (sin caer en la primera si no existe). */
+const sesionPorId = id => [...SESSIONS, ...OTRAS_SESIONES].find(s => s.id === id) || null;
 const sinExtra = (g, k) => (g.extras_off || []).includes(k) || (k === 'tareas' && g.formato === 'corto');
 /** ¿Ese extra está apagado para quien mira? (admin: en el espacio abierto; quien está en varios grupos lo ve si alguno lo tiene) */
 function extraApagado(k){
@@ -282,6 +302,7 @@ function cloudStore(){
     tags:r.tags || '', objective:r.objective || '', prompt:r.prompt || '',
     visible:r.visible !== false,   // sin la columna (antes del SQL) todas se ven
     audiencia:Array.isArray(r.audiencia) ? r.audiencia : [],
+    sesionId:r.sesion_id || null,
     createdAt:new Date(r.created_at).getTime(),
   });
   const toSkill = s => ({
@@ -290,6 +311,8 @@ function cloudStore(){
     // visible solo viaja si está apagada o se acaba de cambiar: así guardar sigue
     // funcionando aunque aún no se haya corrido supabase-skills-visibles.sql
     ...(s.visible === false || s.cambioVisible ? { visible:s.visible !== false } : {}),
+    // la clase solo viaja si la tiene o se acaba de quitar (supabase-clases.sql)
+    ...(s.sesionId || s.cambioSesion ? { sesion_id:s.sesionId || null } : {}),
     audiencia:s.audiencia || [],
     updated_at:new Date().toISOString(),
   });
@@ -338,8 +361,11 @@ function cloudStore(){
     adminCambiarClave: (actual, nueva)   => rpc('admin_cambiar_clave', { p_actual:actual, p_nueva:nueva }),
     // Comunidad: un muro para toda la academia (supabase-comunidad.sql)
     comunidadFeed:        ()              => rpc('comunidad_feed'),
-    comunidadPublicar:    (titulo, texto, adjuntos, encuesta) =>
-      rpc('comunidad_publicar', { p_titulo:titulo, p_texto:texto, p_adjuntos:adjuntos || [], p_encuesta:encuesta || null }),
+    // La fecha programada solo viaja si hay: así publicar sigue funcionando sin supabase-comunidad-programar.sql
+    comunidadPublicar:    (titulo, texto, adjuntos, encuesta, publicarEn) =>
+      rpc('comunidad_publicar', { p_titulo:titulo, p_texto:texto, p_adjuntos:adjuntos || [], p_encuesta:encuesta || null,
+                                  ...(publicarEn ? { p_publicar_en:publicarEn } : {}) }),
+    comunidadPublicarYa:  id              => rpc('comunidad_publicar_ya', { p_id:id }),
     comunidadVotar:       (id, opcion)    => rpc('comunidad_votar', { p_id:id, p_opcion:opcion }),
     comunidadGustarComentario: id         => rpc('comunidad_gustar_comentario', { p_id:id }),
     /** Sube un archivo de la comunidad (imagen, PDF, audio o video) y devuelve su dirección pública. */
@@ -358,6 +384,14 @@ function cloudStore(){
     comunidadComentar:    (id, texto, padre) => rpc('comunidad_comentar', { p_id:id, p_texto:texto, p_padre:padre || null }),
     comunidadBorrarComentario: id         => rpc('comunidad_borrar_comentario', { p_id:id }),
     comunidadGrupo:       (id, activa)    => rpc('admin_comunidad_grupo', { p_id:id, p_activa:activa }),
+    // Soporte: tickets entre cada persona y el equipo (supabase-soporte.sql)
+    soporteTickets:       email           => rpc('soporte_tickets', email ? { p_email:email } : {}),
+    soporteAbrir:         (asunto, categoria, texto, email) =>
+      rpc('soporte_abrir', { p_asunto:asunto, p_categoria:categoria, p_texto:texto, ...(email ? { p_email:email } : {}) }),
+    soporteMensajes:      id              => rpc('soporte_mensajes', { p_id:id }),
+    soporteResponder:     (id, texto)     => rpc('soporte_responder', { p_id:id, p_texto:texto }),
+    soporteEstado:        (id, estado)    => rpc('soporte_estado', { p_id:id, p_estado:estado }),
+    soportePendientes:    ()              => rpc('soporte_pendientes'),
     async subirLogo(grupoId, file){
       const ext = (file.name.match(/\.(\w+)$/) || [, 'png'])[1].toLowerCase();
       const path = `logos/${grupoId}-${Date.now().toString(36)}.${ext}`;
@@ -381,6 +415,15 @@ function cloudStore(){
         updated_at:new Date().toISOString() }))));
     },
     async borrarSesion(id){ check(await sb.from('reto_sesiones').delete().eq('id', id)); },
+    /** Las clases abiertas (supabase-clases.sql); null si la base aún no tiene el candado. */
+    async clasesAbiertas(){
+      const { data, error } = await sb.from('clases_abiertas').select('grupo_id,sesion_id');
+      return error ? null : data;
+    },
+    async abrirClase(grupo, sesion, abrir){
+      check(abrir ? await sb.from('clases_abiertas').upsert({ grupo_id:grupo, sesion_id:sesion })
+                  : await sb.from('clases_abiertas').delete().eq('grupo_id', grupo).eq('sesion_id', sesion));
+    },
     async cronograma(grupoId){
       let q = sb.from('cronograma').select('*');
       if (grupoId) q = q.eq('grupo_id', grupoId);
@@ -534,7 +577,8 @@ function cloudStore(){
       const { data, error } = await sb.from('cursos_capsulas').select('*').order('orden', { ascending:true });
       if (error) throw error;
       return data.map(r => ({ id:r.id, curso_id:r.curso_id, orden:r.orden || 0, seccion:r.seccion || '', titulo:r.titulo, resumen:r.resumen || '',
-                              video_url:r.video_url || null, duracion:r.duracion || '', recursos:Array.isArray(r.recursos) ? r.recursos : [], visible:r.visible !== false }));
+                              video_url:r.video_url || null, duracion:r.duracion || '', recursos:Array.isArray(r.recursos) ? r.recursos : [], visible:r.visible !== false,
+                              sesion_id:r.sesion_id || null }));
     },
     async guardarCurso(c){
       check(await sb.from('cursos').upsert({ id:c.id, orden:c.orden, titulo:c.titulo, descripcion:c.descripcion || '', area:c.area || '', nivel:c.nivel,
@@ -545,6 +589,7 @@ function cloudStore(){
       if (!lista.length) return;
       check(await sb.from('cursos_capsulas').upsert(lista.map(k => ({ id:k.id, curso_id:k.curso_id, orden:k.orden, seccion:k.seccion || '', titulo:k.titulo,
         resumen:k.resumen || '', video_url:k.video_url || null, duracion:k.duracion || '', recursos:k.recursos || [], visible:k.visible !== false,
+        ...(k.sesion_id || k.cambioSesion ? { sesion_id:k.sesion_id || null } : {}),
         updated_at:new Date().toISOString() }))));
     },
     async borrarCapsula(id){ check(await sb.from('cursos_capsulas').delete().eq('id', id)); },
@@ -616,10 +661,14 @@ function localStore(){
     cursos:soloNube, capsulas:soloNube, guardarCurso:soloNube, borrarCurso:soloNube, guardarCapsulas:soloNube, borrarCapsula:soloNube,
     misCapsulas:soloNube, marcarCapsula:soloNube, capsulaComentarios:soloNube, capsulaComentar:soloNube, capsulaBorrarComentario:soloNube,
     comunidadBorrarComentario:soloNube, comunidadGrupo:soloNube, comunidadVotar:soloNube,
-    comunidadGustarComentario:soloNube, comunidadSubir:soloNube,
+    comunidadGustarComentario:soloNube, comunidadSubir:soloNube, comunidadPublicarYa:soloNube,
+    soporteTickets:soloNube, soporteAbrir:soloNube, soporteMensajes:soloNube, soporteResponder:soloNube,
+    soporteEstado:soloNube, soportePendientes:async () => 0,
     fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
     guardarCronograma:soloNube, guardarGrabacion:soloNube, borrarGrabacion:soloNube,
     async sesiones(){ return SESIONES_BASE.slice(); },
+    async clasesAbiertas(){ return null; },
+    abrirClase:soloNube,
     async cronograma(){ return []; },
     async grabaciones(){ return []; },
     async registrarVideo(){ return {}; },
@@ -1064,6 +1113,7 @@ function pintarNav(){
   // Extras apagados: el estudiante no los ve; el admin los ve atenuados en el espacio de ese grupo
   EXTRAS.forEach(k => {
     const b = $(`#sidebar .nav-item[data-view="${k}"]`), off = extraApagado(k);
+    if (!b) return;   // «tuto» ya no tiene menú propio: ahora es el interruptor de Cursos
     const noAplica = k === 'tareas' && corto;   // un bootcamp no tiene trabajo autónomo: ni el admin lo ve
     b.hidden = off && (!IS_ADMIN || noAplica);
     b.classList.toggle('is-off', off && IS_ADMIN && !noAplica);
@@ -1071,9 +1121,11 @@ function pintarNav(){
   // Sin preguntas frecuentes no hay dónde preguntar: la tarjeta de preguntas tampoco se muestra
   $('#railPregunta').style.display = extraApagado('faq') ? 'none' : '';
   const sinCursos = typeof CURSOS === 'undefined' || CURSOS === null;      // sin el módulo, «Cursos» son los tutoriales
-  const cursos = $('#subnav [data-sub="cursos"]'); if (cursos) cursos.hidden = sinCursos && !IS_ADMIN && extraApagado('tuto');
+  const cursos = $('#subnav [data-sub="cursos"]');
+  if (cursos){ cursos.hidden = !IS_ADMIN && extraApagado('tuto'); cursos.classList.toggle('is-off', IS_ADMIN && extraApagado('tuto') && !sinCursos); }
   const comu = $('#subnav [data-sub="comunidad"]');
   if (comu){ comu.hidden = !CLOUD || (!IS_ADMIN && extraApagado('comunidad')); comu.classList.toggle('is-off', IS_ADMIN && extraApagado('comunidad')); }
+  const sop = $('#subnav [data-sub="soporte"]'); if (sop) sop.hidden = !CLOUD || (!IS_ADMIN && !PERFIL);
   $('#navSessions').innerHTML = SESSIONS.map(s => `
     <div class="nav-row ${s.visible === false ? 'is-apagada' : ''}" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
@@ -1085,6 +1137,7 @@ function pintarNav(){
         ${s.visible === false ? '<span class="nav-apagada">Apagada</span>' : ''}
         <span class="count" data-count="${s.id}">0</span>
       </button>
+      ${candadoNavHtml(s)}
       <button class="nav-eye" data-hide="${s.id}" aria-pressed="false"
               aria-label="Ocultar ${escapeHtml(s.short)}" title="Ocultar esta clase">
         <svg class="ico"><use href="#i-eye"/></svg>
@@ -1093,7 +1146,6 @@ function pintarNav(){
 
   $('#fSession').innerHTML = SESSIONS
     .map(s => `<option value="${s.id}">${escapeHtml(s.title)}</option>`).join('')
-    + `<option value="${TUTO_ID}">${escapeHtml(TUTO.title)}</option>`
     + `<option value="${FAQ_ID}">${escapeHtml(FAQ.title)}</option>`;
 
   $('#railSessions').innerHTML = SESSIONS.map(s => `
@@ -1104,11 +1156,22 @@ function pintarNav(){
     </button></li>`).join('');
 }
 
+/** Admin en el espacio de un grupo: el candado de cada clase, para abrirla o cerrarla a ese grupo. */
+function candadoNavHtml(s){
+  if (!IS_ADMIN || !vistaComo || !ABIERTAS) return '';
+  const ab = claseAbierta(s.id), g = grupoPorId(vistaComo), n = escapeHtml(g?.nombre || 'este grupo');
+  return `<button class="nav-candado ${ab ? 'is-abierta' : ''}" data-candado="${s.id}"
+              title="${ab ? 'Abierta para ' + n + ': clic para cerrarla' : 'Cerrada para ' + n + ': clic para abrirla'}"
+              aria-label="${ab ? 'Cerrar' : 'Abrir'} ${escapeHtml(s.short)}"><svg class="ico"><use href="#${ab ? 'i-unlock' : 'i-lock'}"/></svg></button>`;
+}
+
 function buildNav(){
   pintarNav();
   $('#nav').addEventListener('click', e => {
     if (e.target.closest('[data-editar-reto]')){ setView('reto'); $('#sidebar').classList.remove('is-open'); return; }
     if (e.target.closest('[data-editar-extras]')){ setView('extras'); $('#sidebar').classList.remove('is-open'); return; }
+    const cand = e.target.closest('[data-candado]');
+    if (cand) return alternarCandado(cand.dataset.candado);
     const ojo = e.target.closest('[data-hide]');
     if (ojo){                        // el ojito no navega: solo oculta o muestra la clase
       const s = sessionOf(ojo.dataset.hide);
@@ -1151,6 +1214,7 @@ function setView(type, id){
   }
   if (type === 'admins') cargarAdmins().then(render);
   if (type === 'comunidad'){ COMU.posts = null; cargarComunidad().then(() => { if (view.type === 'comunidad') render(); }); }
+  if (type === 'soporte') soporteEntrar(id);   // id: el correo de una persona (admin, desde su fila)
   if (type === 'panel'){
     if (id) panelGrupo = id;
     cargarPanel().then(render);
@@ -1301,6 +1365,10 @@ function renderVista(){
   } else if (view.type === 'comunidad'){
     $('#viewTitle').textContent = 'Comunidad';
     $('#viewSubtitle').textContent = 'El muro de toda la academia: comparte, pregunta y comenta';
+  } else if (view.type === 'soporte'){
+    $('#viewTitle').textContent = 'Soporte';
+    $('#viewSubtitle').textContent = IS_ADMIN ? 'Los tickets de todas las personas: responde, cierra o abre uno a nombre de alguien'
+                                              : 'Resuelve dudas con el equipo de PorContar. Te respondemos por aquí mismo.';
   } else if (view.type === 'inicio'){
     const g = typeof grupoInicio === 'function' ? grupoInicio() : null;
     $('#viewTitle').textContent = IS_ADMIN && !g ? 'Cronogramas' : 'Inicio';
@@ -1410,10 +1478,11 @@ function renderVista(){
   const tareasNativas = enTareas && typeof TAREAS !== 'undefined' && TAREAS !== null;   // la checklist de la base (si no, la página de antes)
   const enInicio  = view.type === 'inicio';
   const enComunidad = view.type === 'comunidad';
+  const enSoporte = view.type === 'soporte';
   const enCursos = ['cursos', 'curso', 'capsula'].includes(view.type);
   // Las clases del body van todas aquí: cada vista sale antes con su return
   document.body.classList.toggle('vista-skills', enSkills);
-  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio || enComunidad || tareasNativas || enCursos);
+  document.body.classList.toggle('vista-quiz', enQuiz || enGestion || enInicio || enComunidad || enSoporte || tareasNativas || enCursos);
   document.body.classList.toggle('vista-capsula', view.type === 'capsula');
   document.body.classList.toggle('vista-gestion', enGestion);
   document.body.classList.toggle('vista-resumen', enResumen || enConfig || (enTareas && !tareasNativas));
@@ -1442,6 +1511,10 @@ function renderVista(){
   if (enComunidad){
     comuGuardarBorradores();   // un repintado general no borra lo que se está escribiendo
     $('#posts').innerHTML = comunidadHtml();
+    return;
+  }
+  if (enSoporte){
+    pintarSoporte();
     return;
   }
 
@@ -1485,6 +1558,11 @@ function renderVista(){
   const enFaq = view.type === 'faq';
   document.body.classList.toggle('vista-faq', enFaq);
   // Una clase (sin búsqueda) se ve como página de lección: video, sesión, recursos y siguiente
+  if (view.type === 'session' && !query && !IS_ADMIN && !claseAbierta(view.id)){
+    document.body.classList.remove('vista-clase');
+    $('#posts').innerHTML = cerradaHtml(sessionOf(view.id));
+    return;
+  }
   const enClase = view.type === 'session' && !query && !isHidden(view.id);
   document.body.classList.toggle('vista-clase', enClase);
   if (enClase){
@@ -1559,6 +1637,7 @@ function skillsHtml(){
         <h3>${escapeHtml(s.title)}</h3>
         <div class="sk-tags">
           <span class="sk-tag is-lvl">${escapeHtml(s.level)}</span>
+          ${s.sesionId && sesionPorId(s.sesionId) ? `<span class="sk-tag is-clase">${escapeHtml(sesionPorId(s.sesionId).short)}</span>` : ''}
           ${tagList(s.tags).map(t => `<span class="sk-tag">${escapeHtml(t)}</span>`).join('')}
         </div>
         ${audTagHtml(s)}
@@ -1633,11 +1712,26 @@ function openSkillEditor(s = null){
   $('#skfObjective').value = s ? s.objective : '';
   $('#skfPrompt').value    = s ? s.prompt : '';
   $('#skfAudiencia').innerHTML = audienciaHtml(s ? audDe(s) : audDefecto());
+  // La clase: las del reto (o las del espacio abierto) y la que ya tenga, aunque sea de otro espacio
+  const clases = [...SESSIONS, ...OTRAS_SESIONES].filter(x => !x.grupoId || x.grupoId === vistaComo || x.id === s?.sesionId);
+  $('#skfSesion').innerHTML = `<option value="">Ninguna: se ve siempre en el catálogo</option>`
+    + clases.map(x => `<option value="${x.id}">${escapeHtml(x.title)}</option>`).join('');
+  $('#skfSesion').value = s?.sesionId || '';
   $('#skEdMsg').textContent = '';
   $('#skEdOverlay').hidden = false;
   enfocar('#skfTitle');
 }
 const closeSkillEditor = () => { $('#skEdOverlay').hidden = true; editingSkillId = null; };
+
+/** Lo que ve el estudiante en una clase que todavía no está abierta para su grupo. */
+function cerradaHtml(s){
+  return `
+    <div class="empty">
+      <svg class="ico"><use href="#i-lock"/></svg>
+      <h3>Esta clase todavía está cerrada</h3>
+      <p><b>${escapeHtml(s.title)}</b> se abre cuando el equipo de PorContar la habilite para tu grupo.</p>
+    </div>`;
+}
 
 /** Lo que ve el estudiante al entrar a una clase que ocultó. */
 function hiddenHtml(s){
@@ -2588,6 +2682,8 @@ $('#skEdSave').addEventListener('click', async () => {
   s.objective = $('#skfObjective').value.trim();
   s.prompt    = prompt;
   s.audiencia = leerAudiencia($('#skfAudiencia'));
+  s.sesionId  = $('#skfSesion').value || null;
+  s.cambioSesion = (existente?.sesionId || null) !== s.sesionId;
 
   const btn = $('#skEdSave');
   btn.disabled = true; btn.textContent = 'Guardando…';
@@ -3202,7 +3298,7 @@ function gruposHtml(){
       <button class="gr-fila-abrir" data-gr-abrir="${g.id}" title="Ver las personas de ${escapeHtml(g.nombre)}">
         ${typeof logoHtml === 'function' ? logoHtml(g) : ''}
         <span class="gr-fila-txt"><b>${escapeHtml(g.nombre)}</b>
-          <em>${g.formato === 'corto' ? 'Bootcamp o charla' : g.tipo === 'b2c' ? 'Cohorte' : 'Empresa'} ·
+          <em>${g.tipo === 'b2c' ? 'Cohorte' : 'Empresa'} · ${escapeHtml(modalidadTxt(g))} ·
             ${g.miembros}${g.plazas ? ` de ${g.plazas}` : ''} ${g.plazas ? 'plazas' : g.miembros === 1 ? 'persona' : 'personas'} ·
             ${g.han_entrado} ya ${g.han_entrado === 1 ? 'entró' : 'entraron'}</em></span>
         <span class="gr-fila-estado ${e.cls}">${escapeHtml(e.txt)}</span>
@@ -3309,6 +3405,9 @@ function filasMiembrosHtml(){
         ${m.activo ? 'Activo' : 'Sin acceso'}</label></td>
       <td>${m.ultimo_acceso ? haceTxt(m.ultimo_acceso) : '<span class="celda-sub">Nunca</span>'}</td>
       <td class="quiz-borrar-celda">
+        <button class="icon-btn" data-m-soporte="${escapeHtml(m.email)}" title="Tickets de soporte de ${escapeHtml(m.nombre || m.email)}" aria-label="Soporte de ${escapeHtml(m.email)}">
+          <svg class="ico"><use href="#i-soporte"/></svg>
+        </button>
         <button class="icon-btn" data-m-quitar="${m.id}" title="Quitar a ${escapeHtml(m.email)} del grupo" aria-label="Quitar a ${escapeHtml(m.email)}">
           <svg class="ico"><use href="#i-trash"/></svg>
         </button>
@@ -3444,7 +3543,11 @@ $('#grGenerar').addEventListener('click', () => {
 });
 // Un bootcamp o charla no tiene trabajo autónomo: ese interruptor no aplica
 const extrasSegunFormato = () => { $('#grExtras [data-extra="tareas"]').closest('.aj-fila').hidden = $('#grFormato').value === 'corto'; };
-$('#grFormato').addEventListener('change', extrasSegunFormato);
+$('#grFormato').addEventListener('change', () => {
+  extrasSegunFormato();
+  // Sin grabaciones, el presencial aprende con los cursos: se enciende ese interruptor
+  if ($('#grFormato').value === 'presencial') $('#grExtras [data-extra="tuto"]').checked = true;
+});
 const avisoClave = () => { $('#grClaveNota').hidden = !(editandoGrupo && $('#grClave').value.trim()); };
 $('#grClave').addEventListener('input', avisoClave);
 
@@ -3522,6 +3625,9 @@ $('#posts').addEventListener('click', async e => {
     } catch { toast('El navegador no dejó copiar'); }
     return;
   }
+
+  const sop = t('[data-m-soporte]');
+  if (sop) return setView('soporte', sop.dataset.mSoporte);
 
   const quitar = t('[data-m-quitar]');
   if (quitar){
@@ -3947,7 +4053,7 @@ $('#loginForm').addEventListener('submit', async e => {
     try {
       const ss = await store.sesiones();
       if (ss.length){ SESSIONS = ss; OTRAS_SESIONES = []; repartirSesiones(); }
-      [CRONO, GRABS] = await Promise.all([store.cronograma(), store.grabaciones()]);
+      [CRONO, GRABS, ABIERTAS] = await Promise.all([store.cronograma(), store.grabaciones(), store.clasesAbiertas()]);
       if (PERFIL) progresoVideo = await store.miProgresoVideo();
       fase1 = true;
     } catch (err){ console.warn("Fase 1 no disponible (falta supabase-fase1.sql):", err); }

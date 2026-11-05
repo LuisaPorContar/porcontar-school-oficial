@@ -22,7 +22,19 @@ const COMU_EMOJIS = ['😀','😂','😍','🤩','😎','🤔','😅','🙌','�
                      '🤯','😮','😢','🙋','🤝','📌','📎','📊','🧠','🤖','💬','⏰','📚','🎯','💰','⚠️','❓','👇','👉','☕'];
 
 /* Lo que se está armando en la ventana de publicar */
-const COMP = { adjuntos:[], encuesta:null, grabando:null };
+const COMP = { adjuntos:[], encuesta:null, encDias:'', programar:null, grabando:null, barra:null };
+const COMU_MAX = 5000;   // caracteres de una publicación (lo mismo que acepta la base)
+/* El menú de «/»: cada bloque hace lo mismo que su botón de la barra */
+const COMU_BLOQUES = [
+  { id:'imagen',   ico:'i-imagen',   txt:'Imagen o GIF' },
+  { id:'enlace',   ico:'i-playbox',  txt:'Video con enlace' },
+  { id:'archivo',  ico:'i-clip',     txt:'Archivo PDF' },
+  { id:'encuesta', ico:'i-encuesta', txt:'Encuesta' },
+  { id:'programar',ico:'i-reloj',    txt:'Programar' },
+  { id:'audio',    ico:'i-mic',      txt:'Nota de voz' },
+  { id:'camara',   ico:'i-video',    txt:'Grabar un video' },
+  { id:'emoji',    ico:'i-emoji',    txt:'Emoji' },
+];
 
 async function cargarComunidad(){
   try { COMU.posts = await store.comunidadFeed(); COMU.falla = ''; }
@@ -40,15 +52,41 @@ const comuAvatar = (nombre, admin, foto) => foto
   ? `<span class="cm-av con-foto"><img src="${escapeHtml(foto)}" alt="" /></span>`
   : `<span class="cm-av ${admin ? 'es-equipo' : ''}">${escapeHtml(iniciales((nombre || '?').split('@')[0]))}</span>`;
 const comuMiFoto = () => IS_ADMIN ? ADMIN_PERFIL?.foto : null;
-/** Texto del usuario: seguro, con saltos de línea y enlaces que se pueden tocar. */
-const comuTexto = t => escapeHtml(t)
-  .replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, '<a href="$1" target="_blank" rel="noopener nofollow">$1</a>')
-  .replace(/\n/g, '<br>');
+/** Texto del usuario: seguro, con saltos de línea, enlaces que se pueden tocar y el formato
+    rápido: **negrita**, _cursiva_ y listas con «- » o «1. » al inicio de la línea. */
+function comuTexto(t){
+  const linea = l => l
+    .replace(/(https?:\/\/[^\s<]+[^\s<.,;:!?)])/g, '<a href="$1" target="_blank" rel="noopener nofollow">$1</a>')
+    .replace(/\*\*(?=\S)([^*\n]+?)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])_(?=\S)([^_\n]+?)_(?=$|[\s.,;:!?)])/g, '$1<i>$2</i>');
+  let html = '', lista = null;
+  const cerrar = () => { if (lista){ html += `</${lista}>`; lista = null; } };
+  const lineas = escapeHtml(t).split('\n');
+  lineas.forEach((l, i) => {
+    const m = l.match(/^\s*(?:([-•])|\d+[.)])\s+(.*)$/);
+    if (m){
+      const tipo = m[1] ? 'ul' : 'ol';
+      if (lista !== tipo){ cerrar(); html += `<${tipo}>`; lista = tipo; }
+      html += `<li>${linea(m[2])}</li>`;
+      return;
+    }
+    cerrar();
+    html += linea(l) + (i < lineas.length - 1 && !/^\s*(?:[-•]|\d+[.)])\s+/.test(lineas[i + 1]) ? '<br>' : '');
+  });
+  cerrar();
+  return html;
+}
 const comuFirma = x => `
   <b>${escapeHtml(x.autor)}</b>
   ${x.es_admin ? '<span class="cm-equipo">Equipo PorContar</span>' : x.grupo ? `<span class="cm-grupo">${escapeHtml(x.grupo)}</span>` : ''}
-  <time>${escapeHtml(haceTxt(x.created_at))}</time>`;
+  <time>${x.programada ? 'Programada' : escapeHtml(haceTxt(x.created_at))}</time>`;
 const comuIco = id => `<svg class="ico"><use href="#${id}"/></svg>`;
+/** «el mar 3 nov, 8:00 a. m.» para una fecha y hora futura o reciente. */
+const comuCuandoTxt = iso => {
+  const d = new Date(iso);
+  return 'el ' + d.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short' }).replace(/\./g, '')
+    + ', ' + d.toLocaleTimeString('es-CO', { hour:'numeric', minute:'2-digit' });
+};
 
 /* ---------- lo que trae una publicación: adjuntos y encuesta ---------- */
 function comuAdjuntosHtml(lista){
@@ -71,12 +109,14 @@ function comuAdjuntosHtml(lista){
 }
 function comuEncuestaHtml(e){
   if (!e) return '';
-  const voto = e.mi_voto, ver = voto !== null && voto !== undefined || IS_ADMIN;   // los resultados, al votar
-  return `<div class="cm-enc">
+  const voto = e.mi_voto;
+  const ver = voto !== null && voto !== undefined || IS_ADMIN || e.cerrada;   // los resultados: al votar o al cerrar
+  const cierre = e.cerrada ? 'Encuesta cerrada' : e.cierra ? 'Cierra ' + comuCuandoTxt(e.cierra) : '';
+  return `<div class="cm-enc ${e.cerrada ? 'is-cerrada' : ''}">
     ${e.opciones.map((o, i) => { const p = e.total ? Math.round(o.votos / e.total * 100) : 0;
-      return `<button class="cm-op ${voto === i ? 'is-mia' : ''}" data-cm-voto="${i}" aria-pressed="${voto === i}">
+      return `<button class="cm-op ${voto === i ? 'is-mia' : ''}" data-cm-voto="${i}" aria-pressed="${voto === i}" ${e.cerrada ? 'disabled' : ''}>
         ${ver ? `<i style="width:${p}%"></i>` : ''}<span>${escapeHtml(o.texto)}</span>${ver ? `<b>${p}%</b>` : ''}</button>`; }).join('')}
-    <p class="cm-enc-pie">${e.total} ${e.total === 1 ? 'voto' : 'votos'}</p>
+    <p class="cm-enc-pie">${e.total} ${e.total === 1 ? 'voto' : 'votos'}${cierre ? ` · ${escapeHtml(cierre)}` : ''}</p>
   </div>`;
 }
 
@@ -122,7 +162,12 @@ function comuPostHtml(p){
   const a = COMU.respondeA[p.id];
   const re = p.respuesta_equipo;
   return `
-  <article class="card cm-post" data-cm-post="${p.id}">
+  <article class="card cm-post ${p.programada ? 'is-programada' : ''}" data-cm-post="${p.id}">
+    ${p.programada ? `
+    <div class="cm-prog">
+      ${comuIco('i-reloj')}<span><b>Programada</b> · se publica ${escapeHtml(comuCuandoTxt(p.publicar_en))}. Solo ${p.mio ? 'tú la ves' : 'tú y quien la escribió la ven'} por ahora.</span>
+      <button class="btn btn-mini" data-cm-publicar-ya>Publicar ahora</button>
+    </div>` : ''}
     <header class="cm-cab">
       ${comuAvatar(p.autor, p.es_admin, p.foto)}
       <div class="cm-firma">${comuFirma(p)}</div>
@@ -183,7 +228,8 @@ function comuGuardarBorradores(){
    ================================================================ */
 function comuVentana(){
   if ($('#cmOverlay')) return;
-  const b = (accion, icono, titulo) => `<button type="button" data-cm-${accion} title="${titulo}" aria-label="${titulo}">${comuIco(icono)}</button>`;
+  // Con texto: botón con nombre. Sin texto: solo el ícono (los de grabar y el emoji)
+  const b = (accion, icono, titulo, nombre) => `<button type="button" class="${nombre ? 'con-txt' : ''}" data-cm-${accion} title="${titulo}" aria-label="${titulo}">${comuIco(icono)}${nombre ? `<span>${nombre}</span>` : ''}</button>`;
   document.body.insertAdjacentHTML('beforeend', `
   <div class="overlay" id="cmOverlay" hidden>
     <div class="modal cm-modal" role="dialog" aria-modal="true" aria-labelledby="cmModalTit">
@@ -193,15 +239,27 @@ function comuVentana(){
       </header>
       <div class="cm-m-cuerpo">
         <input type="text" id="cmTitulo" maxlength="140" placeholder="Título" />
-        <textarea id="cmTexto" maxlength="5000" placeholder="Escribe algo"></textarea>
+        <div class="cm-m-texto">
+          <div class="cm-formato" id="cmFormato" hidden>
+            <button type="button" data-cm-fmt="b" title="Negrita" aria-label="Negrita"><b>B</b></button>
+            <button type="button" data-cm-fmt="i" title="Cursiva" aria-label="Cursiva"><i>I</i></button>
+            <button type="button" data-cm-fmt="ul" title="Lista con viñetas" aria-label="Lista con viñetas">• Lista</button>
+            <button type="button" data-cm-fmt="ol" title="Lista numerada" aria-label="Lista numerada">1. Lista</button>
+          </div>
+          <textarea id="cmTexto" maxlength="${COMU_MAX}" placeholder="¿Qué quieres compartir con la comunidad?"></textarea>
+          <div class="cm-bloques" id="cmBloques" role="listbox" aria-label="Insertar un bloque" hidden></div>
+        </div>
+        <p class="cm-m-ayuda"><span>Escribe «/» para insertar bloques · selecciona texto para darle formato</span><b id="cmCuenta">0 / ${COMU_MAX.toLocaleString('es-CO')}</b></p>
         <div id="cmExtras"></div>
       </div>
       <div class="cm-m-barra">
+        <span class="cm-m-agregar">Agregar:</span>
+        ${b('imagen', 'i-imagen', 'Imagen o GIF', 'Imagen')}
+        ${b('enlace', 'i-playbox', 'Video con enlace (YouTube, Drive, Loom…)', 'Video')}
+        ${b('archivo', 'i-clip', 'Archivo PDF', 'PDF')}
+        ${b('programar', 'i-reloj', 'Programar la publicación', 'Programar')}
+        ${b('encuesta', 'i-encuesta', 'Encuesta', 'Encuesta')}
         ${b('emoji', 'i-emoji', 'Emoji')}
-        ${b('imagen', 'i-imagen', 'Imagen o GIF')}
-        ${b('archivo', 'i-clip', 'Archivo PDF')}
-        ${b('enlace', 'i-playbox', 'Video con enlace (YouTube, Drive, Loom…)')}
-        ${b('encuesta', 'i-encuesta', 'Encuesta')}
         ${b('audio', 'i-mic', 'Grabar una nota de voz')}
         ${b('camara', 'i-video', 'Grabar un video')}
         <div class="cm-emojis" id="cmEmojis" hidden>${COMU_EMOJIS.map(e => `<button type="button" data-cm-e="${e}">${e}</button>`).join('')}</div>
@@ -222,19 +280,113 @@ function comuVentana(){
   $('#cmOverlay').addEventListener('input', e => {
     const op = e.target.closest('[data-cm-op]');
     if (op && COMP.encuesta) COMP.encuesta[+op.dataset.cmOp] = op.value;
+    if (e.target.id === 'cmEncDias') COMP.encDias = e.target.value;
+    if (e.target.id === 'cmProgFecha' && COMP.programar) COMP.programar.fecha = e.target.value;
+    if (e.target.id === 'cmProgHora' && COMP.programar) COMP.programar.hora = e.target.value;
+    if (e.target.id === 'cmTexto'){ comuContar(); comuMenuBloques(); comuFormatoVisible(); }
   });
+  $('#cmOverlay').addEventListener('change', e => { if (e.target.id === 'cmEncDias') COMP.encDias = e.target.value; });
   $('#cmOverlay').addEventListener('keydown', e => {
+    if (e.target.id === 'cmTexto' && COMP.barra && comuTeclaBloques(e)) return;
     if (e.key === 'Enter' && e.target.id === 'cmEnlaceUrl'){ e.preventDefault(); comuAgregarEnlace(); }
     if (e.key === 'Escape'){ e.stopPropagation(); if (!$('#cmEmojis').hidden) $('#cmEmojis').hidden = true; else comuCerrar(); }
   });
+  // La barrita de formato aparece mientras hay texto seleccionado
+  ['select', 'keyup', 'mouseup', 'blur'].forEach(ev => $('#cmTexto').addEventListener(ev, () => setTimeout(comuFormatoVisible, 0)));
+  // Que tocar la barrita o el menú no le quite la selección al texto
+  $('#cmFormato').addEventListener('mousedown', e => e.preventDefault());
+  $('#cmBloques').addEventListener('mousedown', e => e.preventDefault());
+}
+
+/* ---------- contador, formato rápido y menú de «/» ---------- */
+function comuContar(){
+  const n = $('#cmTexto').value.length, c = $('#cmCuenta');
+  c.textContent = `${n.toLocaleString('es-CO')} / ${COMU_MAX.toLocaleString('es-CO')}`;
+  c.classList.toggle('is-tope', n >= COMU_MAX * 0.95);
+}
+function comuFormatoVisible(){
+  const ta = $('#cmTexto');
+  $('#cmFormato').hidden = document.activeElement !== ta || ta.selectionStart === ta.selectionEnd;
+}
+/** Negrita y cursiva envuelven lo seleccionado; las listas marcan cada línea seleccionada. */
+function comuFormato(tipo){
+  const ta = $('#cmTexto');
+  let a = ta.selectionStart, z = ta.selectionEnd;
+  const v = ta.value;
+  if (tipo === 'b' || tipo === 'i'){
+    const m = tipo === 'b' ? '**' : '_';
+    // sin los espacios de los bordes: «**hola **» no se lee como negrita
+    while (a < z && /\s/.test(v[a])) a++;
+    while (z > a && /\s/.test(v[z - 1])) z--;
+    if (a === z) return;
+    const sel = v.slice(a, z);
+    const ya = sel.startsWith(m) && sel.endsWith(m) && sel.length > m.length * 2;
+    const nuevo = ya ? sel.slice(m.length, -m.length) : m + sel + m;
+    ta.setRangeText(nuevo, a, z, 'select');
+  } else {
+    const ini = v.lastIndexOf('\n', a - 1) + 1, fin = v.indexOf('\n', z - (z > a && v[z - 1] === '\n' ? 1 : 0));
+    const hasta = fin === -1 ? v.length : fin;
+    const lineas = v.slice(ini, hasta).split('\n');
+    const patron = tipo === 'ul' ? /^- / : /^\d+\. /;
+    const quitar = lineas.every(l => !l.trim() || patron.test(l));
+    let n = 0;
+    const nuevo = lineas.map(l => !l.trim() ? l
+      : quitar ? l.replace(patron, '') : (tipo === 'ul' ? '- ' : `${++n}. `) + l.replace(/^(- |\d+\. )/, '')).join('\n');
+    ta.setRangeText(nuevo, ini, hasta, 'select');
+  }
+  ta.focus();
+  comuContar(); comuFormatoVisible();
+}
+
+/** Abre, filtra o cierra el menú de bloques según lo escrito después de «/». */
+function comuMenuBloques(){
+  const ta = $('#cmTexto'), cur = ta.selectionStart;
+  const antes = ta.value.slice(0, cur);
+  const m = antes.match(/(^|\s)\/([\wáéíóúñ]*)$/i);
+  if (!m) return comuCerrarBloques();
+  const q = sinTildes(m[2].toLowerCase());
+  const lista = COMU_BLOQUES.filter(x => sinTildes(x.txt.toLowerCase()).includes(q) || x.id.startsWith(q));
+  if (!lista.length) return comuCerrarBloques();
+  const sel = COMP.barra && COMP.barra.q === q ? Math.min(COMP.barra.sel, lista.length - 1) : 0;
+  COMP.barra = { desde:cur - m[2].length - 1, hasta:cur, q, lista, sel };
+  const menu = $('#cmBloques');
+  menu.innerHTML = lista.map((x, i) => `
+    <button type="button" role="option" class="${i === sel ? 'is-on' : ''}" aria-selected="${i === sel}" data-cm-bloque="${x.id}">
+      ${comuIco(x.ico)}<span>${x.txt}</span></button>`).join('');
+  menu.hidden = false;
+}
+function comuCerrarBloques(){
+  COMP.barra = null;
+  const menu = $('#cmBloques'); if (menu){ menu.hidden = true; menu.innerHTML = ''; }
+}
+/** Flechas, Enter y Escape dentro del menú. Devuelve true si la tecla era del menú. */
+function comuTeclaBloques(e){
+  const b = COMP.barra;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+    e.preventDefault();
+    b.sel = (b.sel + (e.key === 'ArrowDown' ? 1 : -1) + b.lista.length) % b.lista.length;
+    comuMenuBloques();
+    return true;
+  }
+  if (e.key === 'Enter' || e.key === 'Tab'){ e.preventDefault(); comuElegirBloque(b.lista[b.sel].id); return true; }
+  if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); comuCerrarBloques(); return true; }
+  return false;
+}
+/** Quita el «/…» del texto y hace lo mismo que el botón de ese bloque. */
+function comuElegirBloque(id){
+  const b = COMP.barra, ta = $('#cmTexto');
+  if (b) ta.setRangeText('', b.desde, b.hasta, 'end');
+  comuCerrarBloques(); comuContar();
+  $(`.cm-m-barra [data-cm-${id}]`).click();
 }
 
 function comuAbrir(){
   comuVentana();
-  COMP.adjuntos = []; COMP.encuesta = null; COMP.pideEnlace = false;
+  COMP.adjuntos = []; COMP.encuesta = null; COMP.encDias = ''; COMP.programar = null; COMP.pideEnlace = false;
   $('#cmTitulo').value = ''; $('#cmTexto').value = ''; $('#cmMsg').textContent = '';
-  $('#cmEmojis').hidden = true;
-  comuPintarExtras();
+  $('#cmEmojis').hidden = true; $('#cmFormato').hidden = true;
+  comuCerrarBloques(); comuContar();
+  comuPintarExtras(); comuBotonPublicar();
   $('#cmOverlay').hidden = false;
   enfocar('#cmTexto');
 }
@@ -283,7 +435,20 @@ function comuPintarExtras(){
     ${COMP.encuesta ? `<div class="cm-m-enc">
       <p><b>Encuesta</b><button type="button" data-cm-enc-quitar>Quitar</button></p>
       ${COMP.encuesta.map((o, i) => `<input type="text" data-cm-op="${i}" maxlength="80" placeholder="Opción ${i + 1}" value="${escapeHtml(o)}" />`).join('')}
-      ${COMP.encuesta.length < 6 ? '<button type="button" class="cm-m-mas" data-cm-enc-mas>+ Agregar opción</button>' : ''}</div>` : ''}
+      ${COMP.encuesta.length < 6 ? '<button type="button" class="cm-m-mas" data-cm-enc-mas>+ Agregar opción</button>' : ''}
+      <label class="cm-m-cierre"><span>Cierra</span>
+        <select id="cmEncDias">
+          ${[['', 'Sin fecha de cierre'], ['1', 'En 1 día'], ['3', 'En 3 días'], ['7', 'En 1 semana'], ['14', 'En 2 semanas'], ['30', 'En 1 mes']]
+            .map(([v, t]) => `<option value="${v}" ${COMP.encDias === v ? 'selected' : ''}>${t}</option>`).join('')}
+        </select></label></div>` : ''}
+    ${COMP.programar ? `<div class="cm-m-prog">
+      <p><b>${comuIco('i-reloj')} Programar</b><button type="button" data-cm-prog-quitar>Quitar</button></p>
+      <div class="cm-m-prog-campos">
+        <label><span>Fecha</span><input type="date" id="cmProgFecha" value="${escapeHtml(COMP.programar.fecha)}"
+          min="${new Date().toLocaleDateString('en-CA')}" max="${new Date(Date.now() + 90 * 864e5).toLocaleDateString('en-CA')}" /></label>
+        <label><span>Hora</span><input type="time" id="cmProgHora" value="${escapeHtml(COMP.programar.hora)}" /></label>
+      </div>
+      <small>Se publicará sola a esa hora (entre 1 minuto y 90 días desde ahora). Hasta entonces solo tú la ves.</small></div>` : ''}
     ${g ? `<div class="cm-m-rec">
       ${g.tipo === 'video' ? '<video id="cmRecVista" muted autoplay playsinline></video>' : ''}
       <span><i></i> Grabando <b id="cmRecT">0:00</b></span>
@@ -351,7 +516,19 @@ async function comuClicVentana(e){
   if (t('[data-cm-enlace-no]')){ COMP.pideEnlace = false; return comuPintarExtras(); }
   if (t('[data-cm-encuesta]')){ if (!COMP.encuesta) COMP.encuesta = ['', '']; comuPintarExtras(); return $('[data-cm-op="0"]').focus(); }
   if (t('[data-cm-enc-mas]')){ COMP.encuesta.push(''); comuPintarExtras(); return $(`[data-cm-op="${COMP.encuesta.length - 1}"]`).focus(); }
-  if (t('[data-cm-enc-quitar]')){ COMP.encuesta = null; return comuPintarExtras(); }
+  if (t('[data-cm-enc-quitar]')){ COMP.encuesta = null; COMP.encDias = ''; return comuPintarExtras(); }
+  if (t('[data-cm-programar]')){
+    // Por defecto: mañana a las 8:00 a. m.
+    if (!COMP.programar) COMP.programar = { fecha:new Date(Date.now() + 864e5).toLocaleDateString('en-CA'), hora:'08:00' };
+    comuPintarExtras(); comuBotonPublicar();
+    return $('#cmProgFecha').focus();
+  }
+  if (t('[data-cm-prog-quitar]')){ COMP.programar = null; comuPintarExtras(); return comuBotonPublicar(); }
+  const fmt = t('[data-cm-fmt]');
+  if (fmt) return comuFormato(fmt.dataset.cmFmt);
+  const bloque = t('[data-cm-bloque]');
+  if (bloque) return comuElegirBloque(bloque.dataset.cmBloque);
+  if (!t('.cm-bloques') && e.target.id !== 'cmTexto') comuCerrarBloques();
   if (t('[data-cm-audio]'))  return comuGrabar('audio');
   if (t('[data-cm-camara]')) return comuGrabar('video');
   if (t('[data-cm-rec-fin]')) return comuDetenerGrabacion(false);
@@ -361,6 +538,9 @@ async function comuClicVentana(e){
   if (t('#cmPublicar')) return comuPublicar();
 }
 
+/** El botón dice «Programar» cuando la publicación lleva fecha. */
+const comuBotonPublicar = () => { $('#cmPublicar').textContent = COMP.programar ? 'Programar' : 'Publicar'; };
+
 async function comuPublicar(){
   const btn = $('#cmPublicar'), msg = $('#cmMsg');
   const titulo = $('#cmTitulo').value.trim(), texto = $('#cmTexto').value.trim();
@@ -368,6 +548,17 @@ async function comuPublicar(){
   const opciones = COMP.encuesta ? COMP.encuesta.map(o => o.trim()).filter(Boolean) : null;
   if (COMP.encuesta && opciones.length < 2) return void (msg.textContent = 'La encuesta necesita al menos dos opciones.');
   if (!titulo && texto.length < 2 && !COMP.adjuntos.length && !opciones) return void (msg.textContent = 'Escribe algo para publicar.');
+
+  // Programada: la hora del navegador, entre 1 minuto y 90 días desde ahora
+  let publicarEn = null;
+  if (COMP.programar){
+    const { fecha, hora } = COMP.programar;
+    if (!fecha || !hora) return void (msg.textContent = 'Pon la fecha y la hora para programarla (o quita «Programar»).');
+    const cuando = new Date(`${fecha}T${hora}:00`);
+    if (cuando.getTime() < Date.now() + 60e3) return void (msg.textContent = 'Esa hora ya pasó: elige una al menos 1 minuto adelante.');
+    if (cuando.getTime() > Date.now() + 90 * 864e5) return void (msg.textContent = 'Solo se puede programar hasta 90 días desde hoy.');
+    publicarEn = cuando.toISOString();
+  }
 
   btn.disabled = true; msg.textContent = '';
   try {
@@ -378,17 +569,19 @@ async function comuPublicar(){
       if (a.file){ btn.textContent = `Subiendo ${++n} de ${subir}…`; adjuntos.push({ tipo:a.tipo, url:await store.comunidadSubir(a.file), nombre:a.nombre }); }
       else adjuntos.push({ tipo:a.tipo, url:a.url, nombre:a.nombre });
     }
-    btn.textContent = 'Publicando…';
-    await store.comunidadPublicar(titulo, texto, adjuntos, opciones ? { opciones } : null);
+    btn.textContent = publicarEn ? 'Programando…' : 'Publicando…';
+    const encuesta = opciones ? { opciones, ...(COMP.encDias ? { dias:+COMP.encDias } : {}) } : null;
+    await store.comunidadPublicar(titulo, texto, adjuntos, encuesta, publicarEn);
     comuCerrar();
     await cargarComunidad(); pintarComunidad();
-    toast('Publicado en la comunidad');
+    toast(publicarEn ? `Programada: se publica ${comuCuandoTxt(publicarEn)}` : 'Publicado en la comunidad');
   } catch (err){
     console.error(err);
     msg.textContent = /comunidad_publicar|schema cache|row-level security|comunidad sube/i.test(err.message || '')
-      ? (IS_ADMIN ? 'Falta volver a correr supabase-comunidad.sql en Supabase.' : 'Esta opción todavía no está activa. Avísale al equipo de PorContar.')
+      ? (IS_ADMIN ? `Falta correr ${publicarEn || COMP.encDias ? 'supabase-comunidad-programar.sql' : 'supabase-comunidad.sql'} en Supabase.`
+                  : 'Esta opción todavía no está activa. Avísale al equipo de PorContar.')
       : errorMsg(err);
-  } finally { btn.disabled = false; btn.textContent = 'Publicar'; }
+  } finally { btn.disabled = false; comuBotonPublicar(); }
 }
 
 /* ================================================================
@@ -404,6 +597,12 @@ $('#posts').addEventListener('click', async e => {
   const recargarComs = async () => { COMU.comentarios[id] = await store.comunidadComentarios(id); p.comentarios = COMU.comentarios[id].length; };
 
   if (t('[data-cm-mas]')){ COMU.enteros.add(id); return pintarComunidad(); }
+  if (t('[data-cm-publicar-ya]')){
+    if (!(await confirmar({ titulo:'¿Publicarla ahora?', texto:'La verá toda la comunidad desde este momento.', boton:'Publicar ahora' }))) return;
+    try { await store.comunidadPublicarYa(id); await cargarComunidad(); pintarComunidad(); toast('Publicada en la comunidad'); }
+    catch (err){ toast(errorMsg(err)); }
+    return;
+  }
   if (t('[data-cm-gustar]')){
     // Se marca de una y, si la base dice otra cosa, se corrige
     const antes = { me_gusta:p.me_gusta, likes:p.likes };

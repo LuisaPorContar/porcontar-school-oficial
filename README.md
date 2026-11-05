@@ -13,7 +13,7 @@ Muro de la **Academia de PorContar**. Sitio estático, sin build ni dependencias
   - **Quizzes** — para evaluar lo aprendido.
   - **Catálogo de prompts** — fichas de skills por área; el admin las prende y apaga, o las sube desde un `.md`.
   - **Vocabulario y términos** — la guía embebida.
-  - **Tutoriales express**, **Preguntas frecuentes** y **Guardados**.
+  - **Preguntas frecuentes** y **Guardados**. Los videos cortos van en **Cursos** (el interruptor «Cursos» de cada grupo).
   - **Configurar Claude** — oculto por ahora (`hidden` en `index.html`).
 
 ## Accesos
@@ -59,4 +59,20 @@ Supabase: proyecto `lcbonixjumchbhffyxee`. Para montar la base, en Supabase → 
 
 Después, `supabase-agenda.sql` — la sesión QA antes de la Presentación y la 2.ª parte de cada clase en el cronograma, para la agenda automática de «Editar cronograma» (1 clase de 2 horas por semana, o 2 encuentros de 1 hora).
 
+`supabase-comunidad-programar.sql` (después de `supabase-comunidad.sql`) — en la Comunidad, publicaciones programadas (entre 1 minuto y 90 días) y encuestas con fecha de cierre.
+
+`supabase-clases.sql` (después de `supabase-formatos.sql`, `supabase-cursos.sql` y `supabase-agenda.sql`) — las tres modalidades de grupo (**Estándar virtual**, **Estándar presencial** y **Hiperpersonalizado**), el **candado por grupo** (cada clase nace cerrada y el admin la abre desde el menú, en el espacio del grupo; lo cerrado no lo entrega la base) y la **clase** de cada prompt y de cada cápsula de curso. En el presencial no hay grabaciones: en cada clase se ven las cápsulas marcadas con esa clase. La primera vez deja abiertas las clases de los grupos que ya existían.
+
+`supabase-soporte.sql` — tickets de soporte: cada persona abre los suyos y conversa con el equipo; el admin ve todos, responde, cierra y abre tickets a nombre de alguien.
+
 Todos se pueden correr más de una vez. Sin claves en `config.js`, el muro funciona en modo local (IndexedDB) solo para probar.
+
+## MCP: conectar la Academia con Claude
+
+`https://academia.porcontar.com/mcp?key=<MCP_TOKEN>` le da a Claude lo mismo que hace el admin: empresas y cohortes, personas, avance, cronograma, grabaciones, publicaciones, skills, quizzes, cursos y soporte. **Nada se escribe sin autorización**: toda herramienta que crea, cambia o borra se llama primero sin `confirmar` (solo muestra lo que haría) y se ejecuta solo con `confirmar=true` después de que la persona lo aprueba.
+
+- Código: `supabase/functions/mcp-academia/index.ts` (función de Supabase). `functions/mcp.js` (Cloudflare Pages) le pasa los pedidos.
+- Grupos y personas pasan por las mismas funciones de admin de la base que usa la app (con la llave `admin_key` de `app_config`), así que valen las mismas reglas.
+- Cada llamada queda en la tabla `mcp_acciones` (`supabase-mcp.sql`); las contraseñas de grupo no se guardan.
+
+Publicarlo (una vez, desde el panel de Supabase): correr `supabase-mcp.sql` → Edge Functions → Secrets → `MCP_TOKEN` = una clave larga → Deploy a new function → *Via Editor*, nombre `mcp-academia`, pegar el archivo → en Details apagar *Enforce JWT verification*. En Claude: Configuración → Conectores → Agregar conector personalizado → la URL de arriba.
