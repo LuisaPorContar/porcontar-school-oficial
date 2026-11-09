@@ -670,6 +670,36 @@ body:not(.modo-estudiante) .solo-estudiante{display:none}
 .fm-tabla th,.fm-tabla td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
 .fm-tabla th{font-weight:600;color:var(--ink-soft)}
 .fm-falta{margin:0;font-size:13px;color:var(--ink-soft)}
+.fm-sub-fila{display:flex;align-items:center;justify-content:space-between;gap:8px 14px;flex-wrap:wrap;margin:10px 0 8px}
+.fm-sub-fila .fm-sub{margin:0}
+.fm-herr{font-size:13px;color:var(--ink-mute)}
+.btn-link{border:0;background:none;padding:2px 0;font:inherit;font-size:13px;font-weight:600;color:var(--pc-blue);cursor:pointer}
+.btn-link:hover{text-decoration:underline}
+.fm-cuenta{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.fm-vista{margin:0;padding:10px 14px;border-radius:12px;background:#FFF8E1;border:1px solid #F3E2A6;font-size:13.5px}
+.fm-sep{margin-top:10px;padding-top:12px;border-top:1px solid var(--line)}
+.fm-personas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fm-personas>div{padding:12px 14px;border:1px solid var(--line);border-radius:14px}
+.fm-personas ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.fm-h3.is-ok{color:#1d7a46}
+.fm-h3.is-falta,.fm-mini.is-falta{color:#b4532a}
+.fm-res{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+.fm-res .fm-barra{grid-template-columns:1fr 70px}
+.fm-conteo .fm-barra{grid-template-columns:minmax(0,1fr) 140px 30px}
+.fm-dist{margin:0;font-size:12.5px;color:var(--ink-soft)}
+.fm-mini{margin:10px 0 2px;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-mute)}
+.fm-falta-n{display:block;font-size:13px;color:var(--ink-soft);padding:3px 10px}
+.fe-preg{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.fe-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fe-n{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#EEF2FF;color:var(--pc-blue-deep);font-size:13px}
+.fe-top select{font:inherit;font-size:13.5px;padding:5px 8px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.fe-opc{display:flex;align-items:center;gap:6px;font-size:13px}
+.fe-acc{margin-left:auto;display:flex;gap:2px}
+.fe-acc .icon-btn{width:30px;height:30px;font-size:15px}
+.fe-acc .icon-btn:disabled{opacity:.3;cursor:default}
+.fe-preg textarea,.fe-ext input{width:100%;font:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;resize:vertical}
+.fe-ext{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fe-agregar{align-self:flex-start}
 .fm-diag{display:grid;grid-template-columns:220px 1fr;gap:16px}
 .fm-diag-lista{display:flex;flex-direction:column;gap:4px}
 .fm-diag-lista button{text-align:left;font:inherit;font-size:13.5px;padding:7px 10px;border:0;border-radius:10px;background:none;cursor:pointer}
@@ -682,6 +712,8 @@ body:not(.modo-estudiante) .solo-estudiante{display:none}
   .fm-pend{flex-wrap:wrap}
   .fm-barra{grid-template-columns:1fr 60px 32px}
   .fm-diag{grid-template-columns:1fr}
+  .fm-personas,.fe-ext{grid-template-columns:1fr}
+  .fm-conteo .fm-barra{grid-template-columns:1fr 60px 26px}
   .fm-tabla{display:block;overflow-x:auto}
   .as-linea{flex-direction:column;align-items:stretch}
   .as-linea select{max-width:none}

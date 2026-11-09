@@ -53,6 +53,7 @@ const ESCRIBEN = new Set([
   'crear_quiz', 'actualizar_quiz', 'eliminar_quiz',
   'crear_curso', 'actualizar_curso', 'eliminar_curso', 'crear_capsula', 'actualizar_capsula', 'eliminar_capsula',
   'abrir_ticket', 'responder_ticket', 'cambiar_estado_ticket',
+  'registrar_asistencia', 'preparar_correo_asistencia', 'abrir_encuesta', 'preparar_correo_formulario',
 ])
 const AVISO_AUTORIZACION = ' REQUIERE AUTORIZACIÓN: llámala primero sin confirmar (no cambia nada, devuelve lo que haría), muéstraselo a la persona y solo si lo aprueba vuelve a llamarla igual con confirmar=true.'
 function autorizado(v) { return v === true || v === 'true' }
@@ -100,6 +101,17 @@ function entero(v, campo, min, max) {
 function booleano(v) { return v === true || v === 'true' }
 function nuevoId(prefijo) { return prefijo + Date.now().toString(36) + Math.random().toString(36).slice(2, 7) }
 function corto(s, n) { const t = s == null ? '' : String(s); return t.length > n ? t.slice(0, n) + '…' : t }
+/** Gmail con un correo nuevo ya escrito (se abre en la cuenta de Gmail que la persona tenga abierta). Igual que la app. */
+function gmailUrl({ to = '', cc = '', bcc = '', su = '', body = '' }) {
+  const p = new URLSearchParams({ view: 'cm', fs: '1', to })
+  if (cc) p.set('cc', cc)
+  if (bcc) p.set('bcc', bcc)
+  p.set('su', su); p.set('body', body)
+  return 'https://mail.google.com/mail/?' + p.toString()
+}
+const COMO_ENVIAR = 'El correo NO sale solo. Con el conector de Gmail, crea un BORRADOR con estos datos (para, cc o cco, asunto y cuerpo tal cual) para que la persona lo revise y le dé Enviar; si no hay conector, dale el enlace gmail_url, que abre el correo ya escrito en su Gmail.'
+const ENC_K = ['instructor', 'contenido', 'interesante', 'material']
+const promedio = (rs, k) => rs.length ? Math.round(rs.reduce((s, r) => s + r[k], 0) / rs.length * 10) / 10 : null
 
 // Lectura: devuelve las filas o lanza el error.
 async function leer(q) {
@@ -734,6 +746,202 @@ function herramientas(sb) {
         if (abrir) await escribir(sb.from('clases_abiertas').upsert(ses.map((s) => ({ grupo_id: g.id, sesion_id: s.id })), { onConflict: 'grupo_id,sesion_id' }).select(), 'el candado')
         else await leer(sb.from('clases_abiertas').delete().eq('grupo_id', g.id).in('sesion_id', ses.map((s) => s.id)).select())   // cerrar la que ya estaba cerrada no es error
         return { hecho: true, grupo: g.nombre, accion: abrir ? 'abiertas' : 'cerradas', clases: ses.map((s) => s.corto + '. ' + s.nombre) }
+      },
+    },
+
+    // ── Asistencia (supabase-asistencia.sql) ──────────────────────────────
+    ver_asistencia: {
+      descripcion: 'La asistencia de un grupo: por encuentro (cada clase, o sus dos partes si va partida) cuántos vinieron, quiénes faltaron y si ya se preparó el correo a la empresa; y por persona su acumulado (a cuántos encuentros vino).',
+      esquema: { type: 'object', properties: { grupo: { type: 'string' } }, required: ['grupo'] },
+      async correr(a) {
+        const g = await grupo(a.grupo)
+        const [filas, envios, miembros, ses, crono] = await Promise.all([
+          leer(sb.from('asistencia').select('*').eq('grupo_id', g.id)),
+          leer(sb.from('envios').select('*').eq('grupo_id', g.id).eq('tipo', 'asistencia').order('creado_el', { ascending: false })),
+          leer(sb.from('miembros').select('email,nombre,rol,activo').eq('grupo_id', g.id)),
+          leer(sb.from('reto_sesiones').select('id,corto,nombre,orden').order('orden')),
+          leer(sb.from('cronograma').select('*').eq('grupo_id', g.id)),
+        ])
+        const nom = (e) => (miembros.find((m) => m.email === e) || {}).nombre || e
+        const claves = [...new Set(filas.map((f) => f.sesion_id + '|' + f.parte))]
+        const encuentros = claves.map((k) => {
+          const [sid, p] = k.split('|'), parte = +p
+          const fs = filas.filter((f) => f.sesion_id === sid && f.parte === parte)
+          const s = ses.find((x) => x.id === sid) || {}, c = crono.find((x) => x.sesion_id === sid) || {}
+          const env = envios.find((e) => e.sesion_id === sid && e.parte === parte)
+          return { clase: (s.corto || sid) + ': ' + (s.nombre || ''), sesion_id: sid, parte, partida: !!c.fecha2, orden: s.orden ?? 0,
+            fecha: (parte === 2 ? c.fecha2 : c.fecha) || null,
+            vinieron: fs.filter((f) => f.presente).length, total: fs.length,
+            faltaron: fs.filter((f) => !f.presente).map((f) => nom(f.email)),
+            correo_a_la_empresa: env ? 'preparado el ' + String(env.creado_el).slice(0, 10) + ' por ' + env.por : 'sin preparar' }
+        }).sort((x, y) => x.orden - y.orden || x.parte - y.parte).map(({ orden: _o, ...r }) => r)
+        const personas = miembros.filter((m) => m.activo).map((m) => {
+          const fs = filas.filter((f) => f.email === m.email)
+          const vino = fs.filter((f) => f.presente).length
+          return { nombre: m.nombre || null, email: m.email, rol: m.rol, vino, de: fs.length, porcentaje: fs.length ? Math.round(vino / fs.length * 100) : null }
+        })
+        return { grupo: g.nombre, encuentros_tomados: encuentros.length, encuentros, personas }
+      },
+    },
+
+    registrar_asistencia: {
+      descripcion: 'Toma la asistencia de un encuentro: cruza la lista pegada (celdas del Excel de asistencia de Meet, nombres o correos, uno por línea) con las personas del grupo, igual que la app (correo, nombre completo, o nombre y apellido, sin tildes ni mayúsculas). Con aparecer basta; cuentan estudiantes y responsables. parte = 1, o 2 si la clase va partida en dos encuentros. Sin confirmar devuelve el cruce: muéstrale a la persona quiénes se encontraron y las líneas que NO cruzaron, y pregúntale quién es cada una; las que identifique van en "correos". Volver a registrar un encuentro lo reemplaza.',
+      esquema: { type: 'object', properties: {
+        grupo: { type: 'string' }, sesion_id: { type: 'string', description: 'Id de la clase (listar_sesiones)' },
+        parte: { type: 'integer', description: '1 (por defecto) o 2' },
+        lista: { type: 'string', description: 'Lo que se pegó: una persona por línea' },
+        correos: { type: 'array', items: { type: 'string' }, description: 'Correos de personas del grupo que también vinieron (las que no cruzaron y la persona identificó)' },
+      }, required: ['grupo', 'sesion_id'] },
+      async vista(a) { return await this._cruce(a) },
+      async correr(a) {
+        const c = await this._cruce(a)
+        if (!c.presentes.length && !texto(a.lista) && !(a.correos || []).length) falla('no mandaste ni lista ni correos')
+        const r = await rpc('asistencia_guardar', { p_grupo: c._g, p_sesion: c._s, p_parte: c.parte, p_presentes: c.presentes.map((p) => p.email), p_fuente: texto(a.lista) ? 'lista' : 'manual' })
+        return { guardado: true, grupo: c.grupo, clase: c.clase, parte: c.parte, vinieron: r.presentes, total: r.total, siguiente_paso: 'Si la persona quiere enviarle la asistencia a la empresa, usa preparar_correo_asistencia.' }
+      },
+      async _cruce(a) {
+        const g = await grupo(a.grupo), s = (await clasesDe(g, a.sesion_id))[0]
+        const parte = entero(a.parte, 'parte', 1, 2) || 1
+        const miembros = (await leer(sb.from('miembros').select('email,nombre,rol').eq('grupo_id', g.id).eq('activo', true)))
+        const r = texto(a.lista) ? await rpc('asistencia_cruzar', { p_grupo: g.id, p_texto: texto(a.lista) }) : { encontrados: [], sin_cruzar: [] }
+        const set = new Map((r.encontrados || []).map((x) => [x.email, x]))
+        const ajenos = []
+        for (const e of (a.correos || []).map((x) => texto(x).toLowerCase()).filter(Boolean)) {
+          if (miembros.some((m) => m.email === e)) set.set(e, { email: e, por: 'indicado' }); else ajenos.push(e)
+        }
+        if (ajenos.length) falla('estos correos no son de personas activas de ' + g.nombre + ': ' + ajenos.join(', '))
+        const nom = (e) => (miembros.find((m) => m.email === e) || {}).nombre || e
+        const presentes = [...set.values()].map((x) => ({ nombre: nom(x.email), email: x.email, por: x.por }))
+        return { _g: g.id, _s: s.id, grupo: g.nombre, clase: s.corto + ': ' + s.nombre, parte,
+          presentes, vinieron: presentes.length, total: miembros.length,
+          faltarian: miembros.filter((m) => !set.has(m.email)).map((m) => ({ nombre: m.nombre || m.email, email: m.email })),
+          lineas_sin_cruzar: (r.sin_cruzar || []).map((x) => ({ linea: x.linea, puede_ser: (x.opciones || []).map(nom) })) }
+      },
+    },
+
+    preparar_correo_asistencia: {
+      descripcion: 'Arma el correo de asistencia de un encuentro para la empresa (para: el contacto de la ficha y los responsables; cc: las admin), con quiénes vinieron, quiénes no y el acumulado del programa. Sin confirmar muestra el correo. Con confirmar=true lo deja registrado como preparado (la app lo muestra) y devuelve los datos para crear el borrador en Gmail.',
+      esquema: { type: 'object', properties: { grupo: { type: 'string' }, sesion_id: { type: 'string' }, parte: { type: 'integer', description: '1 (por defecto) o 2' } }, required: ['grupo', 'sesion_id'] },
+      async vista(a) { const c = await this._correo(a); delete c._g; delete c._s; return c },
+      async correr(a) {
+        const c = await this._correo(a)
+        await escribir(sb.from('envios').insert({ tipo: 'asistencia', grupo_id: c._g, sesion_id: c._s, parte: c.parte, para: c.para, asunto: c.asunto, por: 'Claude' }).select(), 'el registro del correo')
+        delete c._g; delete c._s
+        return { ...c, registrado: true, como_enviarlo: COMO_ENVIAR }
+      },
+      async _correo(a) {
+        const g = await grupo(a.grupo), s = (await clasesDe(g, a.sesion_id))[0], parte = entero(a.parte, 'parte', 1, 2) || 1
+        const c = await rpc('asistencia_correo', { p_grupo: g.id, p_sesion: s.id, p_parte: parte })
+        if (!c.para || !c.para.length) falla(g.nombre + ' no tiene contacto en su ficha ni responsables: agrégalos primero (actualizar_grupo o actualizar_persona).')
+        return { _g: g.id, _s: s.id, grupo: g.nombre, parte, para: c.para, cc: c.cc || [], asunto: c.asunto, cuerpo: c.cuerpo,
+          gmail_url: gmailUrl({ to: c.para.join(','), cc: (c.cc || []).join(','), su: c.asunto, body: c.cuerpo }) }
+      },
+    },
+
+    // ── Encuestas de satisfacción y diagnóstico (supabase-formularios.sql) ──
+    ver_encuestas: {
+      descripcion: 'Las 5 encuestas de satisfacción de un grupo: cuáles están abiertas o cerradas y de qué clase son, cuántos respondieron, los resultados de cada pregunta (promedio en las de 1 a 5, conteo en las de opciones, el texto en las abiertas) y quiénes faltan. Las preguntas se editan en la app.',
+      esquema: { type: 'object', properties: { grupo: { type: 'string' } }, required: ['grupo'] },
+      async correr(a) {
+        const g = await grupo(a.grupo)
+        const [encs, rs, miembros, ses] = await Promise.all([
+          leer(sb.from('encuestas').select('*').eq('grupo_id', g.id).order('numero')),
+          leer(sb.from('encuesta_respuestas').select('*').eq('grupo_id', g.id)),
+          leer(sb.from('miembros').select('email,nombre').eq('grupo_id', g.id).eq('activo', true)),
+          leer(sb.from('reto_sesiones').select('id,corto,nombre')),
+        ])
+        const nom = (e) => (miembros.find((m) => m.email === e) || {}).nombre || e
+        const activos = new Set(miembros.map((m) => m.email))
+        const apagadas = (g.extras_off || []).includes('encuestas')
+        return { grupo: g.nombre, encuestas_activas_para_el_grupo: !apagadas, personas: miembros.length,
+          encuestas: [1, 2, 3, 4, 5].map((n) => {
+            const e = encs.find((x) => x.numero === n)
+            if (!e) return { numero: n, estado: 'sin abrir' }
+            const r = rs.filter((x) => x.numero === n && activos.has(x.email))
+            const s = ses.find((x) => x.id === e.sesion_id)
+            // Cada respuesta trae su pregunta; las primeras encuestas venían en columnas
+            const filas = r.map((x) => ({ quien: nom(x.email), rs: Array.isArray(x.respuestas) ? x.respuestas
+              : ENC_K.map((k) => ({ id: k, pregunta: k, tipo: 'escala', respuesta: x[k] })).concat([{ id: 'expectativas', pregunta: '¿Cumplió expectativas?', tipo: 'una', respuesta: { si: 'Sí', parcial: 'Parcialmente', no: 'No' }[x.expectativas] }, { id: 'comentario', pregunta: 'Comentario', tipo: 'parrafo', respuesta: x.comentario || '' }]) }))
+            const preguntas = []
+            filas.forEach((f) => f.rs.forEach((q) => { if (!preguntas.some((p) => p.id === q.id)) preguntas.push({ id: q.id, pregunta: q.pregunta, tipo: q.tipo }) }))
+            const resultados = preguntas.map((p) => {
+              const vals = filas.map((f) => ({ quien: f.quien, v: (f.rs.find((q) => q.id === p.id) || {}).respuesta })).filter((x) => x.v !== undefined && x.v !== '' && x.v !== null && !(Array.isArray(x.v) && !x.v.length))
+              if (p.tipo === 'escala' || vals.every((x) => typeof x.v === 'number')) return { pregunta: p.pregunta, promedio: vals.length ? Math.round(vals.reduce((a, x) => a + Number(x.v), 0) / vals.length * 10) / 10 : null, respuestas: vals.length }
+              if (p.tipo === 'una' || p.tipo === 'varias') { const c = {}; vals.forEach((x) => (Array.isArray(x.v) ? x.v : [x.v]).forEach((o) => { c[o] = (c[o] || 0) + 1 })); return { pregunta: p.pregunta, conteo: c } }
+              return { pregunta: p.pregunta, respuestas: vals.map((x) => ({ quien: x.quien, texto: x.v })) }
+            })
+            return { numero: n, estado: e.abierta ? 'abierta' : 'cerrada', clase: s ? s.corto + ': ' + s.nombre : null,
+              respondieron: r.length, de: miembros.length, resultados,
+              faltan: miembros.filter((m) => !r.some((x) => x.email === m.email)).map((m) => m.nombre || m.email) }
+          }) }
+      },
+    },
+
+    abrir_encuesta: {
+      descripcion: 'Abre (o cierra con abrir=false) una de las 5 encuestas de satisfacción de un grupo. Al abrirla se dice de qué clase es (sesion_id) y a las personas les aparece al entrar a la Academia; después conviene avisarles con preparar_correo_formulario. Cerrada, ya no se puede responder (las respuestas se conservan).',
+      esquema: { type: 'object', properties: {
+        grupo: { type: 'string' }, numero: { type: 'integer', description: '1 a 5' },
+        sesion_id: { type: 'string', description: 'La clase de la que es la encuesta (al abrirla)' },
+        abrir: { type: 'boolean', description: 'true = abrir (por defecto), false = cerrar' },
+      }, required: ['grupo', 'numero'] },
+      async vista(a) {
+        const g = await grupo(a.grupo), n = entero(a.numero, 'numero', 1, 5), abrir = viene(a, 'abrir') ? booleano(a.abrir) : true
+        const s = abrir && texto(a.sesion_id) ? (await clasesDe(g, a.sesion_id))[0] : null
+        if ((g.extras_off || []).includes('encuestas')) falla('las encuestas están apagadas para ' + g.nombre + ' (se encienden en Editar empresa)')
+        return { grupo: g.nombre, encuesta: n, accion: abrir ? 'abrir' : 'cerrar', clase: s ? s.corto + ': ' + s.nombre : null }
+      },
+      async correr(a) {
+        const v = await this.vista(a), g = await grupo(a.grupo), n = entero(a.numero, 'numero', 1, 5)
+        if (v.accion === 'abrir') {
+          const fila = { grupo_id: g.id, numero: n, abierta: true, abierta_el: new Date().toISOString() }
+          if (texto(a.sesion_id)) fila.sesion_id = (await clasesDe(g, a.sesion_id))[0].id
+          await escribir(sb.from('encuestas').upsert(fila, { onConflict: 'grupo_id,numero' }).select(), 'la encuesta')
+        } else await escribir(sb.from('encuestas').update({ abierta: false }).eq('grupo_id', g.id).eq('numero', n).select(), 'la encuesta (¿estaba abierta?)')
+        return { hecho: true, ...v, siguiente_paso: v.accion === 'abrir' ? 'Para avisarles, usa preparar_correo_formulario con tipo "encuesta".' : undefined }
+      },
+    },
+
+    ver_diagnosticos: {
+      descripcion: 'El diagnóstico de entrada de un grupo: quiénes respondieron y quiénes faltan, y las respuestas (cargo, área, tareas repetitivas, herramientas, uso de IA, frenos, qué quieren lograr…). Con persona (correo) devuelve solo las de esa persona. Sirve para preparar las clases según el grupo.',
+      esquema: { type: 'object', properties: { grupo: { type: 'string' }, persona: { type: 'string', description: 'Correo (opcional)' } }, required: ['grupo'] },
+      async correr(a) {
+        const g = await grupo(a.grupo)
+        const [ds, miembros] = await Promise.all([
+          leer(sb.from('diagnosticos').select('*').eq('grupo_id', g.id)),
+          leer(sb.from('miembros').select('email,nombre').eq('grupo_id', g.id).eq('activo', true)),
+        ])
+        const activos = new Set(miembros.map((m) => m.email))
+        let lista = ds.filter((d) => activos.has(d.email))
+        if (texto(a.persona)) lista = lista.filter((d) => d.email === texto(a.persona).toLowerCase())
+        return { grupo: g.nombre, diagnostico_activo_para_el_grupo: !(g.extras_off || []).includes('diagnostico'),
+          respondieron: ds.filter((d) => activos.has(d.email)).length, de: miembros.length,
+          faltan: miembros.filter((m) => !ds.some((d) => d.email === m.email)).map((m) => m.nombre || m.email),
+          respuestas: lista.map((d) => ({ nombre: d.nombre, email: d.email, respondido: d.actualizado_el,
+            respuestas: Object.fromEntries((d.respuestas || []).map((x) => [x.pregunta, Array.isArray(x.respuesta) ? x.respuesta.join(', ') : x.respuesta])) })) }
+      },
+    },
+
+    preparar_correo_formulario: {
+      descripcion: 'Arma el correo para las personas de un grupo (en copia oculta) que las invita a responder el diagnóstico (tipo "diagnostico") o una encuesta abierta (tipo "encuesta" con su numero). Con solo_faltan=true es el recordatorio y va solo a quienes no han respondido. Sin confirmar muestra el correo; con confirmar=true lo registra como enviado (la app lo muestra) y devuelve los datos para crear el borrador en Gmail.',
+      esquema: { type: 'object', properties: {
+        grupo: { type: 'string' }, tipo: { type: 'string', enum: ['diagnostico', 'encuesta'] },
+        numero: { type: 'integer', description: 'Solo para encuesta: 1 a 5' }, solo_faltan: { type: 'boolean' },
+      }, required: ['grupo', 'tipo'] },
+      async vista(a) { const c = await this._correo(a); delete c._g; return c },
+      async correr(a) {
+        const c = await this._correo(a)
+        await escribir(sb.from('envios').insert({ tipo: c.tipo, grupo_id: c._g, numero: c.numero, solo_faltan: c.solo_faltan, para: c.cco, asunto: c.asunto, por: 'Claude' }).select(), 'el registro del correo')
+        delete c._g
+        return { ...c, registrado: true, como_enviarlo: COMO_ENVIAR + ' Las personas van en CCO (copia oculta).' }
+      },
+      async _correo(a) {
+        const g = await grupo(a.grupo), tipo = texto(a.tipo)
+        if (tipo !== 'diagnostico' && tipo !== 'encuesta') falla('tipo debe ser "diagnostico" o "encuesta"')
+        const numero = tipo === 'encuesta' ? entero(req(a.numero, 'numero'), 'numero', 1, 5) : null
+        const c = await rpc('formulario_correo', { p_grupo: g.id, p_tipo: tipo, p_numero: numero, p_solo_faltan: booleano(a.solo_faltan) })
+        if (!c.cco || !c.cco.length) falla(booleano(a.solo_faltan) ? 'ya respondieron todos' : g.nombre + ' no tiene personas activas')
+        return { _g: g.id, grupo: g.nombre, tipo, numero, solo_faltan: booleano(a.solo_faltan), cco: c.cco, personas: c.cco.length, asunto: c.asunto, cuerpo: c.cuerpo,
+          gmail_url: gmailUrl({ bcc: c.cco.join(','), su: c.asunto, body: c.cuerpo }) }
       },
     },
 

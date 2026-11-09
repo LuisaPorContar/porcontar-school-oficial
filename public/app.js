@@ -447,6 +447,14 @@ function cloudStore(){
     async registrarEnvio(fila){ check(await sb.from('envios').insert(fila)); },
     /* ---------- Encuestas y diagnóstico (supabase-formularios.sql) ---------- */
     misFormularios:       () => rpc('mis_formularios'),
+    async formularioPreguntas(){
+      const { data, error } = await sb.from('formulario_preguntas').select('tipo,preguntas');
+      if (error) throw error;
+      return data || [];
+    },
+    async guardarPreguntas(tipo, preguntas){
+      check(await sb.from('formulario_preguntas').upsert({ tipo, preguntas, actualizado_el:new Date().toISOString() }));
+    },
     encuestaResponder:    (grupo, numero, r) => rpc('encuesta_responder', { p_grupo:grupo, p_numero:numero, p_r:r }),
     diagnosticoResponder: (grupo, respuestas) => rpc('diagnostico_responder', { p_grupo:grupo, p_respuestas:respuestas }),
     formularioCorreo:     (grupo, tipo, numero, soloFaltan) =>
@@ -716,7 +724,7 @@ function localStore(){
     async clasesAbiertas(){ return null; },
     abrirClase:soloNube,
     asistencia:soloNube, asistenciaCruzar:soloNube, asistenciaGuardar:soloNube, asistenciaCorreo:soloNube, registrarEnvio:soloNube,
-    misFormularios:async () => [], encuestaResponder:soloNube, diagnosticoResponder:soloNube, formularioCorreo:soloNube,
+    misFormularios:async () => [], formularioPreguntas:async () => [], guardarPreguntas:soloNube, encuestaResponder:soloNube, diagnosticoResponder:soloNube, formularioCorreo:soloNube,
     formularios:soloNube, encuestaAbrir:soloNube, encuestaEstado:soloNube,
     async cronograma(){ return []; },
     async grabaciones(){ return []; },
