@@ -26,7 +26,6 @@ let SESSIONS = SESIONES_BASE.slice();
 const deSesion = r => ({
   id:r.id, orden:r.orden || 0, short:r.corto, name:r.nombre, desc:r.descripcion || '',
   icon:r.icono || 's-1', tipo:r.tipo || 'clase', title:`${r.corto}. ${r.nombre}`,
-  visible:r.visible !== false,   // sin la columna (antes del SQL) todas se ven
   grupoId:r.grupo_id || null,    // vacío = del reto; con grupo = propia de ese bootcamp o charla
 });
 
@@ -416,9 +415,7 @@ function cloudStore(){
       check(await sb.from('reto_sesiones').upsert(lista.map(s => ({
         id:s.id, orden:s.orden, corto:s.short, nombre:s.name, descripcion:s.desc || '',
         icono:s.icon, tipo:s.tipo || 'clase', ...(s.grupoId ? { grupo_id:s.grupoId } : {}),
-        // visible solo viaja si está apagada o se acaba de cambiar: así guardar sigue funcionando
-        // aunque la base todavía no tenga la columna
-        ...(s.visible === false || s.cambioVisible ? { visible:s.visible !== false } : {}),
+        // Quién ve cada sesión lo decide solo el candado por empresa (clases_abiertas)
         updated_at:new Date().toISOString() }))));
     },
     async borrarSesion(id){ check(await sb.from('reto_sesiones').delete().eq('id', id)); },
@@ -430,6 +427,48 @@ function cloudStore(){
     async abrirClase(grupo, sesion, abrir){
       check(abrir ? await sb.from('clases_abiertas').upsert({ grupo_id:grupo, sesion_id:sesion })
                   : await sb.from('clases_abiertas').delete().eq('grupo_id', grupo).eq('sesion_id', sesion));
+    },
+    /* ---------- Asistencia y correos desde Gmail (supabase-asistencia.sql) ---------- */
+    /** De un grupo: todas sus filas de asistencia y los correos de asistencia que se han preparado. */
+    async asistencia(grupo){
+      const [a, e] = await Promise.all([
+        sb.from('asistencia').select('sesion_id,parte,email,presente,fuente,actualizado_el').eq('grupo_id', grupo),
+        sb.from('envios').select('sesion_id,parte,para,por,creado_el').eq('grupo_id', grupo).eq('tipo', 'asistencia')
+          .order('creado_el', { ascending:false }),
+      ]);
+      if (a.error) throw a.error;
+      if (e.error) throw e.error;
+      return { filas:a.data || [], envios:e.data || [] };
+    },
+    asistenciaCruzar:  (grupo, texto) => rpc('asistencia_cruzar', { p_grupo:grupo, p_texto:texto }),
+    asistenciaGuardar: (grupo, sesion, parte, presentes, fuente) =>
+      rpc('asistencia_guardar', { p_grupo:grupo, p_sesion:sesion, p_parte:parte, p_presentes:presentes, p_fuente:fuente }),
+    asistenciaCorreo:  (grupo, sesion, parte) => rpc('asistencia_correo', { p_grupo:grupo, p_sesion:sesion, p_parte:parte }),
+    async registrarEnvio(fila){ check(await sb.from('envios').insert(fila)); },
+    /* ---------- Encuestas y diagnóstico (supabase-formularios.sql) ---------- */
+    misFormularios:       () => rpc('mis_formularios'),
+    encuestaResponder:    (grupo, numero, r) => rpc('encuesta_responder', { p_grupo:grupo, p_numero:numero, p_r:r }),
+    diagnosticoResponder: (grupo, respuestas) => rpc('diagnostico_responder', { p_grupo:grupo, p_respuestas:respuestas }),
+    formularioCorreo:     (grupo, tipo, numero, soloFaltan) =>
+      rpc('formulario_correo', { p_grupo:grupo, p_tipo:tipo, p_numero:numero ?? null, p_solo_faltan:!!soloFaltan }),
+    /** Admin: las encuestas abiertas, sus respuestas, los diagnósticos y los correos enviados de un grupo. */
+    async formularios(grupo){
+      const r = await Promise.all([
+        sb.from('encuestas').select('*').eq('grupo_id', grupo).order('numero'),
+        sb.from('encuesta_respuestas').select('*').eq('grupo_id', grupo),
+        sb.from('diagnosticos').select('*').eq('grupo_id', grupo),
+        sb.from('envios').select('tipo,numero,solo_faltan,para,por,creado_el').eq('grupo_id', grupo)
+          .in('tipo', ['encuesta', 'diagnostico']).order('creado_el', { ascending:false }),
+      ]);
+      r.forEach(x => { if (x.error) throw x.error; });
+      return { encuestas:r[0].data, respuestas:r[1].data, diagnosticos:r[2].data, envios:r[3].data };
+    },
+    async encuestaAbrir(grupo, numero, sesion, abierta = true){
+      check(await sb.from('encuestas').upsert({ grupo_id:grupo, numero, sesion_id:sesion || null, abierta,
+                                                ...(abierta ? { abierta_el:new Date().toISOString() } : {}) }));
+    },
+    async encuestaEstado(grupo, numero, abierta){
+      check(await sb.from('encuestas').update({ abierta }).eq('grupo_id', grupo).eq('numero', numero));
     },
     async cronograma(grupoId){
       let q = sb.from('cronograma').select('*');
@@ -676,6 +715,9 @@ function localStore(){
     async sesiones(){ return SESIONES_BASE.slice(); },
     async clasesAbiertas(){ return null; },
     abrirClase:soloNube,
+    asistencia:soloNube, asistenciaCruzar:soloNube, asistenciaGuardar:soloNube, asistenciaCorreo:soloNube, registrarEnvio:soloNube,
+    misFormularios:async () => [], encuestaResponder:soloNube, diagnosticoResponder:soloNube, formularioCorreo:soloNube,
+    formularios:soloNube, encuestaAbrir:soloNube, encuestaEstado:soloNube,
     async cronograma(){ return []; },
     async grabaciones(){ return []; },
     async registrarVideo(){ return {}; },
@@ -1134,14 +1176,13 @@ function pintarNav(){
   if (comu){ comu.hidden = !CLOUD || (!IS_ADMIN && extraApagado('comunidad')); comu.classList.toggle('is-off', IS_ADMIN && extraApagado('comunidad')); }
   const sop = $('#subnav [data-sub="soporte"]'); if (sop) sop.hidden = !CLOUD || (!IS_ADMIN && !gruposResponsable().length);
   $('#navSessions').innerHTML = SESSIONS.map(s => `
-    <div class="nav-row ${s.visible === false ? 'is-apagada' : ''}" data-row="${s.id}">
+    <div class="nav-row" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
         <svg class="ico" data-icono="${s.icon}"><use href="#${s.icon}"/></svg>
         <span class="nav-label">
           <em>${escapeHtml(s.short)}</em>
           <b>${escapeHtml(s.name)}</b>
         </span>
-        ${s.visible === false ? '<span class="nav-apagada">Apagada</span>' : ''}
         <span class="count" data-count="${s.id}">0</span>
       </button>
       ${candadoNavHtml(s)}
@@ -1391,8 +1432,10 @@ function renderVista(){
     $('#viewSubtitle').textContent = 'Quién entra a /admin con su correo y su contraseña';
   } else if (view.type === 'reto'){
     $('#viewTitle').textContent = grupoCorto() ? 'Sesiones de ' + grupoCorto().nombre : 'Sesiones del reto';
-    $('#viewSubtitle').textContent = grupoCorto() ? 'Las sesiones de este bootcamp o charla: solo las ve este grupo'
-      : 'Agrega, edita, ordena o elimina las sesiones: el cambio se ve en todas las empresas';
+    const gEsp = vistaComo && grupoPorId(vistaComo);
+    $('#viewSubtitle').textContent = grupoCorto() ? 'Las sesiones de este bootcamp o charla: solo las ve este grupo. El interruptor abre o cierra cada una'
+      : gEsp ? `Editar, ordenar o eliminar cambia para todas las empresas. El interruptor abre o cierra cada clase solo para ${gEsp.nombre}`
+      : 'Agrega, edita, ordena o elimina las sesiones. Para abrir o cerrar una clase, entra al espacio de la empresa';
   } else if (view.type === 'grupos'){
     const g = grupoAbierto && grupoPorId(grupoAbierto);
     $('#viewTitle').textContent = g ? g.nombre : 'Empresas y cohortes';

@@ -327,7 +327,7 @@ function herramientas(sb) {
           personas: miembros,
           cronograma: suyas.map((s) => {
             const c = crono.find((x) => x.sesion_id === s.id) || {}
-            return { sesion_id: s.id, sesion: s.corto + '. ' + s.nombre, tipo: s.tipo, visible: s.visible,
+            return { sesion_id: s.id, sesion: s.corto + '. ' + s.nombre, tipo: s.tipo,
               abierta: abiertas ? abiertas.includes(s.id) : true,
               fecha: c.fecha || null, hora: c.hora ? String(c.hora).slice(0, 5) : null, plataforma: c.plataforma || null, enlace: c.enlace || null,
               nota: c.nota || null, fecha2: c.fecha2 || null, hora2: c.hora2 ? String(c.hora2).slice(0, 5) : null, enlace2: c.enlace2 || null }
@@ -379,7 +379,7 @@ function herramientas(sb) {
     },
 
     listar_sesiones: {
-      descripcion: 'Las sesiones (clases) con su id. Sin grupo: las del reto, que siguen todos los grupos de formato reto. Con un grupo de formato corto (bootcamp o charla): sus sesiones propias.',
+      descripcion: 'Las sesiones (clases) con su id. Sin grupo: las del reto, que siguen todos los grupos de formato reto. Con un grupo de formato corto (bootcamp o charla): sus sesiones propias. Si está abierta o cerrada para cada grupo se ve en ver_grupo y se cambia con abrir_clase.',
       esquema: { type: 'object', properties: { grupo: { type: 'string', description: 'Opcional: nombre o id de un grupo corto' } } },
       async correr(a) {
         let q = sb.from('reto_sesiones').select('*').order('orden')
@@ -387,7 +387,7 @@ function herramientas(sb) {
           const g = await grupo(a.grupo)
           q = (g.formato || 'reto') === 'corto' ? q.eq('grupo_id', g.id) : q.is('grupo_id', null)
         } else q = q.is('grupo_id', null)
-        return (await leer(q)).map((s) => ({ id: s.id, orden: s.orden, corto: s.corto, nombre: s.nombre, tipo: s.tipo, visible: s.visible, descripcion: s.descripcion }))
+        return (await leer(q)).map((s) => ({ id: s.id, orden: s.orden, corto: s.corto, nombre: s.nombre, tipo: s.tipo, descripcion: s.descripcion }))
       },
     },
 
@@ -694,15 +694,15 @@ function herramientas(sb) {
     // ═════════ Sesiones, cronograma y grabaciones ═════════
 
     actualizar_sesion: {
-      descripcion: 'Cambia el nombre, el texto corto ("Clase 1"), la descripción, el tipo o si está visible de una sesión. OJO: las sesiones del reto (sin grupo) son las mismas para todos los grupos de formato reto.',
+      descripcion: 'Cambia el nombre, el texto corto ("Clase 1"), la descripción o el tipo de una sesión. OJO: las sesiones del reto (sin grupo) son las mismas para todos los grupos de formato reto. Para que un grupo la vea o no, usa abrir_clase.',
       esquema: { type: 'object', properties: {
         sesion_id: { type: 'string' }, corto: { type: 'string' }, nombre: { type: 'string' }, descripcion: { type: 'string' },
-        tipo: { type: 'string', enum: TIPOS_SESION }, visible: { type: 'boolean' },
+        tipo: { type: 'string', enum: TIPOS_SESION },
       }, required: ['sesion_id'] },
       async vista(a) {
         const s = await sesion(a.sesion_id)
         return { sesion: s.corto + '. ' + s.nombre, afecta_a: s.grupo_id ? (await grupo(s.grupo_id)).nombre : 'todos los grupos de formato reto',
-          cambios: Object.fromEntries(['corto', 'nombre', 'descripcion', 'tipo', 'visible'].filter((k) => viene(a, k)).map((k) => [k, { antes: s[k], despues: a[k] }])) }
+          cambios: Object.fromEntries(['corto', 'nombre', 'descripcion', 'tipo'].filter((k) => viene(a, k)).map((k) => [k, { antes: s[k], despues: a[k] }])) }
       },
       async correr(a) {
         const s = await sesion(a.sesion_id)
@@ -711,7 +711,6 @@ function herramientas(sb) {
         if (viene(a, 'nombre')) c.nombre = texto(req(a.nombre, 'nombre'), 160)
         if (viene(a, 'descripcion')) c.descripcion = texto(a.descripcion, 2000)
         if (viene(a, 'tipo')) { if (!TIPOS_SESION.includes(a.tipo)) falla('tipo no válido'); c.tipo = a.tipo }
-        if (viene(a, 'visible')) c.visible = booleano(a.visible)
         if (!Object.keys(c).length) falla('no mandaste nada para cambiar')
         c.updated_at = new Date().toISOString()
         return { actualizado: true, sesion: (await escribir(sb.from('reto_sesiones').update(c).eq('id', s.id).select(), 'la sesión'))[0] }

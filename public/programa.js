@@ -224,8 +224,11 @@ function inicioHtml(){
 
   // Lo primero que ve el cliente es siempre el cronograma; después lo que sigue y su programa
   // El admin ve primero la ficha de la empresa (con Editar cronograma); el cliente, su cronograma
-  return IS_ADMIN ? hero + lista + prox
-                  : selector + lista + prox + continua + hero;
+  // Diagnóstico y encuestas (formularios.js): el admin, su panel; el cliente, lo que le falta responder, primero
+  const formularios = typeof formulariosAdminHtml === 'function'
+    ? (IS_ADMIN ? formulariosAdminHtml(g) : formulariosPendientesHtml(g)) : '';
+  return IS_ADMIN ? hero + formularios + lista + prox
+                  : selector + formularios + lista + prox + continua + hero;
 }
 
 /** Logo de la empresa, o sus iniciales si no hay logo. */
@@ -295,10 +298,10 @@ function ceFilaHtml(s, r, propias, nueva, partible){
    Agenda «partida»: cada clase de 2 horas se parte en dos encuentros de 1 hora. */
 const DIAS_SEMANA = [[1, 'Lun'], [2, 'Mar'], [3, 'Mié'], [4, 'Jue'], [5, 'Vie'], [6, 'Sáb'], [0, 'Dom']];
 
-/** Las sesiones que se agendan solas: las encendidas que vienen después del Kickoff. */
+/** Las sesiones que se agendan solas: las que vienen después del Kickoff. */
 function sesionesAuto(){
   const k = SESSIONS.findIndex(s => s.tipo === 'kickoff');
-  return SESSIONS.slice(k + 1).filter(s => s.visible !== false);
+  return SESSIONS.slice(k + 1);
 }
 /** Las que se parten en dos en la agenda partida: las clases (no la QA ni la Presentación). */
 const esPartible = s => s.tipo === 'clase' && sesionesAuto().includes(s);
@@ -513,6 +516,7 @@ function retoHtml(){
   if (!fase1) return `
     <div class="empty"><svg class="ico"><use href="#i-edit"/></svg>
       <h3>Las sesiones todavía son fijas</h3><p>Falta correr <b>supabase-fase1.sql</b> en Supabase.</p></div>`;
+  const gEsp = vistaComo ? grupoPorId(vistaComo) : null;   // el espacio abierto: ahí el interruptor es su candado
   return `
     <div class="sk-head">
       <span class="sk-label">${SESSIONS.length} ${SESSIONS.length === 1 ? 'sesión' : 'sesiones'} ${grupoCorto() ? 'de ' + escapeHtml(grupoCorto().nombre) : 'en el reto · iguales para todas las empresas'}</span>
@@ -521,8 +525,9 @@ function retoHtml(){
     <div class="card reto-lista">${SESSIONS.map((s, i) => {
       const nPosts = posts.filter(p => p.session === s.id).length;
       const nGrabs = GRABS.filter(g => g.sesion_id === s.id).length;
+      const cerrada = gEsp && ABIERTAS && !claseAbierta(s.id);
       return `
-      <div class="reto-fila ${s.visible === false ? 'is-apagada' : ''}">
+      <div class="reto-fila ${cerrada ? 'is-apagada' : ''}">
         <span class="reto-num">${i + 1}</span>
         <span class="reto-ico"><svg class="ico"><use href="#${s.icon}"/></svg></span>
         <div class="reto-txt">
@@ -530,10 +535,7 @@ function retoHtml(){
           <b>${escapeHtml(s.name)}</b>
           <small>${nPosts} ${nPosts === 1 ? 'publicación' : 'publicaciones'} · ${nGrabs} ${nGrabs === 1 ? 'grabación' : 'grabaciones'}</small>
         </div>
-        <button class="sw ${s.visible === false ? '' : 'is-on'}" data-reto-visible="${s.id}" role="switch" aria-checked="${s.visible !== false}"
-                title="${s.visible === false ? 'Apagada: los estudiantes no la ven. Toca para encenderla' : 'Encendida: la ven todas las empresas. Toca para apagarla'}">
-          <span class="sw-pista"><span class="sw-bola"></span></span>${s.visible === false ? 'Apagada' : 'Encendida'}
-        </button>
+        ${candadoRetoHtml(s, gEsp)}
         <span class="mover">
           <button class="icon-btn" data-reto-mover="-1" data-id="${s.id}" ${i === 0 ? 'disabled' : ''} title="Subir" aria-label="Subir ${escapeHtml(s.short)}"><svg class="ico"><use href="#i-up"/></svg></button>
           <button class="icon-btn" data-reto-mover="1" data-id="${s.id}" ${i === SESSIONS.length - 1 ? 'disabled' : ''} title="Bajar" aria-label="Bajar ${escapeHtml(s.short)}"><svg class="ico"><use href="#i-down"/></svg></button>
@@ -542,6 +544,25 @@ function retoHtml(){
         <button class="icon-btn" data-reto-borrar="${s.id}" title="Eliminar" aria-label="Eliminar ${escapeHtml(s.short)}"><svg class="ico"><use href="#i-trash"/></svg></button>
       </div>`;
     }).join('')}</div>`;
+}
+
+/* El interruptor de cada sesión ES el candado (clases_abiertas): un solo control, por empresa.
+   En el espacio de una empresa la abre o la cierra para ella; en el general solo dice en cuántas está abierta. */
+function candadoRetoHtml(s, g){
+  if (!ABIERTAS) return '';
+  if (g){
+    const ab = claseAbierta(s.id), n = escapeHtml(g.nombre);
+    return `
+        <button class="sw ${ab ? 'is-on' : ''}" data-candado="${s.id}" role="switch" aria-checked="${ab}"
+                title="${ab ? `Abierta para ${n}: sus personas ya la ven. Toca para cerrarla` : `Cerrada para ${n}: la ven con candado y sin contenido. Toca para abrirla`}">
+          <span class="sw-pista"><span class="sw-bola"></span></span>${ab ? 'Abierta' : 'Cerrada'}
+        </button>`;
+  }
+  const grupos = s.grupoId ? GRUPOS.filter(x => x.id === s.grupoId) : GRUPOS.filter(x => x.formato !== 'corto');
+  const n = grupos.filter(x => ABIERTAS.some(r => r.grupo_id === x.id && r.sesion_id === s.id)).length;
+  return `
+        <span class="reto-abiertas ${n ? 'is-on' : ''}" title="Para abrirla o cerrarla, entra al espacio de la empresa">
+          <svg class="ico"><use href="#${n ? 'i-unlock' : 'i-lock'}"/></svg>Abierta en ${n} de ${grupos.length}</span>`;
 }
 
 function abrirSesionForm(s = null){
@@ -584,7 +605,7 @@ $('#seSave').addEventListener('click', async () => {
     cerrarSesionForm();
     pintarNav();
     toast(!nueva ? 'Sesión actualizada' : grupoCorto() ? `Sesión creada: solo la ve ${grupoCorto().nombre}`
-                 : 'Sesión creada: ya aparece en el menú de todas las empresas');
+                 : 'Sesión creada: aparece cerrada en todas las empresas; ábrela con su candado');
     render();
   } catch (err){
     console.error(err);
@@ -613,7 +634,7 @@ async function borrarSesion(id){
   const nGrabs = GRABS.filter(g => g.sesion_id === id).length;
   const nCrono = CRONO.filter(r => r.sesion_id === id).length;
   const extra = nGrabs || nCrono ? `\n\nTambién se borran sus ${nGrabs} grabaciones y su fecha en ${nCrono} cronogramas.` : '';
-  if (!(await confirmar({ titulo:`¿Eliminar «${s.title}»?`, texto:`${grupoCorto() ? 'Deja de verla ' + grupoCorto().nombre : 'Deja de verse en todas las empresas'}.${extra} Si solo quieres ocultarla un tiempo, mejor apágala.`, boton:'Eliminar sesión' }))) return;
+  if (!(await confirmar({ titulo:`¿Eliminar «${s.title}»?`, texto:`${grupoCorto() ? 'Deja de verla ' + grupoCorto().nombre : 'Deja de verse en todas las empresas'}.${extra} Si solo quieres que no la vean todavía, mejor ciérrala con el candado.`, boton:'Eliminar sesión' }))) return;
   try {
     await store.borrarSesion(id);
     SESSIONS = SESSIONS.filter(x => x.id !== id);
@@ -992,8 +1013,8 @@ $('#posts').addEventListener('click', e => {
     if (ed) return abrirSesionForm(SESSIONS.find(s => s.id === ed.dataset.retoEditar));
     const mv = e.target.closest('[data-reto-mover]');
     if (mv && !mv.disabled) return moverSesion(mv.dataset.id, Number(mv.dataset.retoMover));
-    const sw = e.target.closest('[data-reto-visible]');
-    if (sw) return alternarSesion(sw.dataset.retoVisible);
+    const cand = e.target.closest('[data-candado]');
+    if (cand) return alternarCandado(cand.dataset.candado);
     const br = e.target.closest('[data-reto-borrar]');
     if (br) return borrarSesion(br.dataset.retoBorrar);
   }
@@ -1053,6 +1074,8 @@ function claseHtml(lista){
           ${IS_ADMIN && fase1 ? `<button class="btn" data-clase-editar><svg class="ico"><use href="#i-edit"/></svg> Editar clase</button>` : ''}
         </div>
       </div>
+
+      ${gEsp && fase1 && typeof asistenciaHtml === 'function' ? asistenciaHtml(s, gEsp, r) : ''}
 
       <div class="rec-cab">
         <span>Recursos de la clase</span>
@@ -1188,25 +1211,6 @@ async function alternarCandado(id){
   }
 }
 
-
-/** Enciende o apaga una sesión: apagada, los estudiantes no la reciben (lo decide la base). */
-async function alternarSesion(id){
-  const s = SESSIONS.find(x => x.id === id); if (!s) return;
-  const nueva = { ...s, visible:s.visible === false, cambioVisible:true };
-  try {
-    await store.guardarSesiones([nueva]);
-    delete nueva.cambioVisible;
-    SESSIONS = SESSIONS.map(x => x.id === id ? nueva : x);
-    pintarNav();
-    toast(nueva.visible ? `«${s.short}» encendida: ya la ${grupoCorto() ? 've ' + grupoCorto().nombre : 'ven todas las empresas'}`
-                        : `«${s.short}» apagada: los estudiantes ya no la ven`);
-    render();
-  } catch (err){
-    console.error(err);
-    toast(/visible/i.test(err?.message || '')
-      ? 'Falta volver a correr supabase-fase1.sql en Supabase (agrega el botón de encendido)' : errorMsg(err));
-  }
-}
 
 
 /* ================================================================
