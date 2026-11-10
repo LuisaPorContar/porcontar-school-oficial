@@ -859,6 +859,55 @@ function herramientas(sb) {
       },
     },
 
+    // ── Participación (supabase-participacion.sql) ───────────────────────
+    ver_participacion: {
+      descripcion: 'La participación de un grupo, persona por persona: a qué encuentros vino y a cuáles faltó (con su % sobre las clases con lista tomada), qué encuestas respondió y cuáles le faltan, si hizo el diagnóstico, su mejor puntaje en cada quiz, los puntos extra y el total. Trae también los promedios del grupo. Con persona (correo o nombre) da solo esa persona; con menos_de (un %) da solo quienes tienen asistencia por debajo de ese %.',
+      esquema: { type: 'object', properties: {
+        grupo: { type: 'string' }, persona: { type: 'string', description: 'Correo o nombre (opcional)' },
+        menos_de: { type: 'integer', description: 'Solo quienes tienen asistencia por debajo de este % (opcional)' },
+      }, required: ['grupo'] },
+      async correr(a) {
+        const g = await grupo(a.grupo)
+        const d = await rpc('admin_participacion', { p_grupo: g.id })
+        const nomClase = (c) => c.corto + ': ' + c.nombre + (c.partida ? ' (parte ' + c.parte + ')' : '')
+        const tomadas = (d.clases || []).filter((c) => c.tomada)
+        const lanzadas = (d.encuestas || []).map((e) => e.numero)
+        let gente = (d.personas || []).map((p) => {
+          const marcadas = tomadas.filter((c) => (c.sesion_id + ':' + c.parte) in p.asistio)
+          const vino = marcadas.filter((c) => p.asistio[c.sesion_id + ':' + c.parte])
+          const pct = marcadas.length ? Math.round(100 * vino.length / marcadas.length) : null
+          return {
+            nombre: p.nombre, email: p.email, rol: p.rol,
+            asistencia: marcadas.length ? `${vino.length} de ${marcadas.length} (${pct} %)` : 'sin listas todavía', _pct: pct,
+            falto_a: marcadas.filter((c) => !p.asistio[c.sesion_id + ':' + c.parte]).map(nomClase),
+            ...(d.encuestas_on ? { encuestas_respondidas: p.encuestas, encuestas_pendientes: lanzadas.filter((n) => !p.encuestas.includes(n)) } : {}),
+            ...(d.diagnostico ? { diagnostico: p.diagnostico ? 'sí' : 'no' } : {}),
+            quizzes: Object.fromEntries((d.quizzes || []).map((q) => {
+              const r = p.quizzes[q.id]
+              return [q.titulo, r ? `${r.mejor} % (${r.aprobado ? 'aprobado' : 'no aprobado'}, ${r.intentos} ${r.intentos === 1 ? 'intento' : 'intentos'})` : 'no lo ha hecho']
+            })),
+            puntos_extra: p.extra, puntos_total: p.puntos,
+          }
+        })
+        const conPct = gente.filter((x) => x._pct != null)
+        const resumen = {
+          personas: gente.length,
+          asistencia_promedio: conPct.length ? Math.round(conPct.reduce((s, x) => s + x._pct, 0) / conPct.length) + ' %' : 'sin listas todavía',
+          encuentros: `${tomadas.length} de ${(d.clases || []).length} con lista tomada`,
+          encuestas_lanzadas: lanzadas,
+          ...(d.diagnostico ? { diagnostico: `${(d.personas || []).filter((p) => p.diagnostico).length} de ${gente.length} lo hicieron` } : {}),
+          quizzes: (d.quizzes || []).map((q) => q.titulo),
+        }
+        if (texto(a.persona)) {
+          const t = texto(a.persona).toLowerCase()
+          gente = gente.filter((x) => x.email === t || String(x.nombre).toLowerCase().includes(t))
+          if (!gente.length) falla('no hay nadie en ' + g.nombre + ' que coincida con «' + a.persona + '»')
+        }
+        if (a.menos_de != null) gente = gente.filter((x) => x._pct != null && x._pct < entero(a.menos_de, 'menos_de', 1, 100))
+        return { grupo: g.nombre, resumen, personas: gente.map(({ _pct, ...x }) => x) }
+      },
+    },
+
     dar_puntos: {
       descripcion: 'Da puntos extra a una persona de un grupo, con un motivo que ella ve en «Cómo gané mis puntos» (p. ej. "Respondió bien en la clase 3"). Lo normal es +5, +10 o +20 (de 1 a 100). persona = correo o nombre.',
       esquema: { type: 'object', properties: {
