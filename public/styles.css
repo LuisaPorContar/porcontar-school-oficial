@@ -1969,6 +1969,114 @@ body.vista-clase .rail{top:140px}
 
 /* ============ COMUNIDAD · el muro de toda la academia ============ */
 .cm{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+/* Muro con columna derecha (supabase-puntos.sql): dudas, logros, prompts y puntos */
+.cm-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;max-width:1100px;margin:0 auto;align-items:start}
+.cm-layout .cm{max-width:none;margin:0}
+.cm-lado{display:flex;flex-direction:column;gap:14px;position:sticky;top:16px}
+.cm-info{padding:16px 18px}
+.cm-info h3{font-size:15px;margin:0 0 10px}
+.cm-info ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:var(--ink-soft)}
+.cm-info li{display:flex;gap:10px;align-items:flex-start}
+.cm-info li b{color:var(--ink)}
+.cm-reglas li{align-items:center}
+.cm-reglas li b{margin-left:auto;color:var(--pc-blue)}
+.cm-top{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.cm-top li{display:flex;align-items:center;gap:8px}
+.cm-top em{margin-left:auto;font-style:normal;color:var(--ink-mute);font-size:13px}
+.cm-compartir{padding:0;overflow:hidden}
+.cm-compartir .cm-crear{border-bottom:1px solid var(--line)}
+.cm-tipos-rapidos{display:grid;grid-template-columns:repeat(3,1fr)}
+.cm-tipo-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:0;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer}
+.cm-tipo-btn+.cm-tipo-btn{border-left:1px solid var(--line)}
+.cm-tipo-btn span{font-size:18px}
+.cm-tipo-btn.t-duda:hover{background:#FFF4E5;color:#9A5B00}
+.cm-tipo-btn.t-logro:hover{background:#FFFBD6;color:#7A6A00}
+.cm-tipo-btn.t-prompt:hover{background:#EEF2FF;color:var(--pc-blue-deep)}
+.cm-pestanas{display:flex;gap:6px;flex-wrap:wrap}
+.cm-pestanas button{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid var(--line);border-radius:var(--r-pill);background:#fff;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer}
+.cm-pestanas button em{font-style:normal;font-weight:500;color:var(--ink-mute)}
+.cm-pestanas button.is-on{background:var(--night);border-color:var(--night);color:#fff}
+.cm-pestanas button.is-on em{color:var(--on-night-soft)}
+.cm-pend{font-style:normal;display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E8590C;color:#fff;font-size:11px}
+.cm-etiqueta{display:flex;align-items:center;gap:10px;margin:-2px 0 10px;font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.cm-etiqueta span{padding:3px 10px;border-radius:var(--r-pill)}
+.cm-etiqueta.t-duda span{background:#FFF4E5;color:#9A5B00}
+.cm-etiqueta.t-logro span{background:#FFF7B8;color:#6B5D00}
+.cm-etiqueta.t-prompt span{background:#EEF2FF;color:var(--pc-blue-deep)}
+.cm-resuelta{color:#1d7a46;text-transform:none;letter-spacing:0;font-size:13px}
+.cm-abierta{color:#B4532A;text-transform:none;letter-spacing:0;font-size:13px;font-weight:600}
+.cm-post.tipo-logro{border-color:#F3E2A6;background:linear-gradient(180deg,#FFFDF0 0,#fff 120px)}
+.cm-post.tipo-duda{border-left:4px solid #F5A524}
+.cm-post.tipo-prompt{border-left:4px solid var(--pc-blue)}
+.cm-com.is-mejor>.cm-com-col>.cm-com-caja{background:#EAF7EF;border:1px solid #BFE5CC}
+.cm-mejor{display:inline-block;margin-bottom:4px;font-size:12px;font-weight:700;color:#1d7a46}
+.cm-dar{color:#9A5B00!important}
+.cm-dar-ico{font-size:16px}
+.cm-tipos{display:flex;gap:6px;flex-wrap:wrap}
+.cm-tipos button{padding:6px 12px;border:1px solid var(--line);border-radius:var(--r-pill);background:#fff;font:inherit;font-size:13.5px;font-weight:600;color:var(--ink-soft);cursor:pointer}
+.cm-tipos button.is-on{background:var(--night);border-color:var(--night);color:#fff}
+@media (max-width:980px){
+  .cm-layout{grid-template-columns:1fr}
+  .cm-lado{position:static;order:-1}
+  .cm-lado .cm-info:not(:last-child){display:none}
+}
+
+/* ============ PUNTOS (puntos.js) ============ */
+.pt-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;align-items:center;padding:20px 22px;margin:0 0 14px;
+  background:linear-gradient(135deg,#0B1120 0%,#1B2A6B 100%);color:#fff;border:0}
+.pt-mio{display:flex;gap:16px;align-items:center}
+.pt-trofeo{font-size:44px;line-height:1}
+.pt-mio em{font-style:normal;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--pc-yellow)}
+.pt-num{display:block;font-family:var(--font-display);font-size:46px;line-height:1.05}
+.pt-mio p{margin:4px 0 0;font-size:14px;color:#D7DEFF}
+.pt-mio p b{color:#fff}
+.pt-frase{font-size:13px!important;color:#AFC0FF!important}
+.pt-sumaste{color:var(--pc-yellow);font-weight:700}
+.pt-lado{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.pt-card .pt-podio-col{background:rgba(255,255,255,.08);color:#fff}
+.pt-card .pt-podio-col em{color:#D7DEFF}
+.pt-card .as-nota{color:#D7DEFF}
+.pt-podio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-items:end}
+.pt-podio-col{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px 0;border-radius:14px 14px 0 0;background:var(--paper-2);text-align:center;min-width:0}
+.pt-podio-col b{font-size:13px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-podio-col em{font-style:normal;font-size:12px;color:var(--ink-mute)}
+.pt-podio-col.p1{padding-top:18px}
+.pt-podio-col.p1 .pt-escalon{height:44px}
+.pt-podio-col.p2 .pt-escalon{height:30px}
+.pt-podio-col.p3 .pt-escalon{height:20px}
+.pt-escalon{display:grid;place-items:center;width:100%;margin-top:6px;font-size:22px;border-top:1px solid rgba(0,0,0,.06)}
+.pt-podio-col.is-yo{outline:2px solid var(--pc-yellow)}
+.pt-av{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--pc-blue);color:#fff;font-weight:700;font-size:13px;flex:none}
+.pt-av.sm{width:30px;height:30px;font-size:11.5px}
+.pt-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.pt-lista li{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:12px;font-size:14px}
+.pt-lista li:nth-child(odd){background:var(--paper-2)}
+.pt-lista li.is-yo{background:#FFF7B8;font-weight:600}
+.pt-pos{width:34px;text-align:center;font-weight:700;color:var(--ink-soft)}
+.pt-nom{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt-nom em{font-style:normal;font-weight:400;color:var(--ink-mute)}
+.pt-acc{display:flex;align-items:center;gap:8px}
+.btn-mini{padding:4px 10px;font-size:12.5px}
+.pt-dos{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.pt-hist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.pt-hist li{display:flex;align-items:center;gap:10px}
+.pt-hist li>span:nth-child(2){flex:1;min-width:0}
+.pt-hist em{display:block;font-style:normal;font-size:12px;color:var(--ink-mute)}
+.pt-hist-e{font-size:18px}
+.pt-mas{color:#1d7a46}
+.pt-reglas{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:14px}
+.pt-reglas li{display:flex;align-items:center;gap:10px}
+.pt-reglas li b{margin-left:auto;color:var(--pc-blue)}
+.pt-adm-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:18px;align-items:start}
+.pt-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center;clear:both}
+.pt-chips button{padding:8px 16px;border:1px solid var(--line);border-radius:var(--r-pill);background:#fff;font:inherit;font-weight:700;cursor:pointer}
+.pt-chips button.is-on{background:var(--pc-blue);border-color:var(--pc-blue);color:#fff}
+.pt-chips input{width:90px;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px}
+#ptPersona{width:100%;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+@media (max-width:760px){
+  .pt-card,.pt-adm-grid,.pt-dos{grid-template-columns:1fr}
+  .pt-num{font-size:38px}
+}
 .cm-av{width:40px;height:40px;border-radius:50%;flex:none;display:grid;place-items:center;background:var(--paper-2);
   border:1px solid var(--line);color:var(--ink-soft);font-family:var(--font-display);font-weight:700;font-size:13.5px}
 .cm-av.es-equipo{background:var(--night);border-color:var(--night);color:var(--pc-yellow)}

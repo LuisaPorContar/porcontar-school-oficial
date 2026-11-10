@@ -227,8 +227,10 @@ function inicioHtml(){
   // Diagnóstico y encuestas (formularios.js): el admin, su panel; el cliente, lo que le falta responder, primero
   const formularios = typeof formulariosAdminHtml === 'function'
     ? (IS_ADMIN ? formulariosAdminHtml(g) : formulariosPendientesHtml(g)) : '';
-  return IS_ADMIN ? hero + formularios + lista + prox
-                  : selector + formularios + lista + prox + continua + hero;
+  // Puntos (puntos.js): el admin, el ranking del grupo; el cliente, sus puntos y el podio
+  const puntos = typeof puntosAdminHtml === 'function' ? (IS_ADMIN ? puntosAdminHtml(g) : puntosTarjetaHtml(g)) : '';
+  return IS_ADMIN ? hero + formularios + puntos + lista + prox
+                  : selector + formularios + puntos + lista + prox + continua + hero;
 }
 
 /** Logo de la empresa, o sus iniciales si no hay logo. */

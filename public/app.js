@@ -446,6 +446,13 @@ function cloudStore(){
     asistenciaCorreo:  (grupo, sesion, parte) => rpc('asistencia_correo', { p_grupo:grupo, p_sesion:sesion, p_parte:parte }),
     async registrarEnvio(fila){ check(await sb.from('envios').insert(fila)); },
     /* ---------- Encuestas y diagnóstico (supabase-formularios.sql) ---------- */
+    /* ---------- Puntos y muro con dudas y logros (supabase-puntos.sql) ---------- */
+    misPuntos:            () => rpc('mis_puntos'),
+    adminPuntos:          grupo => rpc('admin_puntos', { p_grupo:grupo }),
+    darPuntos:            (grupo, email, puntos, motivo) => rpc('dar_puntos', { p_grupo:grupo, p_email:email, p_puntos:puntos, p_motivo:motivo || '' }),
+    async quitarPuntos(id){ check(await sb.from('puntos_manuales').delete().eq('id', id)); },
+    comunidadEtiquetar:   (id, tipo) => rpc('comunidad_etiquetar', { p_id:id, p_tipo:tipo || null }),
+    comunidadResolver:    (post, comentario) => rpc('comunidad_resolver', { p_post:post, p_comentario:comentario || null }),
     misFormularios:       () => rpc('mis_formularios'),
     async formularioPreguntas(){
       const { data, error } = await sb.from('formulario_preguntas').select('tipo,preguntas');
@@ -724,6 +731,8 @@ function localStore(){
     async clasesAbiertas(){ return null; },
     abrirClase:soloNube,
     asistencia:soloNube, asistenciaCruzar:soloNube, asistenciaGuardar:soloNube, asistenciaCorreo:soloNube, registrarEnvio:soloNube,
+    misPuntos:async () => [], adminPuntos:soloNube, darPuntos:soloNube, quitarPuntos:soloNube,
+    comunidadEtiquetar:soloNube, comunidadResolver:soloNube,
     misFormularios:async () => [], formularioPreguntas:async () => [], guardarPreguntas:soloNube, encuestaResponder:soloNube, diagnosticoResponder:soloNube, formularioCorreo:soloNube,
     formularios:soloNube, encuestaAbrir:soloNube, encuestaEstado:soloNube,
     async cronograma(){ return []; },

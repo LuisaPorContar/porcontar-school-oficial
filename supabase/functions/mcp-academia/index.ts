@@ -54,6 +54,7 @@ const ESCRIBEN = new Set([
   'crear_curso', 'actualizar_curso', 'eliminar_curso', 'crear_capsula', 'actualizar_capsula', 'eliminar_capsula',
   'abrir_ticket', 'responder_ticket', 'cambiar_estado_ticket',
   'registrar_asistencia', 'preparar_correo_asistencia', 'abrir_encuesta', 'preparar_correo_formulario',
+  'dar_puntos',
 ])
 const AVISO_AUTORIZACION = ' REQUIERE AUTORIZACIÓN: llámala primero sin confirmar (no cambia nada, devuelve lo que haría), muéstraselo a la persona y solo si lo aprueba vuelve a llamarla igual con confirmar=true.'
 function autorizado(v) { return v === true || v === 'true' }
@@ -835,6 +836,50 @@ function herramientas(sb) {
         if (!c.para || !c.para.length) falla(g.nombre + ' no tiene contacto en su ficha ni responsables: agrégalos primero (actualizar_grupo o actualizar_persona).')
         return { _g: g.id, _s: s.id, grupo: g.nombre, parte, para: c.para, cc: c.cc || [], asunto: c.asunto, cuerpo: c.cuerpo,
           gmail_url: gmailUrl({ to: c.para.join(','), cc: (c.cc || []).join(','), su: c.asunto, body: c.cuerpo }) }
+      },
+    },
+
+    // ── Puntos (supabase-puntos.sql) ─────────────────────────────────────
+    ver_puntos: {
+      descripcion: 'Los puntos y el ranking de un grupo: cada persona con sus puntos y su puesto, y de dónde salen (asistir +10, aprobar un quiz +10, encuesta o diagnóstico +5, y los que dio el equipo con su motivo). Con persona (correo o nombre) da el detalle de esa persona.',
+      esquema: { type: 'object', properties: { grupo: { type: 'string' }, persona: { type: 'string', description: 'Correo o nombre (opcional)' } }, required: ['grupo'] },
+      async correr(a) {
+        const g = await grupo(a.grupo)
+        const d = await rpc('admin_puntos', { p_grupo: g.id })
+        const ranking = d.ranking || [], eventos = d.eventos || []
+        let lista = ranking
+        if (texto(a.persona)) {
+          const t = texto(a.persona).toLowerCase()
+          lista = ranking.filter((r) => r.email === t || String(r.nombre).toLowerCase().includes(t))
+          if (!lista.length) falla('no hay nadie en ' + g.nombre + ' que coincida con «' + a.persona + '»')
+        }
+        return { grupo: g.nombre, valores: d.valores,
+          ranking: lista.map((r) => ({ puesto: r.puesto, nombre: r.nombre, email: r.email, puntos: r.puntos,
+            ...(texto(a.persona) ? { detalle: eventos.filter((e) => e.email === r.email).map((e) => ({ tipo: e.tipo, puntos: e.puntos, motivo: e.motivo, fecha: String(e.fecha || '').slice(0, 10) })) } : {}) })) }
+      },
+    },
+
+    dar_puntos: {
+      descripcion: 'Da puntos extra a una persona de un grupo, con un motivo que ella ve en «Cómo gané mis puntos» (p. ej. "Respondió bien en la clase 3"). Lo normal es +5, +10 o +20 (de 1 a 100). persona = correo o nombre.',
+      esquema: { type: 'object', properties: {
+        grupo: { type: 'string' }, persona: { type: 'string', description: 'Correo o nombre' },
+        puntos: { type: 'integer', description: '1 a 100 (normal: 5, 10 o 20)' }, motivo: { type: 'string' },
+      }, required: ['grupo', 'persona', 'puntos', 'motivo'] },
+      async vista(a) { const x = await this._datos(a); return { grupo: x.grupo, persona: x.nombre, email: x.email, puntos: '+' + x.puntos, motivo: x.motivo, tendria: x.antes + x.puntos } },
+      async correr(a) {
+        const x = await this._datos(a)
+        await rpc('dar_puntos', { p_grupo: x._g, p_email: x.email, p_puntos: x.puntos, p_motivo: x.motivo })
+        return { hecho: true, grupo: x.grupo, persona: x.nombre, puntos: '+' + x.puntos, motivo: x.motivo, ahora_tiene: x.antes + x.puntos }
+      },
+      async _datos(a) {
+        const g = await grupo(a.grupo), puntos = entero(req(a.puntos, 'puntos'), 'puntos', 1, 100), motivo = texto(req(a.motivo, 'motivo'), 200)
+        const ranking = (await rpc('admin_puntos', { p_grupo: g.id })).ranking || []
+        const t = texto(req(a.persona, 'persona')).toLowerCase()
+        const c = ranking.filter((r) => r.email === t || String(r.nombre).toLowerCase() === t)
+        const r = c.length ? c : ranking.filter((x) => String(x.nombre).toLowerCase().includes(t))
+        if (!r.length) falla('no hay nadie activo en ' + g.nombre + ' que coincida con «' + a.persona + '»')
+        if (r.length > 1) falla('«' + a.persona + '» coincide con varias personas: ' + r.map((x) => x.nombre + ' (' + x.email + ')').join(', ') + '. Usa el correo.')
+        return { _g: g.id, grupo: g.nombre, email: r[0].email, nombre: r[0].nombre, antes: r[0].puntos, puntos, motivo }
       },
     },
 
