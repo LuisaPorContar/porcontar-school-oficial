@@ -229,7 +229,8 @@ function inicioHtml(){
     ? (IS_ADMIN ? formulariosAdminHtml(g) : formulariosPendientesHtml(g)) : '';
   // Puntos (puntos.js): el admin, el ranking del grupo; el cliente, sus puntos y el podio
   const puntos = typeof puntosAdminHtml === 'function' ? (IS_ADMIN ? puntosAdminHtml(g) : puntosTarjetaHtml(g)) : '';
-  return IS_ADMIN ? hero + formularios + puntos + lista + prox
+  const participacion = IS_ADMIN && typeof participacionHtml === 'function' ? participacionHtml(g) : '';
+  return IS_ADMIN ? hero + formularios + puntos + participacion + lista + prox
                   : selector + formularios + puntos + lista + prox + continua + hero;
 }
 

@@ -2778,3 +2778,53 @@ body{top:0 !important}
 @media (max-width:560px){
   .topbar .idioma .ico,.topbar .idioma span{display:none}
 }
+
+/* ---------- Participación por empresa (participacion.js) ---------- */
+.pa-herr{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pa-buscar{position:relative;display:flex;align-items:center}
+.pa-buscar .ico{position:absolute;left:12px;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;opacity:.5;pointer-events:none}
+.pa-buscar input{width:220px;padding:8px 12px 8px 34px;border:1px solid var(--line);border-radius:var(--r-pill);font:inherit;font-size:14px;background:var(--paper-2)}
+.pa-buscar input:focus{outline:2px solid var(--pc-blue,#2b4fe8);outline-offset:1px;background:var(--paper)}
+.pa-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:4px 0 14px}
+.pa-kpi{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:1px;background:var(--paper)}
+.pa-kpi b{font-family:var(--font-display);font-size:24px;line-height:1.1;color:var(--ink)}
+.pa-kpi span{font-size:13px;font-weight:600;color:var(--ink)}
+.pa-kpi em{font-style:normal;font-size:12px;color:var(--ink-mute)}
+.pa-kpi.is-bien{border-color:#bfe8cf;background:#f1fbf5}.pa-kpi.is-bien b{color:#13804a}
+.pa-kpi.is-medio{border-color:#f6dfa6;background:#fffaee}.pa-kpi.is-medio b{color:#a46a00}
+.pa-kpi.is-bajo{border-color:#f5c6c6;background:#fff4f4}.pa-kpi.is-bajo b{color:#c0392b}
+.pa-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;-webkit-overflow-scrolling:touch}
+.pa-tabla{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px;white-space:nowrap}
+.pa-tabla th,.pa-tabla td{padding:8px 8px;text-align:center;border-bottom:1px solid var(--line)}
+.pa-tabla thead th{background:var(--paper-2);font-family:var(--font-display);font-size:11.5px;font-weight:600;color:var(--ink-soft)}
+.pa-tabla .pa-grupos th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-mute);border-bottom:0;padding-bottom:2px}
+.pa-tabla .pa-g-asis,.pa-tabla .pa-g-enc,.pa-tabla .pa-g-quiz,.pa-tabla .pa-g-pts,.pa-tabla .pa-g-diag{border-left:2px solid var(--line)}
+.pa-tabla th.pa-c.is-futura{color:var(--ink-mute);font-weight:500}
+.pa-tabla .pa-ord{cursor:pointer;user-select:none}
+.pa-tabla .pa-ord:hover{color:var(--pc-blue,#2b4fe8)}
+.pa-tabla .pa-ord.is-on{color:var(--pc-blue,#2b4fe8)}
+.pa-tabla .pa-fija{position:sticky;left:0;z-index:1;text-align:left;background:var(--paper);min-width:170px;max-width:230px;border-right:2px solid var(--line)}
+.pa-tabla thead .pa-fija{background:var(--paper-2);z-index:2}
+.pa-tabla tbody tr:nth-child(even) td,.pa-tabla tbody tr:nth-child(even) .pa-fija{background:#fafbfe}
+.pa-tabla tbody tr:hover td,.pa-tabla tbody tr:hover .pa-fija{background:var(--pc-blue-tint)}
+.pa-tabla tbody tr:last-child>*{border-bottom:0}
+.pa-tabla tbody tr[hidden]{display:none}
+.pa-nom{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:150px;vertical-align:middle}
+.pa-tabla .pa-fija .as-rol{display:block;font-size:11px;font-style:normal}
+.pa-m{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;font-size:12px;font-weight:700}
+.pa-m.is-si{background:#dff5e8;color:#13804a}
+.pa-m.is-no{background:#fde4e4;color:#c0392b}
+.pa-m.is-nada{color:var(--ink-mute);font-size:16px}
+.pa-pct{min-width:96px;font-weight:700;text-align:left!important}
+.pa-barra{display:inline-block;width:38px;height:6px;border-radius:9px;background:var(--line);margin-right:6px;vertical-align:middle;overflow:hidden}
+.pa-barra i{display:block;height:100%;border-radius:9px;background:currentColor}
+.pa-pct.is-bien{color:#13804a}.pa-pct.is-medio{color:#a46a00}.pa-pct.is-bajo{color:#c0392b}
+.pa-q{font-weight:700}
+.pa-q.is-bien{color:#13804a}.pa-q.is-medio{color:#a46a00}.pa-q.is-nada{color:var(--ink-mute);font-weight:400}
+.pa-num{font-variant-numeric:tabular-nums}
+.pa-total{font-weight:800;color:var(--ink)}
+.pa-tabla td:nth-child(1){border-left:0}
+.pa-leyenda{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 2px 0;font-size:12px;color:var(--ink-soft)}
+.pa-leyenda span{display:inline-flex;align-items:center;gap:6px}
+.pa-leyenda .pa-m{width:18px;height:18px;font-size:10px}
+@media (max-width:640px){ .pa-kpis{grid-template-columns:1fr 1fr} .pa-kpi b{font-size:20px} .pa-buscar input{width:100%} .pa-herr,.pa-buscar{width:100%} .pa-tabla .pa-fija{min-width:120px} .pa-nom{max-width:110px} }
