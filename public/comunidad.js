@@ -15,6 +15,8 @@ const COMU = {
   respuestas:{},         // id → lo que se está escribiendo como comentario
   respondeA:{},          // id → { id, autor } del comentario al que se responde
   filtro:'todo',         // pestaña: todo | duda | logro | prompt
+  borrador:'',           // lo que va escrito en la caja de arriba
+  tipoRapido:null,       // el tipo elegido en la caja de arriba (prompt | logro | duda)
 };
 /* Cada publicación puede ser una duda, un logro o un prompt (supabase-puntos.sql) */
 const COMU_TIPOS = {
@@ -151,17 +153,44 @@ function comunidadHtml(){
   if (COMU.falla) return `<div class="cm"><div class="empty"><svg class="ico"><use href="#i-users"/></svg>
     <h3>La comunidad todavía no está activa</h3><p>${COMU.falla}</p></div></div>`;
   const nombre = (comuYo() || '').split(' ')[0];
-  const crear = `
-    <div class="card cm-compartir">
-      <button class="cm-crear" data-cm-crear>
-        ${comuAvatar(comuYo(), IS_ADMIN, comuMiFoto())}
-        <span>${IS_ADMIN ? (grupoPorId(vistaComo) ? 'Escribe algo para ' + escapeHtml(grupoPorId(vistaComo).nombre) + '…' : 'Escribe algo para todos los grupos…')
-                         : `¿Qué quieres compartir${nombre ? ', ' + escapeHtml(nombre) : ''}?`}</span>
-      </button>
-      <div class="cm-tipos-rapidos">${Object.entries(COMU_TIPOS).map(([k, x]) => `
-        <button class="cm-tipo-btn t-${k}" data-cm-crear="${k}"><span>${x.e}</span>${IS_ADMIN && k === 'duda' ? 'Pregunta' : x.t}</button>`).join('')}
+  const g = IS_ADMIN ? grupoPorId(vistaComo) : grupoInicio();
+  const n = COMU.posts.length, abiertas = COMU.posts.filter(p => p.tipo === 'duda' && !p.resuelta).length;
+  const logros = COMU.posts.filter(p => p.tipo === 'logro').length;
+  const datos = [n ? `${n} ${n === 1 ? 'publicación' : 'publicaciones'}` : 'Recién abierta',
+                 abiertas ? `${abiertas} ${abiertas === 1 ? 'duda por resolver' : 'dudas por resolver'}` : '',
+                 logros ? `${logros} ${logros === 1 ? 'logro' : 'logros'} 🏆` : ''].filter(Boolean).join(' · ');
+  const portada = `
+    <section class="card cm-portada">
+      <div class="cm-portada-fondo" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="cm-portada-info">
+        ${g ? logoHtml(g, 'cm-portada-logo') : '<span class="logo-emp cm-portada-logo es-pc">PC</span>'}
+        <div class="cm-portada-txt">
+          <h2>${g ? escapeHtml(g.nombre) : 'Comunidad PorContar'}</h2>
+          <p>${comuIco('i-lock')} ${g ? 'Comunidad privada' : 'Lo que publiques aquí lo ven todas las empresas'} · ${datos}</p>
+        </div>
       </div>
-    </div>`;
+    </section>`;
+  const tr = COMU.tipoRapido;
+  const crear = `
+    <form class="card cm-escribir ${tr ? 't-' + tr : ''}" data-cm-rapido>
+      <div class="cm-esc-fila">
+        ${comuAvatar(comuYo(), IS_ADMIN, comuMiFoto())}
+        <label class="sr-only" for="cmRapido">Escribe en la comunidad</label>
+        <textarea id="cmRapido" rows="1" maxlength="${COMU_MAX}" placeholder="${escapeHtml(tr ? COMU_TIPOS[tr].ayuda
+          : IS_ADMIN ? (g ? `Escribe algo para ${g.nombre}…` : 'Escribe algo para todas las empresas…')
+          : `¿Qué quieres compartir${nombre ? ', ' + nombre : ''}?`)}">${escapeHtml(COMU.borrador)}</textarea>
+      </div>
+      <div class="cm-esc-pie">
+        <div class="cm-esc-tipos" role="radiogroup" aria-label="¿Qué vas a compartir?">
+          ${[['prompt', 'Un prompt'], ['logro', 'Un logro'], ['duda', IS_ADMIN ? 'Una pregunta' : 'Una duda']].map(([k, t]) => `
+            <button type="button" class="t-${k} ${tr === k ? 'is-on' : ''}" role="radio" aria-checked="${tr === k}" data-cm-tipo-rapido="${k}"><span>${COMU_TIPOS[k].e}</span>${t}</button>`).join('')}
+        </div>
+        <div class="cm-esc-acc">
+          <button type="button" class="icon-btn" data-cm-mas-opciones title="Agregar imagen, PDF, video, encuesta o programarla" aria-label="Más opciones">${comuIco('i-clip')}</button>
+          <button class="btn btn-primary" type="submit">Publicar</button>
+        </div>
+      </div>
+    </form>`;
   const cuenta = k => COMU.posts.filter(p => p.tipo === k).length;
   const sinResolver = COMU.posts.filter(p => p.tipo === 'duda' && !p.resuelta).length;
   const pestañas = `
@@ -175,7 +204,7 @@ function comunidadHtml(){
     : COMU.filtro === 'logro' ? 'Todavía no hay logros. ¿Ya automatizaste algo? ¡Cuéntalo!'
     : 'Todavía no hay prompts. Comparte el que más te ha servido.';
   const lista = vistos.length ? vistos.map(comuPostHtml).join('') : `<div class="card cm-vacio">${vacio}</div>`;
-  return `<div class="cm-layout"><div class="cm">${crear}${pestañas}${lista}</div>${comuLadoHtml()}</div>`;
+  return `<div class="cm-wrap">${portada}<div class="cm-layout"><div class="cm">${crear}${pestañas}${lista}</div>${comuLadoHtml()}</div></div>`;
 }
 
 /** Columna derecha: de qué se trata, cómo sumar puntos y el top 3 del grupo. */
@@ -194,7 +223,7 @@ function comuLadoHtml(){
   return `
     <aside class="cm-lado">
       <section class="card cm-info">
-        <h3>${g ? 'Comunidad de ' + escapeHtml(g.nombre) : 'Comunidad'}</h3>
+        <h3>Acerca de esta comunidad</h3>
         <ul>
           <li><span>🔒</span><span><b>Privada.</b> ${g ? 'Solo la ven las personas de ' + escapeHtml(g.nombre) + ' y el equipo de PorContar.' : 'Cada empresa ve la suya.'}</span></li>
           <li><span>❓</span><span><b>Pregunta sin miedo.</b> El equipo y tus compañeros responden; la mejor respuesta queda marcada.</span></li>
@@ -288,17 +317,18 @@ function comuPostHtml(p){
       <span><span class="cm-firma">${comuFirma({ ...re, es_admin:true })}</span>
         <span class="cm-texto">${escapeHtml(re.texto.length > 200 ? re.texto.slice(0, 200).replace(/\s+\S*$/, '') + '…' : re.texto)}</span></span>
     </button>` : ''}
-    ${abierto ? `
-    <div class="cm-coms">
-      ${coms ? coms.filter(c => !c.padre_id).map(c => comuComentarioHtml(c, coms.filter(h => h.padre_id === c.id), p)).join('')
-             : '<p class="cm-cargando">Cargando comentarios…</p>'}
+    <div class="cm-coms ${abierto ? '' : 'is-cerrado'}">
+      ${abierto ? (coms ? coms.filter(c => !c.padre_id).map(c => comuComentarioHtml(c, coms.filter(h => h.padre_id === c.id), p)).join('')
+                        : '<p class="cm-cargando">Cargando comentarios…</p>') : ''}
       ${a ? `<p class="cm-respondiendo">Respondiendo a <b>${escapeHtml(a.autor)}</b> <button data-cm-no-responder aria-label="Dejar de responder">${comuIco('i-close')}</button></p>` : ''}
       <form class="cm-responder" data-cm-form>
         ${comuAvatar(comuYo(), IS_ADMIN, comuMiFoto())}
-        <input type="text" maxlength="2000" placeholder="${a ? 'Escribe tu respuesta' : 'Escribe un comentario'}" value="${escapeHtml(COMU.respuestas[p.id] || '')}" />
-        <button class="btn btn-primary" type="submit">Enviar</button>
+        <div class="cm-pastilla">
+          <input type="text" maxlength="2000" placeholder="${a ? 'Escribe tu respuesta…' : p.tipo === 'duda' ? 'Escribe tu respuesta a esta duda…' : p.tipo === 'logro' ? 'Felicítale o pregúntale cómo lo hizo…' : 'Escribe un comentario…'}" value="${escapeHtml(COMU.respuestas[p.id] || '')}" />
+          <button class="cm-enviar" type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" class="ico"><path d="M4 12 20 4l-6 16-3-7-7-1Z"/></svg></button>
+        </div>
       </form>
-    </div>` : ''}
+    </div>
   </article>`;
 }
 
@@ -683,7 +713,7 @@ async function comuPublicar(){
       try { await store.comunidadEtiquetar(nuevo, COMP.tipo); }
       catch (err){ console.warn('Sin supabase-puntos.sql todavía: se publica sin tipo', err); }
     }
-    if (COMP.tipo) COMU.filtro = 'todo';
+    COMU.filtro = 'todo'; COMU.borrador = ''; COMU.tipoRapido = null;
     comuCerrar();
     await cargarComunidad(); pintarComunidad();
     toast(publicarEn ? `Programada: se publica ${comuCuandoTxt(publicarEn)}` : 'Publicado en la comunidad');
@@ -704,6 +734,19 @@ $('#posts').addEventListener('click', async e => {
   const t = sel => e.target.closest(sel);
   if (t('[data-cm-crear]')) return comuAbrir(t('[data-cm-crear]').dataset.cmCrear || null);
   if (t('[data-cm-filtro]')){ COMU.filtro = t('[data-cm-filtro]').dataset.cmFiltro; return pintarComunidad(); }
+  const tr = t('[data-cm-tipo-rapido]');
+  if (tr){
+    const k = tr.dataset.cmTipoRapido;
+    COMU.tipoRapido = COMU.tipoRapido === k ? null : k;
+    pintarComunidad();
+    const ta = $('#cmRapido'); if (ta){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    return;
+  }
+  if (t('[data-cm-mas-opciones]')){
+    comuAbrir(COMU.tipoRapido);
+    $('#cmTexto').value = COMU.borrador; comuContar();
+    return;
+  }
 
   const art = t('[data-cm-post]'); if (!art) return;
   const id = art.dataset.cmPost, p = COMU.posts.find(x => x.id === id); if (!p) return;
@@ -788,6 +831,28 @@ $('#posts').addEventListener('click', async e => {
   }
 });
 
+/* La caja de arriba: lo escrito se guarda mientras se escribe (sobrevive a los redibujos) y crece sola */
+$('#posts').addEventListener('input', e => {
+  if (e.target.id !== 'cmRapido') return;
+  COMU.borrador = e.target.value;
+  e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 320) + 'px';
+});
+$('#posts').addEventListener('submit', async e => {
+  const form = e.target.closest('[data-cm-rapido]'); if (!form || view.type !== 'comunidad') return;
+  e.preventDefault();
+  const texto = COMU.borrador.trim(), btn = form.querySelector('[type="submit"]');
+  if (texto.length < 2) return toast(COMU.tipoRapido ? 'Escribe tu ' + COMU_TIPOS[COMU.tipoRapido].t.toLowerCase() + ' antes de publicar.' : 'Escribe algo para publicar.');
+  btn.disabled = true; btn.textContent = 'Publicando…';
+  try {
+    const tipo = COMU.tipoRapido;
+    const nuevo = await store.comunidadPublicar('', texto, [], null, null, IS_ADMIN ? vistaComo || null : null);
+    if (tipo && nuevo){ try { await store.comunidadEtiquetar(nuevo, tipo); } catch (err){ console.warn(err); } }
+    COMU.borrador = ''; COMU.tipoRapido = null; COMU.filtro = 'todo';
+    await cargarComunidad(); pintarComunidad();
+    toast(tipo === 'logro' ? '🏆 ¡Logro publicado! Que lo celebren' : tipo === 'duda' ? '❓ Duda publicada: pronto te responden' : 'Publicado en la comunidad');
+  } catch (err){ toast(errorMsg(err)); btn.disabled = false; btn.textContent = 'Publicar'; }
+});
+
 $('#posts').addEventListener('submit', async e => {
   const form = e.target.closest('[data-cm-form]'); if (!form || view.type !== 'comunidad') return;
   e.preventDefault();
@@ -797,7 +862,7 @@ $('#posts').addEventListener('submit', async e => {
   btn.disabled = true;
   try {
     await store.comunidadComentar(id, texto, COMU.respondeA[id]?.id || null);
-    input.value = ''; COMU.respuestas[id] = ''; delete COMU.respondeA[id];
+    input.value = ''; COMU.respuestas[id] = ''; delete COMU.respondeA[id]; COMU.abiertos.add(id);
     COMU.comentarios[id] = await store.comunidadComentarios(id);
     p.comentarios = COMU.comentarios[id].length;
     if (IS_ADMIN && !p.es_admin) p.respuesta_equipo = { autor:comuYo(), texto, created_at:new Date().toISOString(), foto:comuMiFoto() };
