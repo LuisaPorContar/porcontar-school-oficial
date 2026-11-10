@@ -223,14 +223,6 @@ function comuLadoHtml(){
   return `
     <aside class="cm-lado">
       <section class="card cm-info">
-        <h3>Acerca de esta comunidad</h3>
-        <ul>
-          <li><span>🔒</span><span><b>Privada.</b> ${g ? 'Solo la ven las personas de ' + escapeHtml(g.nombre) + ' y el equipo de PorContar.' : 'Cada empresa ve la suya.'}</span></li>
-          <li><span>❓</span><span><b>Pregunta sin miedo.</b> El equipo y tus compañeros responden; la mejor respuesta queda marcada.</span></li>
-          <li><span>🏆</span><span><b>Celebra tus logros</b> y comparte los prompts que te funcionan.</span></li>
-        </ul>
-      </section>
-      <section class="card cm-info">
         <h3>Suma puntos</h3>
         <ul class="cm-reglas">
           <li><span>📅</span> Asistir a clase <b>+${v.asistencia}</b></li>
