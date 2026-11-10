@@ -103,9 +103,20 @@ const reglasHtml = v => `
     <li><span>🎁</span> El equipo da puntos extra a quien aporta: una buena respuesta en clase o en la Comunidad</li>
   </ul>`;
 
+/** Para buscar sin importar tildes ni mayúsculas */
+const ptSinTildes = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/** El buscador de la lista completa (queda fijo arriba al bajar) */
+const buscadorHtml = n => n > 6 ? `
+  <div class="pt-buscador">
+    <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="search" data-pt-filtro placeholder="Buscar entre las ${n} personas…" aria-label="Buscar persona" autocomplete="off" />
+  </div>
+  <p class="as-nota pt-nadie" hidden>Nadie con ese nombre.</p>` : '';
+
 const rankingListaHtml = (ranking, admin) => `
   <ol class="pt-lista">${ranking.map(r => `
-    <li class="${r.yo ? 'is-yo' : ''}">
+    <li class="${r.yo ? 'is-yo' : ''}" data-pt-busca="${escapeHtml(ptSinTildes(r.nombre + ' ' + (admin ? r.email || '' : '')))}">
       <span class="pt-pos">${medalla(r.puesto) || puestoTxt(r.puesto)}</span>
       <span class="pt-av sm">${escapeHtml(iniciales(r.nombre))}</span>
       <span class="pt-nom">${escapeHtml(r.nombre)}${r.yo ? ' <em>(tú)</em>' : ''}${admin && r.rol === 'responsable' ? ' <em class="as-rol">Responsable</em>' : ''}</span>
@@ -127,6 +138,7 @@ function verRanking(gid){
   fmAbrir(`Ranking · ${d.grupo}`, `
     ${podioHtml(d.ranking)}
     <h3 class="fm-h3">Todo el grupo</h3>
+    ${buscadorHtml(d.ranking.length)}
     ${rankingListaHtml(d.ranking, false)}
     <div class="pt-dos">
       <div><h3 class="fm-h3">Cómo gané mis puntos</h3>${historialHtml(d.historial, false)}</div>
@@ -170,9 +182,25 @@ function puntosAdminHtml(g){
 
 function verRankingAdmin(){
   const g = grupoPorId(vistaComo);
-  fmAbrir(`Ranking · ${g?.nombre || ''}`, `${podioHtml(rankingAdmin())}${rankingListaHtml(rankingAdmin(), true)}`,
+  const r = rankingAdmin();
+  fmAbrir(`Ranking · ${g?.nombre || ''}`, `${buscadorHtml(r.length)}${podioHtml(r)}${rankingListaHtml(r, true)}`,
     '<button class="btn btn-primary" data-fm-cerrar>Cerrar</button>');
+  enfocar('[data-pt-filtro]');
 }
+
+/* El buscador: filtra la lista mientras se escribe; con texto, el podio se esconde para ver los resultados arriba */
+document.addEventListener('input', e => {
+  if (!e.target.matches('[data-pt-filtro]')) return;
+  const caja = e.target.closest('#fmCuerpo') || document;
+  const q = ptSinTildes(e.target.value).trim().split(/\s+/).filter(Boolean);
+  let vistos = 0;
+  caja.querySelectorAll('.pt-lista li').forEach(li => {
+    const ok = q.every(p => li.dataset.ptBusca.includes(p));
+    li.hidden = !ok; if (ok) vistos++;
+  });
+  caja.querySelectorAll('.pt-podio').forEach(p => p.hidden = q.length > 0);
+  const nadie = caja.querySelector('.pt-nadie'); if (nadie) nadie.hidden = vistos > 0;
+});
 function verDetallePuntos(email){
   const r = rankingAdmin().find(x => x.email === email); if (!r) return;
   const ev = (APT.datos?.eventos || []).filter(e => e.email === email);
