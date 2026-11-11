@@ -33,4 +33,8 @@ window.MURO_CONFIG = {
   RPC_QUIZ_STATS: 'quiz_stats',
   RPC_QUIZ_BORRAR_PERSONA: 'borrar_persona_quiz',   // limpiar pruebas: solo admin
   RPC_QUIZ_BORRAR_TODO:    'borrar_intentos_quiz',
+
+  // Avisos al celular o al PC (notificaciones.js): la llave PÚBLICA de los avisos.
+  // La privada va solo en Supabase → Edge Functions → Secrets → VAPID_PRIVADA.
+  VAPID_PUBLICA: 'BLx1OpLkzQ6l1SQHwioovb8A2467rQ_IE-FC0BOocQQ9QcAkoezF6Aq22qR9DSZmWX6ZqfyUyf6H7iKyg5InlTY',
 };

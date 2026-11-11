@@ -54,10 +54,12 @@ function comunidadCuenta(n){
 async function comunidadRefrescarCuenta(){
   if (!CLOUD || !IS_ADMIN || document.visibilityState !== 'visible') return;
   if (view.type === 'comunidad') return comunidadCuenta(0);
+  if (typeof NOTIF !== 'undefined' && NOTIF.datos) return;   // la campana ya lleva la cuenta (notificaciones.js)
   try { comunidadCuenta(await store.comunidadNovedades() || 0); } catch { /* sin el SQL todavía: sin número */ }
 }
 async function comunidadVista(){
   comunidadCuenta(0);
+  if (typeof notifCuenta === 'function' && typeof NOTIF !== 'undefined' && NOTIF.datos){ NOTIF.datos.nuevas = 0; NOTIF.datos.items.forEach(i => i.nueva = false); notifCuenta(0); }
   try { await store.comunidadVisto(); } catch { /* sin el SQL todavía */ }
 }
 setTimeout(comunidadRefrescarCuenta, 4500);

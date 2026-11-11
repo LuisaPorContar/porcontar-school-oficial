@@ -1,0 +1,32 @@
+{
+  "lang": "es",
+  "dir": "ltr",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7fc",
+  "theme_color": "#1b33a8",
+  "icons": [
+    {
+      "src": "/marca/app-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/marca/app-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/marca/app-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/admin",
+  "name": "Academia PorContar · Admin",
+  "short_name": "Admin Academia",
+  "description": "Administra la Academia PorContar",
+  "start_url": "/admin",
+  "scope": "/"
+}

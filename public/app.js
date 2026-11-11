@@ -397,6 +397,9 @@ function cloudStore(){
     soporteEstado:        (id, estado)    => rpc('soporte_estado', { p_id:id, p_estado:estado }),
     soportePendientes:    ()              => rpc('soporte_pendientes'),
     comunidadNovedades:   ()              => rpc('comunidad_novedades'),
+    adminNotificaciones:  ()              => rpc('admin_notificaciones'),
+    pushGuardar:  (endpoint, p256dh, auth, agente) => rpc('admin_push_guardar', { p_endpoint:endpoint, p_p256dh:p256dh, p_auth:auth, p_agente:agente }),
+    pushQuitar:   endpoint => rpc('admin_push_quitar', { p_endpoint:endpoint }),
     comunidadVisto:       ()              => rpc('comunidad_marcar_visto'),
     async subirLogo(grupoId, file){
       const ext = (file.name.match(/\.(\w+)$/) || [, 'png'])[1].toLowerCase();
@@ -725,7 +728,7 @@ function localStore(){
     comunidadBorrarComentario:soloNube, comunidadGrupo:soloNube, comunidadVotar:soloNube,
     comunidadGustarComentario:soloNube, comunidadSubir:soloNube, comunidadPublicarYa:soloNube,
     soporteTickets:soloNube, soporteAbrir:soloNube, soporteMensajes:soloNube, soporteResponder:soloNube,
-    soporteEstado:soloNube, soportePendientes:async () => 0, comunidadNovedades:async () => 0, comunidadVisto:async () => {},
+    soporteEstado:soloNube, soportePendientes:async () => 0, comunidadNovedades:async () => 0, pushGuardar:soloNube, pushQuitar:soloNube, comunidadVisto:async () => {},
     fichaGrupo:soloNube, subirLogo:soloNube, guardarSesiones:soloNube, borrarSesion:soloNube,
     guardarCronograma:soloNube, guardarGrabacion:soloNube, borrarGrabacion:soloNube,
     async sesiones(){ return SESIONES_BASE.slice(); },
