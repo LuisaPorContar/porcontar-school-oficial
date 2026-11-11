@@ -13,27 +13,30 @@
    · La Academia se instala como app (manifest + sw.js) para todos.
    ================================================================ */
 
-const NOTIF = { listo:false, datos:null, cargando:false, ultimo:'', primera:true };
+const NOTIF = { listo:false, admin:false, datos:null, cargando:false, ultimo:'', primera:true };
 
 // La app instalable y los avisos necesitan el service worker (para todos)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(err => console.warn('sw', err));
 
-/* ---------- Arranque: cuando la app ya sabe si es admin ---------- */
+/* ---------- Arranque: cuando la app ya sabe quién es ----------
+   Admin: todo lo que publican y comentan. Estudiante: las respuestas a lo suyo. */
 (function esperar(n = 0){
-  if (typeof IS_ADMIN !== 'undefined' && IS_ADMIN && typeof CLOUD !== 'undefined' && CLOUD && typeof store !== 'undefined' && store?.adminNotificaciones) return notifIniciar();
+  const listo = typeof CLOUD !== 'undefined' && CLOUD && typeof store !== 'undefined' && store?.adminNotificaciones;
+  if (listo && IS_ADMIN) return notifIniciar(true);
+  if (listo && !IS_ADMIN && typeof PERFIL !== 'undefined' && PERFIL) return notifIniciar(false);
   if (n < 60) setTimeout(() => esperar(n + 1), 1000);
 })();
 
-function notifIniciar(){
+function notifIniciar(admin){
   if (NOTIF.listo) return;
-  NOTIF.listo = true;
+  NOTIF.listo = true; NOTIF.admin = admin;
   $('#notif').hidden = false;
   notifRefrescar();
   setInterval(notifRefrescar, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') notifRefrescar(); });
   // Llegó desde un aviso: /admin?post=…&g=…
   const q = new URLSearchParams(location.search);
-  if (q.get('post')){
+  if (admin && q.get('post')){
     const post = q.get('post'), g = q.get('g') || '';
     history.replaceState(null, '', location.pathname);
     setTimeout(() => notifIr({ post_id:post, grupo_id:g }), 600);
@@ -49,7 +52,7 @@ async function notifRefrescar(){
   if (!NOTIF.listo || NOTIF.cargando) return;
   NOTIF.cargando = true;
   try {
-    const d = await store.adminNotificaciones();
+    const d = NOTIF.admin ? await store.adminNotificaciones() : await store.misNotificaciones();
     const antes = NOTIF.ultimo;
     NOTIF.datos = d;
     const masNuevo = d.items[0]?.cuando || '';
@@ -57,14 +60,14 @@ async function notifRefrescar(){
     if (!NOTIF.primera && masNuevo && masNuevo > antes){
       const nuevos = d.items.filter(i => i.cuando > antes);
       notifSonar();
-      toast(nuevos.length === 1 ? '🔔 ' + notifFrase(nuevos[0]) : `🔔 ${nuevos.length} novedades en la Comunidad`);
+      toast(nuevos.length === 1 ? '🔔 ' + notifFrase(nuevos[0]) : `🔔 ${nuevos.length} ${NOTIF.admin ? 'novedades en la Comunidad' : 'respuestas nuevas para ti'}`);
     }
     NOTIF.ultimo = masNuevo || antes; NOTIF.primera = false;
     notifCuenta(d.nuevas);
     if (!$('#ntPanel').hidden) notifPintar();
   } catch (err){
     // Sin supabase-notificaciones.sql todavía: la campana queda sin número y sigue el de Comunidad
-    if (!/admin_notificaciones|schema cache|does not exist/i.test(err.message || '')) console.warn(err);
+    if (!/notificaciones|schema cache|does not exist/i.test(err.message || '')) console.warn(err);
   }
   NOTIF.cargando = false;
 }
@@ -73,12 +76,16 @@ function notifCuenta(n){
   const c = $('#ntCuenta'); if (!c) return;
   c.textContent = n > 99 ? '99+' : n; c.hidden = !n;
   // El número de «Comunidad» es el mismo (salvo cuando ya está en la Comunidad)
-  if (typeof comunidadCuenta === 'function') comunidadCuenta(view.type === 'comunidad' ? 0 : n);
+  if (NOTIF.admin && typeof comunidadCuenta === 'function') comunidadCuenta(view.type === 'comunidad' ? 0 : n);
   document.title = (n ? `(${n > 99 ? '99+' : n}) ` : '') + document.title.replace(/^\(\d+\+?\) /, '');
 }
 
 const NT_TIPO = { duda:'una duda', logro:'un logro', prompt:'un prompt' };
+const NT_TU = { duda:'tu duda', logro:'tu logro', prompt:'tu prompt' };
 function notifFrase(i){
+  const sobre = `«${String(i.sobre || '').replace(/\s+/g, ' ').slice(0, 50)}»`;
+  if (i.que === 'en_mi_post') return `${i.autor}${i.es_equipo ? ' (equipo PorContar)' : ''} ${i.es_equipo || i.tipo === 'duda' ? 'respondió' : 'comentó'} ${NT_TU[i.tipo] || 'tu publicación'} ${sobre}`;
+  if (i.que === 'a_mi_comentario') return `${i.autor}${i.es_equipo ? ' (equipo PorContar)' : ''} respondió tu comentario en ${sobre}`;
   if (i.que === 'post') return `${i.autor} publicó ${NT_TIPO[i.tipo] || 'en la Comunidad'}`;
   return `${i.autor} comentó ${i.sobre_equipo ? 'tu publicación' : 'en'} «${String(i.sobre || '').slice(0, 50)}»`;
 }
@@ -87,10 +94,11 @@ function notifFrase(i){
 function notifPintar(){
   const d = NOTIF.datos, panel = $('#ntPanel');
   const lista = !d ? '<p class="nt-vacio">Cargando…</p>'
-    : !d.items.length ? '<p class="nt-vacio">Todavía no hay movimiento en la Comunidad.<br>Aquí te avisamos cuando alguien publique o comente.</p>'
+    : !d.items.length ? (NOTIF.admin ? '<p class="nt-vacio">Todavía no hay movimiento en la Comunidad.<br>Aquí te avisamos cuando alguien publique o comente.</p>'
+                                     : '<p class="nt-vacio">Aún no tienes respuestas.<br>Aquí te avisamos cuando alguien responda lo que publiques o comentes en la Comunidad.</p>')
     : d.items.map((i, k) => `
       <button class="nt-item ${i.nueva ? 'is-nueva' : ''}" data-nt-ir="${k}">
-        <span class="nt-av">${escapeHtml(iniciales(i.autor || '?'))}</span>
+        <span class="nt-av ${i.es_equipo ? 'es-equipo' : ''}">${escapeHtml(iniciales(i.autor || '?'))}</span>
         <span class="nt-txt">
           <span class="nt-frase">${escapeHtml(notifFrase(i))}</span>
           ${i.texto ? `<span class="nt-cita">${escapeHtml(String(i.titulo || i.texto).replace(/\s+/g, ' ').slice(0, 110))}</span>` : ''}
@@ -99,9 +107,9 @@ function notifPintar(){
         ${i.nueva ? '<span class="nt-punto" aria-label="Nueva"></span>' : ''}
       </button>`).join('');
   panel.innerHTML = `
-    <div class="nt-cab"><b>Notificaciones</b><span>Comunidad</span></div>
+    <div class="nt-cab"><b>Notificaciones</b><span>${NOTIF.admin ? 'Comunidad' : 'Respuestas para ti'}</span></div>
     <div class="nt-lista">${lista}</div>
-    <div class="nt-pie" id="ntPush">${pushPieHtml()}</div>`;
+    ${NOTIF.admin ? `<div class="nt-pie" id="ntPush">${pushPieHtml()}</div>` : ''}`;
 }
 
 async function notifAbrir(abrir){
@@ -109,11 +117,11 @@ async function notifAbrir(abrir){
   panel.hidden = !abrir; btn.setAttribute('aria-expanded', String(abrir));
   if (!abrir) return;
   notifPintar();
-  pushEstado().then(() => { const p = $('#ntPush'); if (p) p.innerHTML = pushPieHtml(); });
+  if (NOTIF.admin) pushEstado().then(() => { const p = $('#ntPush'); if (p) p.innerHTML = pushPieHtml(); });
   // Al abrirla, lo nuevo queda visto (se sigue viendo marcado mientras está abierta)
   if (NOTIF.datos?.nuevas){
     notifCuenta(0);
-    try { await store.comunidadVisto(); } catch { /* sin el SQL todavía */ }
+    try { await (NOTIF.admin ? store.comunidadVisto() : store.misNotificacionesVisto()); } catch { /* sin el SQL todavía */ }
     NOTIF.datos.nuevas = 0;
   }
 }
@@ -122,8 +130,10 @@ async function notifAbrir(abrir){
 async function notifIr({ post_id, grupo_id }){
   notifAbrir(false);
   if (!post_id) return;
-  const g = grupo_id && typeof grupoPorId === 'function' && grupoPorId(grupo_id) ? grupo_id : '';
-  if (g !== (vistaComo || '') && typeof cambiarEspacio === 'function') cambiarEspacio(g);
+  if (NOTIF.admin){   // la admin pasa al espacio del grupo de la publicación
+    const g = grupo_id && typeof grupoPorId === 'function' && grupoPorId(grupo_id) ? grupo_id : '';
+    if (g !== (vistaComo || '') && typeof cambiarEspacio === 'function') cambiarEspacio(g);
+  }
   if (view.type !== 'comunidad') setView('comunidad');
   for (let n = 0; n < 40; n++){
     const el = document.querySelector(`[data-cm-post="${CSS.escape(post_id)}"]`);

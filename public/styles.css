@@ -2845,6 +2845,7 @@ body{top:0 !important}
 .nt-item.is-nueva{background:var(--pc-blue-tint)}
 .nt-item.is-nueva:hover{background:#dde3ff}
 .nt-av{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--pc-blue);color:#fff;font:700 13px var(--font-display)}
+.nt-av.es-equipo{background:var(--pc-yellow);color:var(--ink)}
 .nt-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
 .nt-frase{font-size:14px;line-height:1.35;font-weight:600;color:var(--ink)}
 .nt-cita{font-size:13px;color:var(--ink-soft);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}

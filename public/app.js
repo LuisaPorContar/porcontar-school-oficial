@@ -398,6 +398,8 @@ function cloudStore(){
     soportePendientes:    ()              => rpc('soporte_pendientes'),
     comunidadNovedades:   ()              => rpc('comunidad_novedades'),
     adminNotificaciones:  ()              => rpc('admin_notificaciones'),
+    misNotificaciones:    ()              => rpc('mis_notificaciones'),
+    misNotificacionesVisto: ()            => rpc('mis_notificaciones_visto'),
     pushGuardar:  (endpoint, p256dh, auth, agente) => rpc('admin_push_guardar', { p_endpoint:endpoint, p_p256dh:p256dh, p_auth:auth, p_agente:agente }),
     pushQuitar:   endpoint => rpc('admin_push_quitar', { p_endpoint:endpoint }),
     comunidadVisto:       ()              => rpc('comunidad_marcar_visto'),
