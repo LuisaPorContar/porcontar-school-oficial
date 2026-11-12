@@ -464,7 +464,7 @@ function descargarDiagnosticos(){
   // Columnas: las preguntas de hoy y las que tengan respuestas aunque ya no estén
   const cols = preguntasDe('diagnostico', g).map(q => ({ id:q.id, t:q.t }));
   ds.forEach(d => respuestasDe(d).forEach(x => { if (!cols.some(c => c.id === x.id)) cols.push({ id:x.id, t:x.pregunta }); }));
-  const celda = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const celda = celdaCsv;   // sin fórmulas (app.js)
   const valor = (d, id) => { const r = respuestasDe(d).find(x => x.id === id)?.respuesta; return Array.isArray(r) ? r.join(', ') : r ?? ''; };
   const filas = ds.map(d => [d.email, new Date(d.actualizado_el || d.creado_el).toLocaleString('es-CO'), ...cols.map(c => valor(d, c.id))]);
   const csv = '﻿' + [['Correo', 'Respondido', ...cols.map(c => c.t)], ...filas].map(f => f.map(celda).join(';')).join('\r\n');

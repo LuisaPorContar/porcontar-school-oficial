@@ -230,8 +230,14 @@ function inicioHtml(){
   // Puntos (puntos.js): el admin, el ranking del grupo; el cliente, sus puntos y el podio
   const puntos = typeof puntosAdminHtml === 'function' ? (IS_ADMIN ? puntosAdminHtml(g) : puntosTarjetaHtml(g)) : '';
   const participacion = IS_ADMIN && typeof participacionHtml === 'function' ? participacionHtml(g) : '';
+  // Al participante se le avisa cuando a su acceso le queda una semana o menos
+  const venceEl = !IS_ADMIN && g.vence_el ? String(g.vence_el).slice(0, 10) : '';
+  const diasVence = venceEl ? Math.round((new Date(venceEl + 'T12:00:00') - new Date(hoyIso() + 'T12:00:00')) / 864e5) : null;
+  const vence = diasVence !== null && diasVence >= 0 && diasVence <= 7
+    ? `<p class="grab-aviso"><svg class="ico"><use href="#i-reloj"/></svg> Tu acceso a la Academia termina el ${escapeHtml(fechaCorta(venceEl))}.</p>` : '';
+  // El participante ve su próximo encuentro antes que el cronograma completo
   return IS_ADMIN ? hero + formularios + puntos + participacion + lista + prox
-                  : selector + formularios + puntos + lista + prox + continua + hero;
+                  : selector + vence + formularios + prox + puntos + lista + continua + hero;
 }
 
 /** Logo de la empresa, o sus iniciales si no hay logo. */
@@ -351,7 +357,7 @@ function ceAgendaCambio(){
 }
 
 /** Llena las fechas de lo que sigue al Kickoff. No guarda: el admin revisa y toca Guardar cronograma. */
-function generarAgenda(){
+async function generarAgenda(){
   const msg = $('#ceMsg');
   const partida = $('[name="ceAgenda"]:checked').value === 'partida';
   const dias = $$('[data-ce-dia]:checked').map(c => Number(c.value));
@@ -363,7 +369,8 @@ function generarAgenda(){
 
   const filas = sesionesAuto().map(s => $(`[data-ce="${s.id}"]`)).filter(Boolean);
   const conFecha = filas.filter(f => $('[data-ce-campo="fecha"]', f).value).length;
-  if (conFecha && !confirm(`${conFecha} ${conFecha === 1 ? 'sesión ya tiene fecha' : 'sesiones ya tienen fecha'}: se reemplazan con la agenda nueva. ¿Seguir?`)) return;
+  if (conFecha && !(await confirmar({ titulo:'¿Reemplazar las fechas?',
+        texto:`${conFecha} ${conFecha === 1 ? 'sesión ya tiene fecha' : 'sesiones ya tienen fecha'}: se reemplazan con la agenda nueva.`, boton:'Reemplazar' }))) return;
 
   // Recorre el calendario desde la primera clase y entrega, uno a uno, los días elegidos
   const d = new Date(ini + 'T12:00:00');
@@ -532,7 +539,7 @@ function retoHtml(){
       return `
       <div class="reto-fila ${cerrada ? 'is-apagada' : ''}">
         <span class="reto-num">${i + 1}</span>
-        <span class="reto-ico"><svg class="ico"><use href="#${s.icon}"/></svg></span>
+        <span class="reto-ico"><svg class="ico"><use href="#${escapeHtml(s.icon)}"/></svg></span>
         <div class="reto-txt">
           <em>${escapeHtml(s.short)} · ${TIPOS_SESION[s.tipo] || 'Clase'}</em>
           <b>${escapeHtml(s.name)}</b>
@@ -1281,7 +1288,7 @@ async function abrirQuizSesion(sesionId, modo){
         const s = sessionOf(sesionId);
         quizEditando = { id:'qz-' + sesionId, titulo:'Quiz · ' + s.name, descripcion:'', activo:false,
                          orden:SESSIONS.findIndex(x => x.id === sesionId), preguntas:[], audiencia:[],
-                         sesion_id:sesionId, aprobar:70, intentos:3, obligatorio:true };
+                         sesion_id:sesionId, aprobar:70, intentos:2, obligatorio:true };
       }
       if (!quizEditando.preguntas.length) quizEditando.preguntas.push(preguntaVacia());
       quizVista = 'editar';

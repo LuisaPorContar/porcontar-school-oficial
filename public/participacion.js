@@ -170,7 +170,7 @@ document.addEventListener('input', e => { if (e.target.matches('[data-pa-filtro]
 
 function descargarParticipacion(){
   const d = PART.datos; if (!d) return;
-  const celda = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const celda = celdaCsv;   // sin fórmulas (app.js)
   const abiertas = new Set(d.encuestas.map(e => e.numero));
   const cab = ['Nombre', 'Correo', 'Rol',
     ...d.clases.map(c => `${c.corto}: ${c.nombre}${c.partida ? ` (parte ${c.parte})` : ''}`), 'Asistencia (%)',

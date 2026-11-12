@@ -200,7 +200,7 @@ function capsulaVideoHtml(k){
   return e ? `<div class="cu-video"><iframe src="${escapeHtml(e)}" allowfullscreen
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe></div>`
     : d ? `<div class="cu-video"><video src="${escapeHtml(d)}" controls playsinline preload="metadata"></video></div>`
-    : `<div class="cu-video cu-sin-video">${enlaceVideoHtml(k.video_url)}</div>`;
+    : `<div class="cu-video cu-sin-video">${enlaceVideoHtml(k.video_url) || '<p>El enlace del video de esta cápsula no es válido.</p>'}</div>`;
 }
 function capsulaHtml(){
   const k = capsulaPorId(view.id), c = k && cursoPorId(k.curso_id);
@@ -338,7 +338,7 @@ async function abrirExamen(cursoId, modo){
       if (q){ const full = await store.getQuiz(q.id);
         quizEditando = { ...full, preguntas:(full.preguntas || []).map(x => ({ ...x, options:[...x.options] })) }; }
       else quizEditando = { id:'qz-curso-' + cursoId, titulo:'Examen · ' + c.titulo, descripcion:'', activo:false, orden:900,
-                            preguntas:[], audiencia:c.audiencia || [], aprobar:70, intentos:3, obligatorio:false };
+                            preguntas:[], audiencia:c.audiencia || [], aprobar:70, intentos:2, obligatorio:false };
       if (!quizEditando.preguntas.length) quizEditando.preguntas.push(preguntaVacia());
       quizVista = 'editar';
     } else {

@@ -327,6 +327,22 @@ function comuPostHtml(p){
 }
 
 /** Vuelve a pintar sin perder lo que la persona está escribiendo. */
+/** «Me gusta» de una publicación: solo cambian su botón y su contador (no se repinta la lista). */
+function comuPintarGusta(p){
+  const art = document.querySelector(`[data-cm-post="${CSS.escape(p.id)}"]`);
+  const b = art?.querySelector('[data-cm-gustar]'), n = art?.querySelector('.cm-cuenta > span');
+  if (!b || !n) return pintarComunidad();
+  b.classList.toggle('is-on', !!p.me_gusta); b.setAttribute('aria-pressed', String(!!p.me_gusta));
+  b.innerHTML = p.tipo === 'logro' ? `🎉 ${p.me_gusta ? 'Felicitaste' : 'Felicitar'}` : `${comuIco('i-megusta')} Me gusta`;
+  n.innerHTML = p.likes ? `<i class="cm-like-dot">${comuIco('i-megusta')}</i> ${p.likes}` : '';
+}
+/** Lo mismo para el «me gusta» de un comentario. */
+function comuPintarGustaCom(p, c){
+  const b = document.querySelector(`[data-cm-post="${CSS.escape(p.id)}"] [data-cm-com="${CSS.escape(c.id)}"] [data-cm-com-gustar]`);
+  if (!b) return pintarComunidad();
+  b.classList.toggle('is-on', !!c.me_gusta); b.setAttribute('aria-pressed', String(!!c.me_gusta));
+  b.innerHTML = `${comuIco('i-megusta')}${c.likes ? ` ${c.likes}` : ''}`;
+}
 function pintarComunidad(){
   if (view.type !== 'comunidad') return;
   comuGuardarBorradores();
@@ -760,10 +776,10 @@ $('#posts').addEventListener('click', async e => {
   if (t('[data-cm-gustar]')){
     // Se marca de una y, si la base dice otra cosa, se corrige
     const antes = { me_gusta:p.me_gusta, likes:p.likes };
-    p.me_gusta = !p.me_gusta; p.likes += p.me_gusta ? 1 : -1; pintarComunidad();
+    p.me_gusta = !p.me_gusta; p.likes += p.me_gusta ? 1 : -1; comuPintarGusta(p);
     try { Object.assign(p, await store.comunidadGustar(id)); }
     catch (err){ Object.assign(p, antes); toast(errorMsg(err)); }
-    return pintarComunidad();
+    return comuPintarGusta(p);
   }
   const voto = t('[data-cm-voto]');
   if (voto){
@@ -777,10 +793,10 @@ $('#posts').addEventListener('click', async e => {
   const c = cid ? (COMU.comentarios[id] || []).find(x => x.id === cid) : null;
   if (t('[data-cm-com-gustar]') && c){
     const antes = { me_gusta:c.me_gusta, likes:c.likes };
-    c.me_gusta = !c.me_gusta; c.likes += c.me_gusta ? 1 : -1; pintarComunidad();
+    c.me_gusta = !c.me_gusta; c.likes += c.me_gusta ? 1 : -1; comuPintarGustaCom(p, c);
     try { Object.assign(c, await store.comunidadGustarComentario(cid)); }
     catch (err){ Object.assign(c, antes); toast(errorMsg(err)); }
-    return pintarComunidad();
+    return comuPintarGustaCom(p, c);
   }
   if (t('[data-cm-dar-com]') && c){
     return abrirDarPuntos({ gid:p.grupo_id, email:c.autor_email, motivo:p.tipo === 'duda' ? 'Respondió bien una duda en la Comunidad' : 'Buen comentario en la Comunidad' });

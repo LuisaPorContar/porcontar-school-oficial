@@ -1,0 +1,24 @@
+# Revisión mínima en cada push: que ningún archivo de la Academia tenga un error
+# de escritura que la deje en blanco. No publica nada (eso lo hace Cloudflare Pages).
+name: Revisar
+on:
+  push:
+  pull_request:
+jobs:
+  sintaxis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: JavaScript del sitio
+        run: |
+          for f in public/*.js functions/*.js; do
+            echo "· $f"; node --check "$f"
+          done
+      - name: Funciones de Supabase (JavaScript plano dentro de .ts)
+        run: |
+          for f in supabase/functions/*/index.ts; do
+            echo "· $f"; cp "$f" /tmp/revisar.mjs; node --check /tmp/revisar.mjs
+          done

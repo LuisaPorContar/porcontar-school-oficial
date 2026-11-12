@@ -120,6 +120,9 @@
 
   <!-- ============ SIDEBAR ============ -->
   <aside class="sidebar" id="sidebar">
+    <button class="icon-btn only-mobile" id="btnMenuCerrar" type="button" aria-label="Cerrar el menú">
+      <svg class="ico"><use href="#i-close"/></svg>
+    </button>
     <!-- dona wireframe: elemento firma del universo gráfico -->
     <svg class="dona" viewBox="0 0 200 200" aria-hidden="true">
       <g fill="none" stroke="#4668ff" stroke-width="1" opacity=".85">
@@ -182,7 +185,7 @@
         <svg class="ico"><use href="#i-tareas"/></svg>
         <span class="nav-label">Trabajo autónomo</span>
       </button>
-      <button class="nav-item" data-view="skills" title="Catálogo de skills">
+      <button class="nav-item" data-view="skills" title="Catálogo de prompts">
         <svg class="ico"><use href="#i-skill"/></svg>
         <span class="nav-label">Catálogo de prompts</span>
         <span class="count" id="countSkills">0</span>
@@ -212,18 +215,20 @@
       </div>
 
       <div class="social">
-        <a href="https://www.instagram.com/por.contar/" target="_blank" rel="noopener" title="PorContar en Instagram">
+        <a href="https://www.instagram.com/por.contar/" target="_blank" rel="noopener" title="PorContar en Instagram" aria-label="PorContar en Instagram">
           <svg class="ico"><use href="#i-ig"/></svg>
         </a>
-        <a href="https://www.linkedin.com/in/ximena-villalobos-vel%C3%A1squez/" target="_blank" rel="noopener" title="Ximena Villalobos en LinkedIn">
+        <a href="https://www.linkedin.com/in/ximena-villalobos-vel%C3%A1squez/" target="_blank" rel="noopener" title="Ximena Villalobos en LinkedIn" aria-label="Ximena Villalobos en LinkedIn">
           <svg class="ico"><use href="#i-in"/></svg><span>Ximena</span>
         </a>
-        <a href="https://www.linkedin.com/in/luisa-navarro-salgado-porcontar/" target="_blank" rel="noopener" title="Luisa Navarro en LinkedIn">
+        <a href="https://www.linkedin.com/in/luisa-navarro-salgado-porcontar/" target="_blank" rel="noopener" title="Luisa Navarro en LinkedIn" aria-label="Luisa Navarro en LinkedIn">
           <svg class="ico"><use href="#i-in"/></svg><span>Luisa</span>
         </a>
       </div>
     </div>
   </aside>
+  <!-- velo detrás del menú en el celular: el JS le quita y le pone hidden -->
+  <div id="menuVelo" class="menu-velo" hidden></div>
 
   <!-- ============ CONTENIDO ============ -->
   <main class="main">
@@ -246,7 +251,7 @@
         </div>
         <label class="search">
           <svg class="ico"><use href="#i-search"/></svg>
-          <input type="search" id="search" placeholder="Buscar en el muro" />
+          <input type="search" id="search" placeholder="Buscar en la Academia" aria-label="Buscar en la Academia" />
         </label>
         <div class="nt" id="notif" hidden>
           <button class="icon-btn nt-btn" id="ntBtn" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
@@ -276,7 +281,7 @@
         <div class="espacio-aviso" id="espacioAviso" hidden></div>
         <!-- Grabaciones de la clase: fuera de #posts para que redibujar el muro no corte el video -->
         <div id="grabacion"></div>
-        <div class="composer" id="composerTrigger">
+        <div class="composer" id="composerTrigger" role="button" tabindex="0">
           <div class="avatar">PC</div>
           <span>Comparte una nota o sube un video…</span>
           <span class="composer-plus"><svg class="ico"><use href="#i-plus"/></svg></span>
@@ -321,11 +326,11 @@
         <span>Contenido</span>
         <div class="editor">
           <div class="editor-tools">
-            <button type="button" data-fmt="bold" title="Negrita"><svg class="ico"><use href="#i-bold"/></svg></button>
-            <button type="button" data-fmt="quote" title="Cita destacada"><svg class="ico"><use href="#i-quote"/></svg></button>
+            <button type="button" data-fmt="bold" title="Negrita" aria-label="Negrita"><svg class="ico"><use href="#i-bold"/></svg></button>
+            <button type="button" data-fmt="quote" title="Cita destacada" aria-label="Cita destacada"><svg class="ico"><use href="#i-quote"/></svg></button>
             <span class="hint">**negrita** · &gt; cita · los enlaces se detectan solos</span>
           </div>
-          <textarea id="fBody" rows="7" placeholder="Escribe aquí el contenido de la clase, los pasos, la asignación…"></textarea>
+          <textarea id="fBody" rows="7" aria-label="Contenido" placeholder="Escribe aquí el contenido de la clase, los pasos, la asignación…"></textarea>
         </div>
       </div>
 
@@ -351,7 +356,7 @@
         </div>
 
         <div class="tabpane" data-pane="url" hidden>
-          <input type="text" inputmode="url" id="fUrl" placeholder="Pega el enlace: YouTube, Drive, Vimeo, Loom, Zoom…" />
+          <input type="text" inputmode="url" id="fUrl" aria-label="Enlace del video, imagen o PDF" placeholder="Pega el enlace: YouTube, Drive, Vimeo, Loom, Zoom…" />
         </div>
       </div>
 
@@ -393,7 +398,7 @@
 
       <div class="sk-actions">
         <button class="btn btn-primary" id="skDownload">
-          <svg class="ico"><use href="#i-download"/></svg> Descargar Skill (.md)
+          <svg class="ico"><use href="#i-download"/></svg> Descargar prompt (.md)
         </button>
         <button class="btn" id="skCopy">
           <svg class="ico"><use href="#i-copy"/></svg> Copiar prompt
@@ -525,7 +530,7 @@
       <div class="aj-caja">
         <div class="aj-fila"><span id="grClaveLbl">Contraseña</span>
           <span class="aj-clave">
-            <input type="text" id="grClave" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Mínimo 6 caracteres" />
+            <input type="text" id="grClave" aria-labelledby="grClaveLbl" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Mínimo 6 caracteres" />
             <button type="button" class="btn btn-mini" id="grGenerar">Generar</button>
           </span></div>
         <small class="gr-nota" id="grClaveNota" hidden></small>
@@ -673,7 +678,7 @@
   </form>
 </div>
 
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <!-- Aquí se monta, escondido, el traductor de Google cuando alguien elige inglés (idioma.js) -->
 <div id="gTraductor" hidden></div>

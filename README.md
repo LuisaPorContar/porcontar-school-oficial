@@ -22,9 +22,9 @@ Muro de la **Academia de PorContar**. Sitio estático, sin build ni dependencias
 |---|---|---|
 | Estudiante | la raíz del sitio, con su correo y la contraseña de su empresa o cohorte | lo dirigido a todos y a sus grupos |
 | Responsable | igual que un estudiante (rol `responsable` en su grupo) | lo mismo, más el panel de su equipo |
-| Admin | la raíz + `?admin=LA-CLAVE` una vez (la clave se borra de la URL al entrar) | todo, y administra grupos |
+| Admin | `/admin`, con correo @porcontar.com y contraseña propia | todo, y administra grupos |
 
-La clave de admin **no está en el código**: está en `supabase-academia.sql`, que no se sube al repositorio.
+La llave de emergencia **no está en el código ni en ningún archivo**: `supabase-auditoria.sql` la cambia una sola vez por una al azar, que solo vive en la base (`select value from app_config where key = 'admin_key'`). `supabase-academia.sql` no se sube al repositorio.
 
 **A quién va cada contenido.** Cada publicación, quiz y prompt tiene «¿Quién lo ve?»: sin marcar nada lo ven todos los grupos (también los que se creen después); si no, *todas las empresas*, *todas las cohortes* o grupos puntuales. Lo filtra la base de datos, no el navegador. Con «Ver como» el admin revisa el muro como lo ve cada grupo.
 
@@ -84,6 +84,10 @@ Después, `supabase-agenda.sql` — la sesión QA antes de la Presentación y la
 `supabase-soporte.sql` — tickets de soporte: cada persona abre los suyos y conversa con el equipo; el admin ve todos, responde, cierra y abre tickets a nombre de alguien.
 
 Todos se pueden correr más de una vez. Sin claves en `config.js`, el muro funciona en modo local (IndexedDB) solo para probar.
+
+`supabase-auditoria.sql` (**siempre de último**) — correcciones de la auditoría de noviembre de 2026: la llave de emergencia al azar, quizzes con 2 intentos y las respuestas correctas solo al aprobar o agotar intentos, el candado de la clase también en su quiz, la asistencia que no reescribe encuentros viejos, el cruce de nombres sin «de/la/del», comentarios solo de publicaciones visibles, bloqueo de intentos por correo y por IP, sesiones que se cierran al quitar a una persona y el almacén sin listado público. **Si se vuelve a correr alguno de los archivos anteriores, hay que correr este otra vez al final**, porque aquellos reponen la versión vieja de varias funciones.
+
+**Revisión automática:** en cada push, GitHub (`.github/workflows/revisar.yml`) comprueba que ningún archivo JavaScript tenga errores de escritura. Las cabeceras de seguridad del sitio están en `public/_headers`.
 
 ## MCP: conectar la Academia con Claude
 

@@ -13,7 +13,7 @@
    · La Academia se instala como app (manifest + sw.js) para todos.
    ================================================================ */
 
-const NOTIF = { listo:false, admin:false, datos:null, cargando:false, ultimo:'', primera:true };
+const NOTIF = { listo:false, admin:false, datos:null, cargando:false, ultimo:'', primera:true, falla:false };
 
 // La app instalable y los avisos necesitan el service worker (para todos)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(err => console.warn('sw', err));
@@ -32,7 +32,8 @@ function notifIniciar(admin){
   NOTIF.listo = true; NOTIF.admin = admin;
   $('#notif').hidden = false;
   notifRefrescar();
-  setInterval(notifRefrescar, 60000);
+  // Con la pestaña oculta no se pregunta: al volver se refresca (abajo)
+  setInterval(() => { if (document.visibilityState !== 'visible') return; notifRefrescar(); }, 60000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') notifRefrescar(); });
   // Llegó desde un aviso: /admin?post=…&g=…
   const q = new URLSearchParams(location.search);
@@ -54,7 +55,7 @@ async function notifRefrescar(){
   try {
     const d = NOTIF.admin ? await store.adminNotificaciones() : await store.misNotificaciones();
     const antes = NOTIF.ultimo;
-    NOTIF.datos = d;
+    NOTIF.datos = d; NOTIF.falla = false;
     const masNuevo = d.items[0]?.cuando || '';
     // Llegó algo mientras la Academia estaba abierta: sonido y aviso (no la primera vez)
     if (!NOTIF.primera && masNuevo && masNuevo > antes){
@@ -68,6 +69,9 @@ async function notifRefrescar(){
   } catch (err){
     // Sin supabase-notificaciones.sql todavía: la campana queda sin número y sigue el de Comunidad
     if (!/notificaciones|schema cache|does not exist/i.test(err.message || '')) console.warn(err);
+    // Sin datos todavía: el panel lo dice en vez de quedarse en «Cargando…»
+    NOTIF.falla = true;
+    if (!NOTIF.datos && !$('#ntPanel').hidden) notifPintar();
   }
   NOTIF.cargando = false;
 }
@@ -93,7 +97,7 @@ function notifFrase(i){
 /* ---------- El panel ---------- */
 function notifPintar(){
   const d = NOTIF.datos, panel = $('#ntPanel');
-  const lista = !d ? '<p class="nt-vacio">Cargando…</p>'
+  const lista = !d ? `<p class="nt-vacio">${NOTIF.falla ? 'No se pudieron cargar las novedades.<br>Cierra y vuelve a abrir la campana para reintentar.' : 'Cargando…'}</p>`
     : !d.items.length ? (NOTIF.admin ? '<p class="nt-vacio">Todavía no hay movimiento en la Comunidad.<br>Aquí te avisamos cuando alguien publique o comente.</p>'
                                      : '<p class="nt-vacio">Aún no tienes respuestas.<br>Aquí te avisamos cuando alguien responda lo que publiques o comentes en la Comunidad.</p>')
     : d.items.map((i, k) => `
@@ -116,6 +120,8 @@ async function notifAbrir(abrir){
   const panel = $('#ntPanel'), btn = $('#ntBtn');
   panel.hidden = !abrir; btn.setAttribute('aria-expanded', String(abrir));
   if (!abrir) return;
+  // La carga anterior falló: se reintenta al abrir
+  if (!NOTIF.datos && NOTIF.falla){ NOTIF.falla = false; notifRefrescar(); }
   notifPintar();
   if (NOTIF.admin) pushEstado().then(() => { const p = $('#ntPush'); if (p) p.innerHTML = pushPieHtml(); });
   // Al abrirla, lo nuevo queda visto (se sigue viendo marcado mientras está abierta)

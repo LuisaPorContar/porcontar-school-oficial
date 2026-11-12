@@ -14,6 +14,15 @@
 //
 // Cada vía funciona sola: si falta su secreto, esa vía se salta.
 //
+// Cuidados:
+//   · Solo entra la base: el encabezado x-aviso debe traer la clave de
+//     app_config.avisos_clave (se compara en tiempo constante).
+//   · El correo tiene 10 segundos para salir; si no, se da por fallido (el
+//     push sale igual).
+//   · Freno de ráfaga del CORREO: máximo un correo por publicación cada
+//     5 minutos (la publicación y sus comentarios cuentan juntos). El push
+//     no se frena. La cuenta vive en la memoria del worker: mejor esfuerzo.
+//
 // PUBLICAR (panel de Supabase):
 //   1. Edge Functions → Secrets:
 //        VAPID_PUBLICA = la llave pública (la misma de config.js)
@@ -25,7 +34,7 @@
 //      la que la base guarda en app_config.avisos_clave).
 // ============================================================
 
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.58.0'
 import webpush from 'npm:web-push@3.6.7'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
@@ -43,6 +52,34 @@ const sb = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SER
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 const corto = (s, n) => { const t = String(s ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n) + '…' : t }
 const respuesta = (txt, status = 200) => new Response(txt, { status })
+/** Sin saltos de línea: lo que va al asunto del correo no puede colar encabezados. */
+const unaLinea = (s) => String(s ?? '').replace(/[\r\n]+/g, ' ').trim()
+/** Comparación en tiempo constante (no delata por el tiempo cuánto coincidió). */
+function iguales(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || !a || !b || a.length !== b.length) return false
+  let d = 0
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return d === 0
+}
+/** Espera a p como mucho ms milisegundos; si no llega, falla con ese mensaje. */
+function conLimite(p, ms, mensaje) {
+  let reloj
+  return Promise.race([
+    p,
+    new Promise((_si, no) => { reloj = setTimeout(() => no(new Error(mensaje)), ms) }),
+  ]).finally(() => clearTimeout(reloj))
+}
+
+// Freno de ráfaga del correo: un correo por publicación cada 5 minutos.
+// MEJOR ESFUERZO: es un Map en la memoria de este worker. Se pierde cuando el
+// worker se reinicia y no se comparte entre workers, así que en una ráfaga
+// puede colarse algún correo de más; nunca frena el push.
+const FRENO_CORREO_MS = 5 * 60 * 1000
+const correoReciente = new Map()   // post id → cuándo salió (o empezó a salir) el último correo
+function correoFrenado(postId, ahora) {
+  for (const [k, t] of correoReciente) if (ahora - t >= FRENO_CORREO_MS) correoReciente.delete(k)   // limpieza
+  return correoReciente.has(postId)
+}
 const TIPO = { duda: 'una duda', logro: 'un logro', prompt: 'un prompt' }
 
 async function una(tabla, id) {
@@ -81,16 +118,22 @@ async function avisarCorreo(para, asunto, quien, grupo, accion, titulo, texto, e
     <p style="margin:20px 0"><a href="${enlace}" style="background:#2B4FE8;color:#fff;text-decoration:none;padding:10px 18px;border-radius:999px;font-weight:bold;font-size:14px">Abrir la publicación</a></p>
     <p style="font-size:12px;color:#8a90a2">Aviso automático de la Academia PorContar.</p></div>`
   const cliente = new SMTPClient({ connection: { hostname: SMTP_HOST, port: 465, tls: true, auth: { username: SMTP_USER, password: SMTP_PASS } } })
-  await cliente.send({ from: 'Academia PorContar <' + SMTP_USER + '>', to: para, subject: asunto, content: plano, html })
-  await cliente.close()
-  return 'correo a ' + para.length
+  try {
+    await conLimite(cliente.send({ from: 'Academia PorContar <' + SMTP_USER + '>', to: para, subject: asunto, content: plano, html }),
+      10000, 'el correo no salió en 10 segundos')
+    return 'correo a ' + para.length
+  } finally {
+    // Cerrar siempre, sin que un fallo (o un cuelgue) al cerrar tape el resultado del envío
+    try { await conLimite(Promise.resolve().then(() => cliente.close()), 3000, 'el cierre tardó más de 3 segundos') }
+    catch (e) { console.error('smtp close', (e && e.message) || e) }
+  }
 }
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return respuesta('Método no permitido', 405)
   const { data: k } = await sb.from('app_config').select('value').eq('key', 'avisos_clave').limit(1)
   const clave = k && k[0] && k[0].value
-  if (!clave || req.headers.get('x-aviso') !== clave) return respuesta('No autorizado', 401)
+  if (!iguales(req.headers.get('x-aviso') || '', clave || '')) return respuesta('No autorizado', 401)
   if (!PUSH_OK && !CORREO_OK) return respuesta('Sin configurar: faltan VAPID_PUBLICA/VAPID_PRIVADA o SMTP_USER/SMTP_PASS', 500)
 
   try {
@@ -116,8 +159,16 @@ Deno.serve(async (req) => {
     const para = (admins || []).map((a) => a.email).filter(Boolean)
     if (!para.length) return respuesta('Sin admin activas a quién avisar')
 
-    const enlace = SITIO + '/admin?post=' + encodeURIComponent(post ? post.id : '') + (post && post.grupo_id ? '&g=' + post.grupo_id : '')
+    // Nombre, grupo y acción los escribió una persona: sin saltos de línea antes de armar el asunto
+    quien = unaLinea(quien); grupo = unaLinea(grupo); accion = unaLinea(accion)
+    const enlace = SITIO + '/admin?post=' + encodeURIComponent(post ? post.id : '') + (post && post.grupo_id ? '&g=' + encodeURIComponent(post.grupo_id) : '')
     const asunto = 'Comunidad · ' + quien + (grupo ? ' (' + grupo + ')' : '') + ' ' + accion
+
+    // Freno de ráfaga (solo del correo): se anota ANTES de enviar para que dos avisos
+    // simultáneos de la misma publicación no manden dos correos; si el envío falla, se desanota.
+    const clavePost = String(post ? post.id : id)
+    const frenado = CORREO_OK && correoFrenado(clavePost, Date.now())
+    if (CORREO_OK && !frenado) correoReciente.set(clavePost, Date.now())
 
     // Las dos vías a la vez; si una falla, la otra igual sale
     const [r1, r2] = await Promise.allSettled([
@@ -126,7 +177,8 @@ Deno.serve(async (req) => {
         cuerpo: accion.charAt(0).toUpperCase() + accion.slice(1) + ': ' + corto(titulo || texto, 140),
         url: enlace, tag: 'post-' + (post ? post.id : id),
       }),
-      avisarCorreo(para, asunto, quien, grupo, accion, titulo, texto, enlace),
+      frenado ? 'correo omitido (ya salió uno por esta publicación en los últimos 5 minutos)'
+        : avisarCorreo(para, asunto, quien, grupo, accion, titulo, texto, enlace).catch((e) => { correoReciente.delete(clavePost); throw e }),
     ])
     const txt = [r1, r2].map((r) => r.status === 'fulfilled' ? r.value : 'falló: ' + ((r.reason && r.reason.message) || r.reason)).join(' · ')
     console.log(txt)

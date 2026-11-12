@@ -246,6 +246,9 @@ function setHidden(id, on){
    Capa de almacenamiento
    ================================================================ */
 const CLOUD = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY && window.supabase);
+// Hay configuración pero la librería de Supabase no cargó (sin red, bloqueada…): no es el modo local
+const SIN_NUBE = !!(CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY) && !window.supabase;
+let cargaFallida = '';   // el arranque no pudo traer el contenido: se dice en la página, con «Reintentar»
 let store;
 
 /* ---------- Supabase ---------- */
@@ -605,7 +608,7 @@ function cloudStore(){
         orden:q.orden, preguntas:q.preguntas, audiencia:q.audiencia || [],
         // El quiz de cada sesión y sus reglas (supabase-fase1.sql)
         ...(q.sesion_id ? { sesion_id:q.sesion_id } : {}),
-        ...(q.sesion_id || String(q.id).startsWith('qz-curso-') ? { aprobar:q.aprobar ?? 70, intentos:q.intentos ?? 0, obligatorio:!!q.obligatorio } : {}),
+        ...(q.sesion_id || String(q.id).startsWith('qz-curso-') ? { aprobar:q.aprobar ?? 70, intentos:q.intentos ?? 2, obligatorio:!!q.obligatorio } : {}),
         updated_at:new Date().toISOString(),
       }));
     },
@@ -1017,7 +1020,7 @@ function plataformaDe(url){
   } catch { return 'el enlace'; }
 }
 /** Enlace que la plataforma no deja reproducir aquí adentro: un botón que lo abre en otra pestaña. */
-const enlaceVideoHtml = url => `
+const enlaceVideoHtml = url => !/^https?:\/\//i.test(String(url || '').trim()) ? '' : `
   <a class="post-enlace" href="${escapeHtml(url)}" target="_blank" rel="noopener">
     <span class="post-enlace-ico"><svg class="ico"><use href="#i-video"/></svg></span>
     <span><b>Ver el video en ${escapeHtml(plataformaDe(url))}</b><em>Se abre en otra pestaña</em></span>
@@ -1040,19 +1043,36 @@ function errorMsg(err){
   }
   if (/Solo el responsable/i.test(m)) return 'Solo el responsable de ese grupo puede ver su avance.';
   if (/sin permiso/i.test(m)) { ACADEMIA.olvidarAdmin(); setTimeout(() => location.reload(), 1500); return 'Tu sesión de admin terminó: vuelve a entrar.'; }
+  if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'Sin conexión. Revisa tu internet e inténtalo de nuevo.';
+  const sinActivar = 'Esta parte de la Academia todavía no está activada. Avísale al equipo.';
   if (/admin_|mi_perfil|panel_grupo|marcar_visto|mis_vistos|entrar/i.test(m) && /could not find|schema cache|does not exist/i.test(m))
-    return 'Falta correr supabase-empresas.sql en Supabase.';
+    return IS_ADMIN ? 'Falta correr supabase-empresas.sql en Supabase.' : sinActivar;
   // Lo que crea supabase-extras.sql (quizzes y la columna "orden"): si falta, se dice claro
   if (/quiz|orden/i.test(m) && /could not find|schema cache|does not exist/i.test(m))
     return IS_ADMIN
-      ? 'Esta parte del muro aún no está lista en la base de datos: falta correr supabase-extras.sql en Supabase.'
-      : 'Esta parte del muro todavía no está activada. Avísale al equipo.';
+      ? 'Esta parte de la Academia aún no está lista en la base de datos: falta correr supabase-extras.sql en Supabase.'
+      : sinActivar;
   if (/preguntar|PGRST202/i.test(m))
-    return 'Las preguntas todavía no están activadas en el muro. Avísale al equipo.';
+    return 'Las preguntas todavía no están activadas en la Academia. Avísale al equipo.';
+  // A la persona solo le llega lo que la base dice a propósito; lo técnico va a la consola
+  if (!IS_ADMIN){
+    if (esErrorDeNegocio(err)) return m;
+    console.warn('Detalle del error:', err);
+    return 'Algo no salió bien. Inténtalo de nuevo y, si sigue, escríbenos por Soporte.';
+  }
   if (/row-level security|violates|permission/i.test(m))
-    return 'La base rechazó el cambio: revisa que la clave de admin coincida con la del SQL.';
-  if (/Failed to fetch|NetworkError/i.test(m)) return 'Sin conexión con la nube. Revisa tu internet.';
+    return 'La base rechazó el cambio (permisos o una regla de la tabla). Cierra tu sesión de admin, vuelve a entrar e inténtalo otra vez. Detalle: ' + m;
   return m;
+}
+/** ¿Es un mensaje que la base (raise exception) o la app escribieron en español para la persona?
+    Los errores técnicos de Postgres o PostgREST llegan en inglés o con código (PGRST…, 23505, 42P01…). */
+function esErrorDeNegocio(err){
+  const m = String(err?.message || err || ''), cod = String(err?.code || '');
+  if (cod === 'P0001') return true;                        // raise exception de nuestras funciones
+  if (cod || (err instanceof Error && err.name !== 'Error')) return false;   // SQLSTATE, PGRST…, TypeError y parecidos
+  if (/PGRST|SQLSTATE|\b(relation|column|function|schema|syntax|constraint|violates|duplicate|permission|denied|row-level|jwt|json|null value|invalid|could not|does not exist|not found|failed|unexpected|undefined|timeout|timed out|cannot|fetch|abort|the|is not|of)\b/i.test(m)) return false;
+  // Un Error simple lo lanzó la propia app (en español); lo demás tiene que verse como español
+  return (err instanceof Error) || /[áéíóúñ¿¡]|\b(el|la|los|las|del|que|ya|tu|tus|una|para|con|sin|ese|esa|este|esta|solo|falta|debe|puedes?|todavía)\b/i.test(m);
 }
 
 /* ================================================================
@@ -1201,7 +1221,7 @@ function pintarNav(){
   $('#navSessions').innerHTML = SESSIONS.map(s => `
     <div class="nav-row" data-row="${s.id}">
       <button class="nav-item" data-view="session" data-id="${s.id}" title="${escapeHtml(s.title)}">
-        <svg class="ico" data-icono="${s.icon}"><use href="#${s.icon}"/></svg>
+        <svg class="ico" data-icono="${escapeHtml(s.icon)}"><use href="#${escapeHtml(s.icon)}"/></svg>
         <span class="nav-label">
           <em>${escapeHtml(s.short)}</em>
           <b>${escapeHtml(s.name)}</b>
@@ -1238,8 +1258,8 @@ function candadoNavHtml(s){
 function buildNav(){
   pintarNav();
   $('#nav').addEventListener('click', e => {
-    if (e.target.closest('[data-editar-reto]')){ setView('reto'); $('#sidebar').classList.remove('is-open'); return; }
-    if (e.target.closest('[data-editar-extras]')){ setView('extras'); $('#sidebar').classList.remove('is-open'); return; }
+    if (e.target.closest('[data-editar-reto]')){ setView('reto'); cerrarMenu(); return; }
+    if (e.target.closest('[data-editar-extras]')){ setView('extras'); cerrarMenu(); return; }
     const cand = e.target.closest('[data-candado]');
     if (cand) return alternarCandado(cand.dataset.candado);
     const ojo = e.target.closest('[data-hide]');
@@ -1259,7 +1279,7 @@ function buildNav(){
     }
     const b = e.target.closest('.nav-item'); if (!b) return;
     setView(b.dataset.view, b.dataset.id);
-    $('#sidebar').classList.remove('is-open');
+    cerrarMenu();
   });
   $('#railSessions').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -1390,6 +1410,21 @@ function render(){
 
 function renderVista(){
   objectUrls.splice(0).forEach(URL.revokeObjectURL);
+
+  // El arranque no pudo traer el contenido: en vez de la Academia vacía, el motivo y «Reintentar»
+  if (cargaFallida){
+    $('#viewTitle').textContent = 'PorContar Academia';
+    $('#viewSubtitle').textContent = 'No se pudo cargar el contenido';
+    $('#composerTrigger')?.setAttribute('hidden', '');
+    $('#posts').innerHTML = `
+      <div class="empty" role="alert">
+        <svg class="ico"><use href="#i-empty"/></svg>
+        <h3>No se pudo cargar la Academia</h3>
+        <p>${escapeHtml(cargaFallida)}</p>
+        <button class="btn btn-primary" data-reintentar>Reintentar</button>
+      </div>`;
+    return;
+  }
 
   if (view.type === 'session' && query){
     $('#viewTitle').textContent = 'Resultados de búsqueda';
@@ -1909,7 +1944,7 @@ function postHtml(p, i, lista){
       <div class="post-meta">
         <div class="post-author">
           ${escapeHtml(p.author || ME.name)}
-          <span class="tag"><svg class="ico"><use href="#${s.icon}"/></svg>${escapeHtml(s.short)}</span>
+          <span class="tag"><svg class="ico"><use href="#${escapeHtml(s.icon)}"/></svg>${escapeHtml(s.short)}</span>
           ${p.pinned ? `<span class="tag tag-pin"><svg class="ico"><use href="#i-pin"/></svg>Destacada</span>` : ''}
           ${audTagHtml(p)}
         </div>
@@ -1917,14 +1952,14 @@ function postHtml(p, i, lista){
       </div>
       <div class="post-actions">
         ${flechasHtml(p, i, lista)}
-        <button class="icon-btn" data-copy="${p.id}" title="Copiar el texto">
+        <button class="icon-btn" data-copy="${p.id}" title="Copiar el texto" aria-label="Copiar el texto">
           <svg class="ico"><use href="#i-copy"/></svg>
         </button>
         <button class="icon-btn" data-save="${p.id}" title="${guardada ? 'Quitar de guardados' : 'Guardar'}"
-                style="${guardada ? 'color:var(--pc-blue)' : ''}">
+                aria-label="${guardada ? 'Quitar de guardados' : 'Guardar'}" style="${guardada ? 'color:var(--pc-blue)' : ''}">
           <svg class="ico" ${guardada ? 'fill="currentColor"' : ''}><use href="#i-bookmark"/></svg>
         </button>
-        ${IS_ADMIN ? `<button class="icon-btn" data-menu="${p.id}" title="Editar o eliminar">
+        ${IS_ADMIN ? `<button class="icon-btn" data-menu="${p.id}" title="Editar o eliminar" aria-label="Editar o eliminar">
           <svg class="ico"><use href="#i-more"/></svg>
         </button>` : ''}
       </div>
@@ -1982,10 +2017,10 @@ function faqHtml(p, i, lista){
       </button>` : ''}
       <span class="faq-tools">
         ${flechasHtml(p, i, lista)}
-        <button class="icon-btn" data-copy="${p.id}" title="${pendiente ? 'Copiar la pregunta' : 'Copiar la respuesta'}">
+        <button class="icon-btn" data-copy="${p.id}" title="${pendiente ? 'Copiar la pregunta' : 'Copiar la respuesta'}" aria-label="${pendiente ? 'Copiar la pregunta' : 'Copiar la respuesta'}">
           <svg class="ico"><use href="#i-copy"/></svg>
         </button>
-        ${IS_ADMIN ? `<button class="icon-btn" data-menu="${p.id}" title="Más opciones">
+        ${IS_ADMIN ? `<button class="icon-btn" data-menu="${p.id}" title="Más opciones" aria-label="Más opciones">
           <svg class="ico"><use href="#i-more"/></svg>
         </button>` : ''}
       </span>
@@ -2115,8 +2150,10 @@ function quizResponderHtml(){
 function quizResultadoHtml(){
   const q = quizAbierto, r = quizResultado;
   const porcentaje = pct(r.puntaje, r.total);
-  const detalle = q.preguntas.map((p, i) => {
-    const bien = r.aciertos[i] === 1;
+  // Falló y le quedan intentos: la base no manda las correctas (correctas:null) y aquí no se marca nada
+  const conCorrectas = Array.isArray(r.correctas);
+  const detalle = !conCorrectas ? '' : q.preguntas.map((p, i) => {
+    const bien = (r.aciertos || [])[i] === 1;
     const elegida = quizElegidas[i];
     return `
       <li class="quiz-pregunta ${bien ? 'is-bien' : 'is-mal'}">
@@ -2139,14 +2176,15 @@ function quizResultadoHtml(){
         <div class="quiz-barra"><i style="width:${porcentaje}%"></i></div>
       </div>
       <h2 class="quiz-titulo">${escapeHtml(q.titulo)}</h2>
-      <ol class="quiz-lista">${detalle}</ol>
+      ${conCorrectas ? `<ol class="quiz-lista">${detalle}</ol>`
+        : '<p class="quiz-nota">Todavía no te mostramos cuáles eran las respuestas correctas: repasa la clase y vuelve a intentarlo.</p>'}
       <div class="quiz-enviar">
         ${(() => {
           const quedan = r.intentos > 0 ? r.intentos - (r.usados || 0) : Infinity;
           if (quedan <= 0) return `<span class="quiz-meta">Ya usaste tus ${r.intentos} intentos.</span><span></span>`;
           return `<span class="quiz-meta">${quedan === Infinity ? 'Puedes repetirlo cuando quieras.'
                     : `Te ${quedan === 1 ? 'queda 1 intento' : `quedan ${quedan} intentos`}.`}</span>
-                  <button class="btn btn-primary" data-quiz-abrir="${q.id}">Repetir el quiz</button>`;
+                  <button class="btn btn-primary" data-quiz-abrir="${q.id}">${conCorrectas ? 'Repetir el quiz' : 'Intentar de nuevo'}</button>`;
         })()}
       </div>
     </div>`;
@@ -2211,7 +2249,7 @@ function quizEditorHtml(){
     <li class="quiz-pregunta">
       <div class="quiz-pregunta-head">
         <span class="quiz-num">${i + 1}</span>
-        <button class="icon-btn" data-quiz-borrar-p="${i}" title="Quitar esta pregunta">
+        <button class="icon-btn" data-quiz-borrar-p="${i}" title="Quitar esta pregunta" aria-label="Quitar esta pregunta">
           <svg class="ico"><use href="#i-trash"/></svg>
         </button>
       </div>
@@ -2226,7 +2264,7 @@ function quizEditorHtml(){
                    title="Marcar como correcta" />
             <input type="text" data-quiz-opcion-edit="${i}-${j}" maxlength="200"
                    value="${escapeHtml(o)}" placeholder="Opción ${j + 1}" />
-            ${p.options.length > 2 ? `<button class="icon-btn" data-quiz-borrar-o="${i}-${j}" title="Quitar opción">
+            ${p.options.length > 2 ? `<button class="icon-btn" data-quiz-borrar-o="${i}-${j}" title="Quitar opción" aria-label="Quitar opción">
               <svg class="ico"><use href="#i-close"/></svg></button>` : ''}
           </label>`).join('')}
         ${p.options.length < 4 ? `<button class="btn quiz-mini" data-quiz-add-o="${i}">Agregar opción</button>` : ''}
@@ -2253,7 +2291,7 @@ function quizEditorHtml(){
         <label class="field"><span>% para aprobar</span>
           <input type="number" id="quizAprobar" min="0" max="100" value="${q.aprobar ?? 70}" /></label>
         <label class="field"><span>Intentos por persona</span>
-          <input type="number" id="quizIntentos" min="0" max="50" value="${q.intentos ?? 0}" />
+          <input type="number" id="quizIntentos" min="0" max="50" value="${q.intentos ?? 2}" />
           <small>0 = sin límite</small></label>
         <label class="check quiz-oblig">
           <input type="checkbox" id="quizOblig" ${q.obligatorio ? 'checked' : ''} />
@@ -2783,6 +2821,7 @@ $('#skEdSave').addEventListener('click', async () => {
    ================================================================ */
 $('#btnNew').addEventListener('click', () => openComposer());
 $('#composerTrigger').addEventListener('click', () => openComposer());
+$('#composerTrigger').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openComposer(); } });
 $('#btnCloseModal').addEventListener('click', closeComposer);
 $('#btnCancel').addEventListener('click', closeComposer);
 $('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeComposer(); });
@@ -2791,6 +2830,7 @@ document.addEventListener('keydown', e => {
   if (!$('#skEdOverlay').hidden) return closeSkillEditor();
   if (!$('#skOverlay').hidden)   return closeSkill();
   if (!$('#overlay').hidden)     return closeComposer();
+  if ($('#sidebar').classList.contains('is-open')){ cerrarMenu(); $('#btnMenu').focus(); }
 });
 // Menú de atajos: Cursos → tutoriales, Clases en vivo → cronograma
 $('#subnav').addEventListener('click', e => {
@@ -2799,7 +2839,20 @@ $('#subnav').addEventListener('click', e => {
   // «Cursos» abre el catálogo; mientras la base no tenga el módulo, sigue llevando a los tutoriales
   setView(b.dataset.sub === 'cursos' && (typeof CURSOS === 'undefined' || CURSOS === null) ? 'tuto' : b.dataset.sub);
 });
-$('#btnMenu').addEventListener('click', () => $('#sidebar').classList.toggle('is-open'));
+/* Menú en el celular: se abre sobre un velo; se cierra con el velo, su botón «cerrar» o Escape */
+function abrirMenu(){
+  $('#sidebar').classList.add('is-open');
+  const velo = $('#menuVelo'); if (velo) velo.hidden = false;
+}
+function cerrarMenu(){
+  $('#sidebar')?.classList.remove('is-open');
+  const velo = $('#menuVelo'); if (velo) velo.hidden = true;
+}
+$('#btnMenu').addEventListener('click', () => $('#sidebar').classList.contains('is-open') ? cerrarMenu() : abrirMenu());
+document.addEventListener('click', e => {
+  if (e.target.closest('#menuVelo, #btnMenuCerrar')) cerrarMenu();
+  if (e.target.closest('[data-reintentar]')) location.reload();   // pantallas de «no se pudo cargar»
+});
 
 let searchTimer;
 $('#search').addEventListener('input', e => {
@@ -2919,6 +2972,7 @@ document.addEventListener('click', e => {
 function confirmar({ titulo, texto, boton = 'Eliminar' }){
   return new Promise(resolve => {
     const ov = $('#cfOverlay');
+    document.body.appendChild(ov);   // encima de cualquier otra ventana abierta (las demás se crean después)
     $('#cfTitulo').textContent = titulo;
     $('#cfTexto').textContent = texto;
     $('#cfSi').textContent = boton;
@@ -2926,15 +2980,82 @@ function confirmar({ titulo, texto, boton = 'Eliminar' }){
     setTimeout(() => $('#cfNo').focus(), 40);
     const cerrar = valor => {
       ov.hidden = true;
-      $('#cfSi').onclick = $('#cfNo').onclick = ov.onclick = document.onkeydown = null;
+      $('#cfSi').onclick = $('#cfNo').onclick = ov.onclick = null;
+      document.removeEventListener('keydown', tecla, true);
       resolve(valor);
     };
     $('#cfSi').onclick = () => cerrar(true);
     $('#cfNo').onclick = () => cerrar(false);
     ov.onclick = e => { if (e.target === ov) cerrar(false); };
-    document.onkeydown = e => { if (e.key === 'Escape') cerrar(false); };
+    // En captura y sin dejar pasar la tecla: Escape cierra solo esta ventana, no la que esté debajo
+    const tecla = e => { if (e.key === 'Escape'){ e.preventDefault(); e.stopImmediatePropagation(); cerrar(false); } };
+    document.addEventListener('keydown', tecla, true);
   });
 }
+
+/* ================================================================
+   Foco en las ventanas (.overlay): un solo ayudante para todas.
+   Al abrir, el foco entra a la ventana; Tab no se sale de la que está
+   más arriba; al cerrar, vuelve a lo que la abrió. Mira el atributo
+   «hidden», así que no hay que tocar cada ventana.
+   ================================================================ */
+const FOCO = { ultimo:null, origen:new WeakMap() };
+function overlayArriba(){
+  const cf = $('#cfOverlay');
+  if (cf && !cf.hidden) return cf;
+  return $$('.overlay:not([hidden])').pop() || null;
+}
+const enfocablesDe = caja => $$('a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]', caja)
+  .filter(el => el.getClientRects().length);
+/** Se abre una ventana: se anota qué tenía el foco antes (para devolverlo al cerrar). */
+function focoAnotar(ov){
+  if (FOCO.origen.has(ov)) return;
+  FOCO.origen.set(ov, FOCO.ultimo && !ov.contains(FOCO.ultimo) ? FOCO.ultimo : null);
+}
+function focoAlAbrir(ov){
+  focoAnotar(ov);
+  // Un momento después: si la ventana no puso el cursor en un campo suyo, el foco va al diálogo
+  setTimeout(() => {
+    if (ov.hidden || ov !== overlayArriba() || ov.contains(document.activeElement)) return;
+    const caja = $('.modal', ov) || ov;
+    if (!caja.hasAttribute('tabindex')){ caja.setAttribute('tabindex', '-1'); caja.style.outline = 'none'; }
+    caja.focus({ preventScroll:true });
+  }, 90);
+}
+function focoAlCerrar(ov){
+  const antes = FOCO.origen.get(ov);
+  FOCO.origen.delete(ov);
+  const activo = document.activeElement;
+  // Solo si el foco quedó en el aire: si al cerrar ya se puso en otro lado, se respeta
+  if (!antes || !antes.isConnected || !antes.getClientRects().length) return;
+  if (activo && activo !== document.body && !ov.contains(activo)) return;
+  antes.focus({ preventScroll:true });
+}
+document.addEventListener('focusin', e => {
+  const ov = e.target.closest?.('.overlay');
+  if (ov) focoAnotar(ov);          // la ventana enfocó su campo antes de que el observador avisara
+  FOCO.ultimo = e.target;
+}, true);
+document.addEventListener('pointerdown', e => {   // Safari no le da el foco al botón que se toca
+  const b = e.target.closest?.('button, a[href], input, select, textarea, [tabindex]');
+  if (b && !b.closest('.overlay')) FOCO.ultimo = b;
+}, true);
+new MutationObserver(cambios => cambios.forEach(c => {
+  const ov = c.target;
+  if (!ov.classList?.contains('overlay')) return;
+  if (ov.hidden) focoAlCerrar(ov); else focoAlAbrir(ov);
+})).observe(document.body, { attributes:true, attributeFilter:['hidden'], subtree:true });
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const ov = overlayArriba(); if (!ov) return;
+  const els = enfocablesDe(ov), activo = document.activeElement;
+  if (!els.length) return void e.preventDefault();
+  const primero = els[0], ultimo = els[els.length - 1];
+  // El foco está fuera de la ventana: entra por la punta que toca
+  if (!ov.contains(activo)){ e.preventDefault(); (e.shiftKey ? ultimo : primero).focus(); }
+  else if (e.shiftKey && (activo === primero || activo === $('.modal', ov))){ e.preventDefault(); ultimo.focus(); }
+  else if (!e.shiftKey && activo === ultimo){ e.preventDefault(); primero.focus(); }
+});
 
 /* ================================================================
    Quizzes: interacciones
@@ -3304,7 +3425,7 @@ function cambiarEspacio(id){
   if (view.type === 'panel') setView('panel', vistaComo || null);
   else if (view.type === 'comunidad') setView('comunidad');
   else render();
-  $('#sidebar').classList.remove('is-open');
+  cerrarMenu();
 }
 
 document.addEventListener('click', e => {
@@ -3943,8 +4064,15 @@ function panelHtml(){
     </div>`;
 }
 
+/** Una celda de CSV: entre comillas y sin fórmulas (Excel ejecuta lo que empieza por = + - @).
+    Lo que es solo un número (también negativo) se deja igual. */
+function celdaCsv(v){
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s) && !/^[+-]?\d+([.,]\d+)?$/.test(s)) s = "'" + s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
 function descargarPanel(){
-  const celda = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const celda = celdaCsv;
   const filas = filasPanel().map(({ m, a }) => [
     m.nombre, m.email, m.rol, m.activo ? 'Sí' : 'No',
     m.ultimo_acceso ? new Date(m.ultimo_acceso).toLocaleString('es-CO') : 'Nunca',
@@ -4083,12 +4211,28 @@ $('#loginForm').addEventListener('submit', async e => {
       ? 'Sin conexión. Revisa tu internet.'
       : /could not find|schema cache/i.test(err?.message || '')
         ? 'La Academia todavía no está lista para entrar. Avísale al equipo de PorContar.'
-        : (err?.message || String(err));
+        : (err instanceof Error && !err.code && err.message) ? err.message   // los mensajes propios, en español
+        : 'No se pudo entrar. Inténtalo de nuevo.';
     btn.disabled = false; btn.textContent = 'Entrar';
   }
 });
 
+/** Hay configuración de la nube pero su librería no cargó: se dice claro, con «Reintentar» (nada de modo local). */
+function mostrarSinNube(){
+  $('#login').hidden = false;
+  document.body.classList.add('con-login');
+  $('#loginForm').hidden = true;
+  $('#login').insertAdjacentHTML('beforeend', `
+    <div class="login-card" id="sinNube" role="alert">
+      <h1>No se pudo cargar la Academia</h1>
+      <p class="login-sub">Revisa tu conexión a internet y vuelve a intentarlo.</p>
+      <button class="btn btn-primary login-btn" type="button" data-reintentar>Reintentar</button>
+    </div>`);
+  enfocar('#sinNube [data-reintentar]');
+}
+
 (async function init(){
+  if (SIN_NUBE) return mostrarSinNube();
   buildNav();
 
   // Con la base en la nube nadie entra sin identificarse: o es admin o tiene sesión
@@ -4117,29 +4261,41 @@ $('#loginForm').addEventListener('submit', async e => {
           ? 'Tu acceso terminó o ya no estás en un grupo activo. Escríbele a quien coordina el programa.'
           : 'Tu sesión terminó. Vuelve a entrar.');
       }
-      vistos = new Set(await store.misVistos().catch(err => { console.warn(err); return []; }));
     }
 
+    // Ya se sabe quién es: lo que sigue no depende entre sí, así que se pide todo a la vez
+    // y se recibe en el orden de siempre (cada cosa conserva su propio manejo de errores).
+    const aparte = p => (p.catch(() => {}), p);   // si algo anterior falla, esta no queda como error sin atender
+    const pVistos = CLOUD && !IS_ADMIN ? store.misVistos().catch(err => { console.warn(err); return []; }) : null;
+    const pSesiones = aparte(store.sesiones());
+    const pFase1 = aparte(Promise.all([store.cronograma(), store.grabaciones(), store.clasesAbiertas()]));
+    const pProgreso = PERFIL ? aparte(store.miProgresoVideo()) : null;
+    const pTareas = CLOUD && typeof cargarTareasYAjustes === 'function' ? cargarTareasYAjustes() : null;
+    const pCursos = CLOUD && typeof cargarCursos === 'function' ? cargarCursos() : null;
+    const pPosts = aparte(store.list());
+    const pSkills = aparte(store.listSkills());
+    const pQuizzes = aparte(cargarQuizzes());
+
+    if (pVistos) vistos = new Set(await pVistos);
     if (IS_ADMIN && CLOUD){
-      ADMIN_PERFIL = await store.adminPerfil().catch(() => null);
-      await cargarGrupos();
+      [ADMIN_PERFIL] = await Promise.all([store.adminPerfil().catch(() => null), cargarGrupos()]);
     }
     applyMode();
 
     // Fase 1: el reto, el cronograma y las grabaciones. Si falta supabase-fase1.sql,
     // la academia sigue con las sesiones de siempre y sin cronograma.
     try {
-      const ss = await store.sesiones();
+      const ss = await pSesiones;
       if (ss.length){ SESSIONS = ss; OTRAS_SESIONES = []; repartirSesiones(); }
-      [CRONO, GRABS, ABIERTAS] = await Promise.all([store.cronograma(), store.grabaciones(), store.clasesAbiertas()]);
-      if (PERFIL) progresoVideo = await store.miProgresoVideo();
+      [CRONO, GRABS, ABIERTAS] = await pFase1;
+      if (pProgreso) progresoVideo = await pProgreso;
       fase1 = true;
     } catch (err){ console.warn("Fase 1 no disponible (falta supabase-fase1.sql):", err); }
-    if (CLOUD && typeof cargarTareasYAjustes === 'function') await cargarTareasYAjustes();
-    if (CLOUD && typeof cargarCursos === 'function') await cargarCursos();
+    await pTareas;
+    await pCursos;
     pintarNav();
 
-    posts = await store.list();
+    posts = await pPosts;
     // El estudiante solo ve lo publicado en las sesiones que le llegan (las del reto o las de su bootcamp)
     if (!IS_ADMIN && fase1){
       const mias = new Set([...SESSIONS.map(s => s.id), TUTO_ID, FAQ_ID]);
@@ -4149,7 +4305,7 @@ $('#loginForm').addEventListener('submit', async e => {
     // El catálogo de skills es independiente: si su tabla aún no existe,
     // el muro sigue funcionando y solo se queda vacío ese módulo.
     try {
-      skills = await store.listSkills();
+      skills = await pSkills;
       if (!IS_ADMIN) skills = skills.filter(s => s.visible !== false);
     }
     catch (err){
@@ -4158,7 +4314,7 @@ $('#loginForm').addEventListener('submit', async e => {
     }
 
     // Los quizzes también: si falta su tabla (supabase-extras.sql), el resto del muro no se entera.
-    try { await cargarQuizzes(); }
+    try { await pQuizzes; }
     catch (err){
       console.warn('Quizzes no disponibles:', err);
       quizzes = []; estadisticas = [];
@@ -4167,11 +4323,13 @@ $('#loginForm').addEventListener('submit', async e => {
     console.error(err);
     applyMode();
     posts = [];
-    toast(CLOUD ? 'No se pudo cargar el muro: ' + errorMsg(err)
+    // Además del aviso, queda dicho en la página (renderVista) con el botón «Reintentar»
+    cargaFallida = CLOUD ? errorMsg(err) : 'No se pudo abrir el almacenamiento local.';
+    toast(CLOUD ? 'No se pudo cargar la Academia: ' + cargaFallida
                 : 'No se pudo abrir el almacenamiento local');
   }
 
-  if (!CLOUD) console.warn('Muro en modo local: falta SUPABASE_ANON_KEY en config.js');
+  if (!CLOUD) console.warn('Academia en modo local: falta SUPABASE_ANON_KEY en config.js');
   // Lo primero que se ve es el inicio con el cronograma; sin él, la primera clase no oculta
   const inicio = SESSIONS.find(s => !isHidden(s.id)) || SESSIONS[0];
   // Si la persona ya se movió mientras cargaba, se respeta dónde está; si no, arranca en el inicio
