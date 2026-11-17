@@ -1045,7 +1045,7 @@ const recursosAbiertos = new Set();   // los recursos desplegados, para que no s
 /** Ícono según lo que trae el recurso. */
 function iconoRecurso(p){
   if (p.videoUrl && toEmbed(p.videoUrl)) return 'i-video';
-  if (esPdf(p)) return 'i-resumen';
+  if (esPdf(p) || esDoc(p)) return 'i-resumen';
   if (esImagen(p)) return 'i-empty';
   if (p.videoUrl || p.videoId) return 'i-video';
   return 'i-feed';

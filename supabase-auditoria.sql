@@ -771,6 +771,21 @@ $$;
 revoke all on function public.dar_puntos(uuid, text, int, text) from public;
 grant execute on function public.dar_puntos(uuid, text, int, text) to anon, authenticated;
 
+-- Documentos en los recursos (igual que supabase-documentos.sql): Excel, Word y
+-- PowerPoint sin macros, y CSV. Suma a lo que ya acepta el almacén, no quita.
+update storage.buckets
+   set allowed_mime_types = array(
+         select distinct t from unnest(coalesce(allowed_mime_types, '{}') || array[
+           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+           'application/vnd.ms-excel',
+           'text/csv',
+           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+           'application/msword',
+           'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+           'application/vnd.ms-powerpoint']) as t
+         order by t)
+ where id = 'videos-academia';
+
 notify pgrst, 'reload schema';
 
 -- Comprobación: todo debe decir «sí» (la llave nueva NO se muestra aquí)

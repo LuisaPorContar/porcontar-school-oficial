@@ -120,12 +120,34 @@ const gruposResponsable = () => (PERFIL?.grupos || []).filter(g => g.rol === 're
 const MAX_VIDEO_MB = 300;
 const MAX_IMAGE_MB = 10;
 const MAX_PDF_MB   = 25;
+const MAX_DOC_MB   = 25;
 const RE_IMAGEN = /\.(jpe?g|png|gif|webp|avif|svg)(\?|$)/i;
 const RE_PDF    = /\.pdf(\?|$)/i;
+const RE_DOC    = /\.(xlsx|xls|csv|docx|doc|pptx|ppt)(\?|$)/i;
+/** Excel, Word y PowerPoint (sin macros): su tipo por la extensión, porque a veces el navegador no lo dice. */
+const TIPOS_DOC = {
+  xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls:'application/vnd.ms-excel', csv:'text/csv',
+  docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc:'application/msword',
+  pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', ppt:'application/vnd.ms-powerpoint',
+};
+const extDe = nombre => (String(nombre || '').match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
 
-/** El adjunto puede ser video, imagen o PDF; el nombre del archivo dice cual es. */
+/** El adjunto puede ser video, imagen, PDF o documento; el nombre del archivo dice cual es. */
 const esImagen = p => RE_IMAGEN.test(p.videoName || '') || RE_IMAGEN.test(p.videoUrl || '');
 const esPdf    = p => RE_PDF.test(p.videoName || '')    || RE_PDF.test(p.videoUrl || '');
+const esDoc    = p => RE_DOC.test(p.videoName || '')    || RE_DOC.test(p.videoUrl || '');
+
+/** Excel, Word o PowerPoint: no se ve dentro de la Academia, se descarga. */
+function docHtml(url, nombre){
+  const n = escapeHtml(nombre || 'Documento'), u = escapeHtml(url);
+  const e = extDe(nombre || url);
+  const tipo = /^xls|^csv/.test(e) ? 'Excel' : /^doc/.test(e) ? 'Word' : /^ppt/.test(e) ? 'PowerPoint' : 'Documento';
+  return `<div class="post-media es-doc">
+    <div class="pdf-bar">
+      <svg class="ico"><use href="#i-resumen"/></svg><span>${n}<small>${tipo}</small></span>
+      <a class="btn btn-primary" href="${u}" download="${n}"><svg class="ico"><use href="#i-download"/></svg> Descargar</a>
+    </div></div>`;
+}
 
 /** El PDF se lee dentro de la publicación y se puede abrir aparte o descargar. */
 function pdfHtml(url, nombre){
@@ -553,8 +575,12 @@ function cloudStore(){
     async uploadVideo(p, file){
       const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-80);
       const path = `${p.id}/${safe}`;
+      // Excel, Word y PowerPoint van con su tipo exacto (Windows a veces manda otro, o ninguno)
+      // (la librería sube el archivo como formulario y toma el tipo del propio archivo)
+      const tipo = TIPOS_DOC[extDe(file.name)] || file.type;
+      const cuerpo = tipo && tipo !== file.type ? new File([file], file.name, { type:tipo }) : file;
       const { error } = await sb.storage.from(bucket)
-        .upload(path, file, { upsert:true, contentType:file.type, cacheControl:'31536000' });
+        .upload(path, cuerpo, { upsert:true, contentType:tipo, cacheControl:'31536000' });
       if (error) throw error;
       p.videoPath = path;
       p.videoName = file.name;
@@ -1182,7 +1208,7 @@ document.addEventListener('input', e => {
 });
 
 /** ¿La publicación trae un video (y no una imagen o un PDF)? Solo esos se marcan como vistos. */
-const esVideo = p => !!(p.videoUrl || p.videoId) && (!!(p.videoUrl && toEmbed(p.videoUrl)) || (!esImagen(p) && !esPdf(p)));
+const esVideo = p => !!(p.videoUrl || p.videoId) && (!!(p.videoUrl && toEmbed(p.videoUrl)) || (!esImagen(p) && !esPdf(p) && !esDoc(p)));
 
 const sessionOf = id => id === FAQ_ID ? FAQ : id === TUTO_ID ? TUTO
                       : SESSIONS.find(s => s.id === id) || OTRAS_SESIONES.find(s => s.id === id) || SESSIONS[0] || SIN_SESION;
@@ -2364,6 +2390,7 @@ function mediaHtml(p){
     if (embed) return `<div class="post-media"><iframe src="${escapeHtml(embed)}" allowfullscreen loading="lazy"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe></div>`;
     if (esPdf(p)) return pdfHtml(p.videoUrl, p.videoName);
+    if (esDoc(p)) return docHtml(p.videoUrl, p.videoName);
     if (esImagen(p)) return `<div class="post-media es-imagen">
       <img src="${escapeHtml(p.videoUrl)}" alt="${escapeHtml(p.videoName || 'Imagen de la publicación')}" loading="lazy" /></div>`;
     // Un enlace pegado (no un archivo subido) que no se puede incrustar: Zoom, OneDrive, Teams…
@@ -2381,6 +2408,7 @@ async function hydrateVideo(p){
   const url = await store.blobUrl(p.videoId); if (!url) return;
   objectUrls.push(url);
   if (esPdf(p)){ holder.outerHTML = pdfHtml(url, p.videoName); return; }
+  if (esDoc(p)){ holder.outerHTML = docHtml(url, p.videoName); return; }
   holder.innerHTML = esImagen(p)
     ? `<img src="${url}" alt="${escapeHtml(p.videoName || 'Imagen de la publicación')}" />`
     : `<video src="${url}" controls playsinline preload="metadata"></video>`;
@@ -2570,8 +2598,10 @@ $('#fileClear').addEventListener('click', () => {
 function acceptFile(f){
   const imagen = f.type.startsWith('image/');
   const pdf    = f.type === 'application/pdf' || RE_PDF.test(f.name);
-  if (!imagen && !pdf && !f.type.startsWith('video/')) return toast('Adjunta un video, una imagen o un PDF');
-  const tope = pdf ? MAX_PDF_MB : imagen ? MAX_IMAGE_MB : MAX_VIDEO_MB;
+  const doc    = !!TIPOS_DOC[extDe(f.name)];
+  if (/\.(xlsm|xltm|docm|dotm|pptm|potm|ppsm)$/i.test(f.name)) return toast('Ese archivo trae macros: guárdalo como .xlsx, .docx o .pptx y súbelo de nuevo');
+  if (!imagen && !pdf && !doc && !f.type.startsWith('video/')) return toast('Adjunta un video, una imagen, un PDF, un Excel, un Word o un PowerPoint');
+  const tope = pdf ? MAX_PDF_MB : doc ? MAX_DOC_MB : imagen ? MAX_IMAGE_MB : MAX_VIDEO_MB;
   if (f.size > tope * 1048576) return toast(`El archivo supera ${tope} MB`);
   pendingFile = f; removeExistingVideo = false;
   showFileChip(`${f.name} · ${(f.size / 1048576).toFixed(1)} MB`);
@@ -2615,7 +2645,7 @@ $('#btnPublish').addEventListener('click', async () => {
   const btn = $('#btnPublish');
   const textoOriginal = btn.textContent;
   btn.disabled = true;
-  btn.textContent = pendingFile ? 'Subiendo video…' : 'Guardando…';
+  btn.textContent = pendingFile ? 'Subiendo archivo…' : 'Guardando…';
   $('#modalMsg').textContent = '';
 
   try {
