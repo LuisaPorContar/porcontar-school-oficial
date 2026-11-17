@@ -638,7 +638,7 @@ function herramientas(sb) {
         nombre: { type: 'string' }, tipo: { type: 'string', enum: ['b2b', 'b2c'] },
         clave: { type: 'string', description: 'Contraseña del grupo (mínimo 6 caracteres). Cada persona entra con su correo + esta clave.' },
         vence_el: { type: 'string', description: 'Último día con acceso, AAAA-MM-DD. Vacío = no vence.' },
-        formato: { type: 'string', enum: ['reto', 'presencial', 'corto'], description: 'reto = Estándar virtual, presencial = Estándar presencial (sin grabaciones: en cada clase ve los videos del curso marcados con esa clase), corto = Hiperpersonalizado (sesiones propias)' },
+        formato: { type: 'string', enum: ['reto', 'presencial', 'corto'], description: 'reto = Estándar virtual, presencial = Estándar presencial (con grabaciones; en cada clase ve además los videos del curso marcados con esa clase), corto = Hiperpersonalizado (sesiones propias)' },
         fecha_inicio: { type: 'string' }, fecha_fin: { type: 'string' },
         contacto_nombre: { type: 'string' }, contacto_cargo: { type: 'string' }, contacto_email: { type: 'string' }, contacto_telefono: { type: 'string' },
         nit: { type: 'string' }, sector: { type: 'string' }, plazas: { type: 'integer' }, whatsapp_url: { type: 'string' }, logo_url: { type: 'string' },
@@ -669,7 +669,7 @@ function herramientas(sb) {
       esquema: { type: 'object', properties: {
         grupo: { type: 'string', description: 'Nombre o id' },
         nombre: { type: 'string' }, tipo: { type: 'string', enum: ['b2b', 'b2c'] }, clave: { type: 'string' },
-        vence_el: { type: 'string' }, activo: { type: 'boolean' }, formato: { type: 'string', enum: ['reto', 'presencial', 'corto'], description: 'reto = Estándar virtual, presencial = Estándar presencial (sin grabaciones: en cada clase ve los videos del curso marcados con esa clase), corto = Hiperpersonalizado (sesiones propias)' },
+        vence_el: { type: 'string' }, activo: { type: 'boolean' }, formato: { type: 'string', enum: ['reto', 'presencial', 'corto'], description: 'reto = Estándar virtual, presencial = Estándar presencial (con grabaciones; en cada clase ve además los videos del curso marcados con esa clase), corto = Hiperpersonalizado (sesiones propias)' },
         fecha_inicio: { type: 'string' }, fecha_fin: { type: 'string' },
         contacto_nombre: { type: 'string' }, contacto_cargo: { type: 'string' }, contacto_email: { type: 'string' }, contacto_telefono: { type: 'string' },
         nit: { type: 'string' }, sector: { type: 'string' }, plazas: { type: 'integer' }, whatsapp_url: { type: 'string' }, logo_url: { type: 'string' },
@@ -1453,7 +1453,7 @@ function herramientas(sb) {
         curso_id: { type: 'string' }, titulo: { type: 'string' }, seccion: { type: 'string', description: 'Opcional: «Introducción», «Ejecución»…' },
         resumen: { type: 'string' }, video_url: { type: 'string', description: 'YouTube, Drive, Vimeo, Loom…' }, duracion: { type: 'string', description: '«04:28»' },
         recursos: { type: 'array', items: { type: 'object', properties: { nombre: { type: 'string' }, url: { type: 'string' } } } }, visible: { type: 'boolean' },
-        sesion_id: { type: 'string', description: 'Opcional: la clase del reto. Los grupos presenciales ven la cápsula dentro de esa clase, en el lugar de la grabación.' },
+        sesion_id: { type: 'string', description: 'Opcional: la clase del reto. Los grupos presenciales ven la cápsula dentro de esa clase, debajo de la grabación.' },
       }, required: ['curso_id', 'titulo'] },
       async correr(a) {
         const curso = texto(req(a.curso_id, 'curso_id'))

@@ -730,12 +730,14 @@ function destruirReproductor(){
 function pintarGrabacion(forzar = false){
   const caja = $('#grabacion'); if (!caja) return;
   const enSesion = view.type === 'session' && !query && fase1 && !isHidden(view.id) && (IS_ADMIN || claseAbierta(view.id));
+  // Todas las modalidades llevan grabación; el presencial además ve los videos del curso marcados con esta clase
   const presencial = enSesion && esPresencial();
-  const lista = enSesion && !presencial ? grabacionesDe(view.id) : [];
+  const lista = enSesion ? grabacionesDe(view.id) : [];
+  const caps = presencial ? videosDeClase(view.id) : [];
   const avisoAdmin = enSesion && IS_ADMIN && CLOUD && !vistaComo;
   const sel = lista.find(g => g.id === grabElegida[view.id]) || lista[0];
   const clave = [view.type, view.id, vistaComo, sel?.id, lista.map(g => g.id).join(','), grabAgregando, enSesion, presencial,
-                 presencial ? videosDeClase(view.id).map(k => k.id + (capsHechas.has(k.id) ? '+' : '')).join(',') : ''].join('|');
+                 caps.map(k => k.id + (capsHechas.has(k.id) ? '+' : '')).join(',')].join('|');
   if (!forzar && clave === grabPintada) return;
   grabPintada = clave;
   destruirReproductor();
@@ -749,7 +751,10 @@ function pintarGrabacion(forzar = false){
     return;
   }
   if (!enSesion){ caja.innerHTML = ''; return; }
-  if (presencial){ caja.innerHTML = videosClaseHtml(view.id); return; }
+  const videosCurso = caps.length ? videosClaseHtml(view.id) : '';
+
+  // Sin grabación, pero con videos del curso: el estudiante ve esos videos
+  if (!lista.length && !IS_ADMIN && videosCurso){ caja.innerHTML = videosCurso; return; }
 
   // Sin grabación todavía: el estudiante ve un aviso del tamaño del video, con la fecha si la hay
   if (!lista.length && !IS_ADMIN){
@@ -795,7 +800,7 @@ function pintarGrabacion(forzar = false){
               <button class="icon-btn" data-grab-borrar="${x.id}" title="Quitar esta grabación" aria-label="Quitar ${escapeHtml(x.titulo || 'grabación')}">
                 <svg class="ico"><use href="#i-trash"/></svg></button></li>`).join('')}</ul>` : ''}
         </div>` : ''}
-    </section>`;
+    </section>${videosCurso}`;
   if (sel && !sel.drive_id) prepararReproductor(sel);
 }
 

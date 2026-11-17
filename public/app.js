@@ -41,7 +41,7 @@ const grupoCorto = () => {
 /* Extras del menú que se pueden apagar por grupo (grupos.extras_off). */
 const EXTRAS = ['tareas', 'skills', 'resumen', 'config', 'tuto', 'faq'];
 /* Modalidades: corto = Hiperpersonalizado (sesiones propias), reto = Estándar virtual,
-   presencial = Estándar presencial (las clases del reto, sin grabaciones: en cada clase, los videos del curso). */
+   presencial = Estándar presencial (las clases del reto con su grabación; en cada clase, además, los videos del curso). */
 const MODALIDADES = { reto:'Estándar virtual', presencial:'Estándar presencial', corto:'Hiperpersonalizado' };
 const modalidadTxt = g => MODALIDADES[g?.formato] || MODALIDADES.reto;
 /** ¿Quien mira sigue la modalidad presencial? (admin: el espacio abierto; estudiante: todos sus grupos) */
@@ -3744,7 +3744,7 @@ $('#grGenerar').addEventListener('click', () => {
 const extrasSegunFormato = () => { $('#grExtras [data-extra="tareas"]').closest('.aj-fila').hidden = $('#grFormato').value === 'corto'; };
 $('#grFormato').addEventListener('change', () => {
   extrasSegunFormato();
-  // Sin grabaciones, el presencial aprende con los cursos: se enciende ese interruptor
+  // El presencial también aprende con los cursos: se enciende ese interruptor
   if ($('#grFormato').value === 'presencial') $('#grExtras [data-extra="tuto"]').checked = true;
 });
 const avisoClave = () => { $('#grClaveNota').hidden = !(editandoGrupo && $('#grClave').value.trim()); };

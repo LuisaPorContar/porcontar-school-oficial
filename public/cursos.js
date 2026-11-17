@@ -444,7 +444,7 @@ function abrirCapsulaForm(k = null){
   $('#ckTitulo').value = k ? k.titulo : '';
   $('#ckSeccion').value = k ? k.seccion : (caps[caps.length - 1]?.seccion || '');
   $('#ckSecciones').innerHTML = [...new Set(caps.map(x => x.seccion).filter(Boolean))].map(s => `<option value="${escapeHtml(s)}">`).join('');
-  // Presencial: la cápsula con clase se ve dentro de esa clase, en el lugar de la grabación
+  // Presencial: la cápsula con clase se ve dentro de esa clase, debajo de la grabación
   $('#ckSesion').innerHTML = '<option value="">Ninguna</option>' + [...SESSIONS, ...OTRAS_SESIONES].filter(x => !x.grupoId)
     .sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(x => `<option value="${x.id}">${escapeHtml(x.title)}</option>`).join('');
   $('#ckSesion').value = k?.sesion_id || '';
