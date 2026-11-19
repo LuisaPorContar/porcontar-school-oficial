@@ -5,7 +5,8 @@
    Estudiante: al inicio le aparece lo que le falta responder (el
    diagnóstico antes de empezar y la encuesta abierta) y lo responde ahí
    mismo, sin escribir quién es: la app ya lo sabe. Con ?f=diagnostico o
-   ?f=encuesta (el enlace de los correos) se abre solo al entrar.
+   ?f=encuesta (el enlace de los correos) se abre solo al entrar; con
+   ?f=encuesta&n=2, esa encuesta en particular.
 
    Admin, en el inicio de cada empresa:
    · Ver preguntas (como las ve la persona) y Editar preguntas (las mismas
@@ -80,7 +81,9 @@ function preguntasDe(tipo, g){
 }
 
 const FM_URL = new URLSearchParams(location.search).get('f');   // ?f=diagnostico | ?f=encuesta (enlace del correo)
-const enlaceFormulario = tipo => 'https://academia.porcontar.com/?f=' + tipo;
+const FM_URL_N = Number(new URLSearchParams(location.search).get('n')) || 0;   // ?f=encuesta&n=2: esa encuesta
+/** El enlace para mandar: el diagnóstico, cualquier encuesta abierta, o una en particular (n). */
+const enlaceFormulario = (tipo, n) => 'https://academia.porcontar.com/?f=' + tipo + (n ? '&n=' + n : '');
 let MISF = null;        // estudiante: lo que le falta, por grupo (mis_formularios)
 let misfCargando = false;
 let FM = null;          // la ventana abierta
@@ -104,7 +107,7 @@ async function cargarMisFormularios(){
     const p = pendientesDe(grupoInicio()?.id) || MISF.map(x => pendientesDe(x.grupo_id)).find(x => x && (x.diag || x.encuestas.length));
     if (!p) return;
     if (FM_URL === 'diagnostico' && p.diag) abrirDiagnostico(p.grupo);
-    else if (FM_URL === 'encuesta' && p.encuestas.length) abrirEncuesta(p.grupo, p.encuestas[0]);
+    else if (FM_URL === 'encuesta' && p.encuestas.length) abrirEncuesta(p.grupo, p.encuestas.find(e => e.numero === FM_URL_N) || p.encuestas[0]);
   }
 }
 
@@ -204,8 +207,10 @@ const PIE_VISTA = '<button class="btn btn-primary" data-fm-cerrar>Cerrar vista p
 function abrirEncuesta(gid, e, vista = false){
   const g = (PERFIL?.grupos || []).find(x => x.id === gid) || grupoPorId(gid);
   FM = { tipo:'encuesta', grupo:gid, numero:e.numero, vista, preguntas:preguntasDe('encuesta', g) };
-  fmAbrir(vista ? 'Vista previa · Encuesta de satisfacción' : `Encuesta ${e.numero} de 5`, `
+  fmAbrir(vista ? `Vista previa · Encuesta${e.numero ? ' ' + e.numero : ''} de satisfacción` : `Encuesta ${e.numero} de 5`, `
     ${vista ? AVISO_VISTA : ''}
+    ${vista && e.numero ? `<p class="fm-enlace">Enlace de esta encuesta: <b>${escapeHtml(enlaceFormulario('encuesta', e.numero))}</b>
+      <button class="btn-link" data-fm-enlace="encuesta" data-n="${e.numero}">Copiar</button></p>` : ''}
     ${e.sesion ? `<p class="fm-intro">Sobre <b>${escapeHtml(e.sesion)}</b>.</p>` : ''}
     ${FM.preguntas.map(preguntaHtml).join('')}`,
     vista ? PIE_VISTA : `<button class="btn" data-fm-cerrar>Después</button><button class="btn btn-primary" data-fm-enviar>Enviar</button>`);
@@ -307,11 +312,18 @@ function formulariosAdminHtml(g){
 
   const N = FADM.miembros.length;
   const activos = new Set(FADM.miembros.map(m => m.email));
-  const herramientas = tipo => `
+  const herramientas = tipo => tipo === 'encuesta' ? `
+    <span class="fm-herr"><button class="btn-link" data-fm-editar="encuesta">Editar preguntas</button></span>` : `
     <span class="fm-herr">
       <button class="btn-link" data-fm-preview="${tipo}">Ver preguntas</button> ·
       <button class="btn-link" data-fm-editar="${tipo}">Editar preguntas</button> ·
       <button class="btn-link" data-fm-enlace="${tipo}" title="${enlaceFormulario(tipo)}">Copiar enlace</button>
+    </span>`;
+  // Cada encuesta abierta: verla como la ve la persona y su propio enlace
+  const deEncuesta = n => `
+    <span class="fm-herr-enc">
+      <button class="btn-link" data-fm-preview="encuesta" data-n="${n}">Ver encuesta</button> ·
+      <button class="btn-link" data-fm-enlace="encuesta" data-n="${n}" title="${enlaceFormulario('encuesta', n)}">Copiar enlace</button>
     </span>`;
 
   // Diagnóstico
@@ -356,7 +368,7 @@ function formulariosAdminHtml(g){
       const env = FADM.envios.find(x => x.tipo === 'encuesta' && x.numero === n);
       return `
         <div class="as-fila">
-          <span class="as-nombre">Encuesta ${n}${s ? `<small>${escapeHtml(s.short)}: ${escapeHtml(s.name)}</small>` : ''}</span>
+          <span class="as-nombre">Encuesta ${n}${s ? `<small>${escapeHtml(s.short)}: ${escapeHtml(s.name)}</small>` : ''}${deEncuesta(n)}</span>
           <span class="as-estado">${e.abierta ? '<span class="as-ok">Abierta</span>' : '<span class="as-sin">Cerrada</span>'}
             · <button class="fm-cuenta" data-fe-ver="${n}" title="Ver quién respondió y quién falta"><b>${rs.length} de ${N}</b> respondieron</button>${pg != null ? ` · <b>${promTxt(pg)}</b> de 5` : ''}${env ? ` · ${enviadoTxt(env)}` : ''}</span>
           <span class="as-acc">
@@ -565,8 +577,8 @@ async function formularioGmail(tipo, numero, soloFaltan){
     await cargarFormulariosAdmin(g.id);
   } catch (err){ w?.close(); toast(errorMsg(err)); }
 }
-async function copiarEnlace(tipo){
-  const url = enlaceFormulario(tipo);
+async function copiarEnlace(tipo, n = 0){
+  const url = enlaceFormulario(tipo, n);
   try { await navigator.clipboard.writeText(url); toast('Enlace copiado: ' + url + ' (cada persona entra con su correo y la contraseña de su empresa)'); }
   catch { prompt('Copia el enlace:', url); }
 }
@@ -578,6 +590,7 @@ async function fmClic(e){
   if (t('[data-fm-enviar]')) return fmEnviar();
   if (t('[data-fd-persona]')) return verDiagnosticos(t('[data-fd-persona]').dataset.fdPersona);
   if (t('[data-fd-csv]')) return descargarDiagnosticos();
+  if (t('[data-fm-enlace]')){ const b = t('[data-fm-enlace]'); return copiarEnlace(b.dataset.fmEnlace, +b.dataset.n || 0); }
   if (t('[data-fm-gmail]')){ const b = t('[data-fm-gmail]'); return formularioGmail(b.dataset.fmGmail, b.dataset.n ? +b.dataset.n : null, !!b.dataset.faltan); }
   if (!ED) return;
   const caja = t('.fe-preg'), i = caja ? +caja.dataset.i : -1;
@@ -616,10 +629,13 @@ $('#posts').addEventListener('click', async e => {
   // Admin
   const g = grupoPorId(vistaComo); if (!g) return;
   const pv = t('[data-fm-preview]');
-  if (pv) return pv.dataset.fmPreview === 'diagnostico' ? abrirDiagnostico(g.id, true)
-    : abrirEncuesta(g.id, { numero:0, sesion:'(la clase que elijas al abrirla)' }, true);
+  if (pv){
+    if (pv.dataset.fmPreview === 'diagnostico') return abrirDiagnostico(g.id, true);
+    const n = +pv.dataset.n || 0, e = FADM.encuestas.find(x => x.numero === n), s = sesionPorId(e?.sesion_id);
+    return abrirEncuesta(g.id, { numero:n, sesion:s ? `${s.short}: ${s.name}` : '(la clase que elijas al abrirla)' }, true);
+  }
   if (t('[data-fm-editar]')) return abrirEditor(t('[data-fm-editar]').dataset.fmEditar);
-  if (t('[data-fm-enlace]')) return copiarEnlace(t('[data-fm-enlace]').dataset.fmEnlace);
+  if (t('[data-fm-enlace]')){ const b = t('[data-fm-enlace]'); return copiarEnlace(b.dataset.fmEnlace, +b.dataset.n || 0); }
   if (t('[data-fd-ver]')) return verDiagnosticos();
   if (t('[data-fe-ver]')) return verResultadosEncuesta(+t('[data-fe-ver]').dataset.feVer);
   if (t('[data-fm-gmail]')){
