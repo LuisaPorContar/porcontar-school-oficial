@@ -1461,7 +1461,7 @@ function renderVista(){
     $('#viewTitle').textContent = s.short;
     $('#viewSubtitle').textContent = TIPOS_SESION[s.tipo] && s.tipo !== 'clase' ? TIPOS_SESION[s.tipo] : grupoCorto() ? grupoCorto().nombre : 'El reto';
   } else if (view.type === 'skills'){
-    $('#viewTitle').textContent = skillArea === 'todas' ? 'Skills' : skillArea;
+    $('#viewTitle').textContent = skillArea === 'todas' || skillArea === 'empresa' ? 'Catálogo de prompts' : skillArea === 'clases' ? 'Prompts por clase' : skillArea;
     $('#viewSubtitle').textContent = 'Prompts listos para usar: ábrelos, cópialos o descárgalos en .md';
   } else if (view.type === 'faq'){
     $('#viewTitle').textContent = FAQ.title;
@@ -1628,7 +1628,7 @@ function renderVista(){
   $('#countSkills').textContent = skillsVisibles.length;
   const cq = $('#countQuiz');
   if (cq) cq.textContent = IS_ADMIN ? vis(quizzes).filter(q => q.activo).length : quizzes.length;
-  $('#navAreas').hidden = !enSkills;
+  $('#navAreas').hidden = true;   // el filtro del catálogo está arriba, en la página
 
   if (enGestion){
     $('#posts').innerHTML = view.type === 'grupos' ? gruposHtml() : view.type === 'reto' ? retoHtml()
@@ -1657,15 +1657,8 @@ function renderVista(){
   }
 
   if (enSkills){
-    $('#navAreas').innerHTML = ['todas', ...areasCatalogo()].map(a => {
-      const n = a === 'todas' ? skillsVisibles.length : skillsVisibles.filter(s => s.area === a).length;
-      if (!n && a !== 'todas' && !IS_ADMIN && skillArea !== a) return '';   // al estudiante, solo áreas con prompts
-      return `<button class="nav-area ${skillArea === a ? 'is-on' : ''}" data-area="${escapeHtml(a)}">
-                <span class="t">${a === 'todas' ? 'Todas las áreas' : escapeHtml(a)}</span>
-                <em>${n}</em>
-              </button>`;
-    }).join('');
     $('#posts').innerHTML = skillsHtml();
+    if (skillQ) skFiltrar();
     return;
   }
 
@@ -1736,85 +1729,123 @@ function renderVista(){
 /* ================================================================
    Catálogo de skills
    ================================================================ */
-const skillList = () => skillArea === 'todas'
-  ? vis(skills)
-  : vis(skills).filter(s => s.area === skillArea);
+/* El catálogo tiene un solo filtro, arriba: Todos · Por clase · la empresa · cada área.
+   skillArea guarda cuál está elegido ('todas', 'clases', 'empresa' o el nombre del área). */
+let skillQ = '';   // lo escrito en el buscador del catálogo
+const skClases = () => [...SESSIONS, ...OTRAS_SESIONES];
+const skPosClase = s => s.sesionId ? skClases().findIndex(x => x.id === s.sesionId) : -1;
+/** La empresa dueña de un prompt exclusivo, entre los grupos que se ven desde aquí. */
+const skEmpresaDe = s => esExclusivo(s) ? ((IS_ADMIN ? GRUPOS : (PERFIL?.grupos || [])).find(g => audDe(s).includes(g.id)) || null) : null;
+const skillList = () => {
+  const todas = vis(skills);
+  if (skillArea === 'todas') return todas;
+  if (skillArea === 'clases') return todas.filter(s => skPosClase(s) >= 0);
+  if (skillArea === 'empresa') return todas.filter(s => skPosClase(s) < 0 && skEmpresaDe(s));
+  return todas.filter(s => s.area === skillArea);
+};
 
-/** El número visible es la posición en el catálogo completo, no en el filtro:
-    así una skill conserva su #04 aunque cambies de área. */
+/** El número visible es la posición en el catálogo completo (se usa en la ventana del prompt). */
 const skillNum = s => String(skills.findIndex(x => x.id === s.id) + 1).padStart(2, '0');
+
+/** La fila de filtros: solo opciones con prompts. */
+function skillFiltrosHtml(){
+  const todas = vis(skills);
+  const emp = todas.filter(s => skPosClase(s) < 0 && skEmpresaDe(s));
+  const nombreEmp = emp.length ? skEmpresaDe(emp[0]).nombre : '';
+  const op = (clave, txt, n) => `<button class="sk-chip ${skillArea === clave ? 'is-on' : ''}" data-area="${escapeHtml(clave)}" aria-pressed="${skillArea === clave}">${escapeHtml(txt)}<em>${n}</em></button>`;
+  const areas = areasCatalogo().map(a => [a, todas.filter(s => s.area === a).length])
+    .filter(([a, n]) => n || skillArea === a);
+  return `
+    <div class="sk-filtros" role="toolbar" aria-label="Filtrar prompts">
+      ${op('todas', 'Todos', todas.length)}
+      ${todas.some(s => skPosClase(s) >= 0) ? op('clases', 'Por clase', todas.filter(s => skPosClase(s) >= 0).length) : ''}
+      ${emp.length ? op('empresa', nombreEmp, emp.length) : ''}
+      <span class="sk-sep" aria-hidden="true"></span>
+      ${areas.map(([a, n]) => op(a, a, n)).join('')}
+    </div>`;
+}
 
 function skillsHtml(){
   const lista = skillList();
   const cabecera = `
     <div class="sk-head">
-      <span class="sk-label">${lista.length} ${lista.length === 1 ? 'skill' : 'skills'}${
-        skillArea === 'todas' ? ' en el catálogo' : ' en ' + escapeHtml(skillArea)}</span>
+      <label class="sk-buscar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" data-sk-buscar placeholder="Buscar un prompt…" aria-label="Buscar un prompt" autocomplete="off" value="${escapeHtml(skillQ)}" /></label>
       ${IS_ADMIN ? `<button class="btn btn-primary" data-new-skill>
         <svg class="ico"><use href="#i-plus"/></svg> Nueva skill</button>` : ''}
-    </div>`;
+    </div>
+    ${skillFiltrosHtml()}`;
 
   if (!lista.length) return cabecera + `
     <div class="empty">
       <svg class="ico"><use href="#i-skill"/></svg>
-      <h3>Todavía sin skills${skillArea === 'todas' ? '' : ' en esta área'}</h3>
+      <h3>Todavía no hay prompts aquí</h3>
       <p>${IS_ADMIN
-        ? 'Crea la primera con <b>Nueva skill</b>: un nombre, el área y el prompt.'
-        : 'Vuelve cuando el equipo publique los prompts de esta área.'}</p>
+        ? 'Crea el primero con <b>Nueva skill</b>: un nombre, el área y el prompt.'
+        : 'Vuelve cuando el equipo publique más prompts.'}</p>
     </div>`;
 
-  // En «Todas las áreas» el catálogo va en tres partes:
-  // 1) los de cada clase, en el orden del programa; 2) los generales, por área; 3) los de la empresa
+  // Bloques: por clase (en el orden del programa), por área y los de la empresa
+  const bloques = [];
+  const agregar = (clave, titulo, sub, x) => {
+    const b = bloques.find(y => y.clave === clave);
+    b ? b.xs.push(x) : bloques.push({ clave, titulo, sub, xs:[x] });
+  };
+  if (skillArea === 'todas' || skillArea === 'clases')
+    lista.filter(s => skPosClase(s) >= 0)
+      .sort((a, b) => skPosClase(a) - skPosClase(b) || skills.indexOf(a) - skills.indexOf(b))
+      .forEach(s => { const c = skClases()[skPosClase(s)]; agregar('c:' + c.id, c.name, c.short, s); });
   if (skillArea === 'todas'){
-    const clases = [...SESSIONS, ...OTRAS_SESIONES];
-    const posClase = s => s.sesionId ? clases.findIndex(x => x.id === s.sesionId) : -1;
-    // La empresa dueña de un prompt exclusivo: entre los grupos que se ven desde aquí
-    const misGrupos = IS_ADMIN ? GRUPOS : (PERFIL?.grupos || []);
-    const empresaDe = s => esExclusivo(s) ? (misGrupos.find(g => audDe(s).includes(g.id)) || null) : null;
-    const bloques = [];
-    const agregar = (clave, titulo, sub, x) => {
-      const b = bloques.find(y => y.clave === clave);
-      b ? b.xs.push(x) : bloques.push({ clave, titulo, sub, xs:[x] });
-    };
-    lista.filter(s => posClase(s) >= 0)
-      .sort((a, b) => posClase(a) - posClase(b) || skills.indexOf(a) - skills.indexOf(b))
-      .forEach(s => { const c = clases[posClase(s)]; agregar('c:' + c.id, c.name, c.short, s); });
-    const sinClase = lista.filter(s => posClase(s) < 0);
-    const generales = sinClase.filter(s => !empresaDe(s));
     const areas = areasCatalogo();
-    [...generales].sort((a, b) => areas.indexOf(a.area) - areas.indexOf(b.area) || skills.indexOf(a) - skills.indexOf(b))
+    lista.filter(s => skPosClase(s) < 0 && !skEmpresaDe(s))
+      .sort((a, b) => areas.indexOf(a.area) - areas.indexOf(b.area) || skills.indexOf(a) - skills.indexOf(b))
       .forEach(s => agregar('a:' + s.area, s.area, 'Área', s));
-    sinClase.filter(s => empresaDe(s))
-      .forEach(s => { const g = empresaDe(s); agregar('e:' + g.id, g.nombre, g.tipo === 'b2c' ? 'Tu grupo' : 'Tu empresa', s); });
-    let n = 0;   // el número sigue el orden en que se ven: 01, 02, 03…
-    const tarjeta = s => skillCardHtml(s, String(++n).padStart(2, '0'));
-    return cabecera + bloques.map(b => `
-      <h3 class="sk-grupo"><span>${escapeHtml(b.sub)}</span> ${escapeHtml(b.titulo)}</h3>
-      <div class="sk-grid">${b.xs.map(tarjeta).join('')}</div>`).join('');
   }
-  return cabecera + `<div class="sk-grid">${lista.map(s => skillCardHtml(s)).join('')}</div>`;
+  if (skillArea === 'todas' || skillArea === 'empresa')
+    lista.filter(s => skPosClase(s) < 0 && skEmpresaDe(s))
+      .forEach(s => { const g = skEmpresaDe(s); agregar('e:' + g.id, g.nombre, g.tipo === 'b2c' ? 'Tu grupo' : 'Tu empresa', s); });
+
+  const cuerpo = bloques.length
+    ? bloques.map(b => `
+      <section class="sk-bloque">
+        <h3 class="sk-grupo"><span>${escapeHtml(b.sub)}</span> ${escapeHtml(b.titulo)}<em>${b.xs.length}</em></h3>
+        <div class="sk-grid">${b.xs.map(skillCardHtml).join('')}</div>
+      </section>`).join('')
+    : `<section class="sk-bloque"><div class="sk-grid">${lista.map(skillCardHtml).join('')}</div></section>`;
+  return cabecera + cuerpo + `<p class="sk-nada" hidden>Ningún prompt coincide con la búsqueda.</p>`;
 }
 
-function skillCardHtml(s, num = skillNum(s)){
+function skillCardHtml(s){
+  const clase = s.sesionId && sesionPorId(s.sesionId);
+  const busca = sinTildes([s.title, s.area, s.objective, s.tags, clase?.short, clase?.name].filter(Boolean).join(' '));
   return `
-    <article class="sk-card${s.visible === false ? ' is-off' : ''}" data-skill="${s.id}">
-      <span class="sk-num">${num}</span>
-      ${IS_ADMIN ? `<button class="sk-switch" data-sk-visible="${s.id}"
+    <article class="sk-card${s.visible === false ? ' is-off' : ''}" data-skill="${s.id}" data-sk-texto="${escapeHtml(busca)}" tabindex="0">
+      ${IS_ADMIN ? `<button class="sk-switch" data-sk-visible="${s.id}" aria-label="${s.visible === false ? 'Oculto: mostrarlo' : 'Visible: ocultarlo'}"
           title="${s.visible === false ? 'Oculta para los estudiantes: clic para mostrarla' : 'Visible: clic para ocultarla'}">
-        <svg class="ico"><use href="#${s.visible === false ? 'i-eye-off' : 'i-eye'}"/></svg>
-        ${s.visible === false ? 'Oculta' : 'Visible'}</button>` : ''}
-      <div class="sk-body">
-        <span class="sk-area">${escapeHtml(s.area)}</span>
-        <h3>${escapeHtml(s.title)}</h3>
-        <div class="sk-tags">
-          <span class="sk-tag is-lvl">${escapeHtml(s.level)}</span>
-          ${s.sesionId && sesionPorId(s.sesionId) ? `<span class="sk-tag is-clase">${escapeHtml(sesionPorId(s.sesionId).short)}</span>` : ''}
-          ${tagList(s.tags).map(t => `<span class="sk-tag">${escapeHtml(t)}</span>`).join('')}
-        </div>
+        <svg class="ico"><use href="#${s.visible === false ? 'i-eye-off' : 'i-eye'}"/></svg></button>` : ''}
+      <span class="sk-area">${escapeHtml(s.area)}</span>
+      <h3>${escapeHtml(s.title)}</h3>
+      ${s.objective ? `<p class="sk-obj">${escapeHtml(s.objective.replace(/\*\*/g, ''))}</p>` : ''}
+      <div class="sk-pie">
+        <span class="sk-tag is-lvl">${escapeHtml(s.level)}</span>
+        ${clase ? `<span class="sk-tag is-clase">${escapeHtml(clase.short)}</span>` : ''}
         ${audTagHtml(s)}
       </div>
     </article>`;
 }
+
+/* El buscador filtra sin redibujar (así no se pierde lo escrito) */
+function skFiltrar(){
+  const q = sinTildes(skillQ).trim().split(/\s+/).filter(Boolean);
+  let vistos = 0;
+  $$('#posts .sk-card').forEach(c => { const ok = q.every(x => c.dataset.skTexto.includes(x)); c.hidden = !ok; if (ok) vistos++; });
+  $$('#posts .sk-bloque').forEach(b => { b.hidden = !b.querySelector('.sk-card:not([hidden])'); });
+  const nada = $('#posts .sk-nada'); if (nada) nada.hidden = vistos > 0;
+}
+document.addEventListener('input', e => { if (e.target.matches('[data-sk-buscar]')){ skillQ = e.target.value; skFiltrar(); } });
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.sk-card')){ e.preventDefault(); openSkill(e.target.dataset.skill); }
+});
 
 const tagList = t => (t || '').split(',').map(x => x.trim()).filter(Boolean);
 
@@ -1877,7 +1908,7 @@ function openSkillEditor(s = null){
   $('#skfArea').innerHTML  = areasCatalogo().map(a => `<option>${escapeHtml(a)}</option>`).join('');
   $('#skfLevel').innerHTML = NIVELES.map(n => `<option>${escapeHtml(n)}</option>`).join('');
   $('#skfTitle').value     = s ? s.title : '';
-  $('#skfArea').value      = s ? s.area  : (skillArea === 'todas' ? AREAS[0] : skillArea);
+  $('#skfArea').value      = s ? s.area  : (areasCatalogo().includes(skillArea) ? skillArea : AREAS[0]);
   $('#skfLevel').value     = s ? s.level : NIVELES[0];
   $('#skfTags').value      = s ? s.tags  : '';
   $('#skfObjective').value = s ? s.objective : '';
@@ -2452,6 +2483,9 @@ async function hydrateVideo(p){
    Interacciones del muro
    ================================================================ */
 $('#posts').addEventListener('click', async e => {
+  // Filtro del catálogo de prompts (Todos · Por clase · empresa · áreas)
+  const chip = e.target.closest('.sk-chip');
+  if (chip){ skillArea = chip.dataset.area; render(); return; }
   if (e.target.closest('[data-open-composer]')) return openComposer();
   if (e.target.closest('[data-new-skill]')) return openSkillEditor();
 
