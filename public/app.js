@@ -1729,7 +1729,7 @@ function renderVista(){
 /* ================================================================
    Catálogo de skills
    ================================================================ */
-/* El catálogo tiene un solo filtro, arriba: Todos · Por clase · la empresa · cada área.
+/* El catálogo tiene un solo filtro, arriba, en un desplegable: Todos · Por clase · la empresa · cada área.
    skillArea guarda cuál está elegido ('todas', 'clases', 'empresa' o el nombre del área). */
 let skillQ = '';   // lo escrito en el buscador del catálogo
 const skClases = () => [...SESSIONS, ...OTRAS_SESIONES];
@@ -1747,22 +1747,22 @@ const skillList = () => {
 /** El número visible es la posición en el catálogo completo (se usa en la ventana del prompt). */
 const skillNum = s => String(skills.findIndex(x => x.id === s.id) + 1).padStart(2, '0');
 
-/** La fila de filtros: solo opciones con prompts. */
+/** El filtro del catálogo: un solo desplegable (Todos, Por clase, la empresa y las áreas con prompts). */
 function skillFiltrosHtml(){
   const todas = vis(skills);
   const emp = todas.filter(s => skPosClase(s) < 0 && skEmpresaDe(s));
-  const nombreEmp = emp.length ? skEmpresaDe(emp[0]).nombre : '';
-  const op = (clave, txt, n) => `<button class="sk-chip ${skillArea === clave ? 'is-on' : ''}" data-area="${escapeHtml(clave)}" aria-pressed="${skillArea === clave}">${escapeHtml(txt)}<em>${n}</em></button>`;
+  const op = (clave, txt, n) => `<option value="${escapeHtml(clave)}" ${skillArea === clave ? 'selected' : ''}>${escapeHtml(txt)} (${n})</option>`;
   const areas = areasCatalogo().map(a => [a, todas.filter(s => s.area === a).length])
     .filter(([a, n]) => n || skillArea === a);
+  const nClase = todas.filter(s => skPosClase(s) >= 0).length;
   return `
-    <div class="sk-filtros" role="toolbar" aria-label="Filtrar prompts">
-      ${op('todas', 'Todos', todas.length)}
-      ${todas.some(s => skPosClase(s) >= 0) ? op('clases', 'Por clase', todas.filter(s => skPosClase(s) >= 0).length) : ''}
-      ${emp.length ? op('empresa', nombreEmp, emp.length) : ''}
-      <span class="sk-sep" aria-hidden="true"></span>
-      ${areas.map(([a, n]) => op(a, a, n)).join('')}
-    </div>`;
+    <label class="sk-select"><span class="sr-only">Mostrar</span>
+      <select data-sk-filtro aria-label="Mostrar prompts">
+        ${op('todas', 'Todos los prompts', todas.length)}
+        ${nClase ? op('clases', 'Por clase', nClase) : ''}
+        ${emp.length ? op('empresa', skEmpresaDe(emp[0]).nombre, emp.length) : ''}
+        ${areas.length ? `<optgroup label="Áreas">${areas.map(([a, n]) => op(a, a, n)).join('')}</optgroup>` : ''}
+      </select></label>`;
 }
 
 function skillsHtml(){
@@ -1771,10 +1771,10 @@ function skillsHtml(){
     <div class="sk-head">
       <label class="sk-buscar"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input type="search" data-sk-buscar placeholder="Buscar un prompt…" aria-label="Buscar un prompt" autocomplete="off" value="${escapeHtml(skillQ)}" /></label>
+      ${skillFiltrosHtml()}
       ${IS_ADMIN ? `<button class="btn btn-primary" data-new-skill>
         <svg class="ico"><use href="#i-plus"/></svg> Nueva skill</button>` : ''}
-    </div>
-    ${skillFiltrosHtml()}`;
+    </div>`;
 
   if (!lista.length) return cabecera + `
     <div class="empty">
@@ -1843,6 +1843,7 @@ function skFiltrar(){
   const nada = $('#posts .sk-nada'); if (nada) nada.hidden = vistos > 0;
 }
 document.addEventListener('input', e => { if (e.target.matches('[data-sk-buscar]')){ skillQ = e.target.value; skFiltrar(); } });
+document.addEventListener('change', e => { if (e.target.matches('[data-sk-filtro]')){ skillArea = e.target.value; render(); $('[data-sk-filtro]')?.focus(); } });
 document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.sk-card')){ e.preventDefault(); openSkill(e.target.dataset.skill); }
 });
@@ -2483,9 +2484,6 @@ async function hydrateVideo(p){
    Interacciones del muro
    ================================================================ */
 $('#posts').addEventListener('click', async e => {
-  // Filtro del catálogo de prompts (Todos · Por clase · empresa · áreas)
-  const chip = e.target.closest('.sk-chip');
-  if (chip){ skillArea = chip.dataset.area; render(); return; }
   if (e.target.closest('[data-open-composer]')) return openComposer();
   if (e.target.closest('[data-new-skill]')) return openSkillEditor();
 
