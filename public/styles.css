@@ -2927,3 +2927,7 @@ body{top:0 !important}
 .fm-herr-enc{display:block;margin-top:2px;font-weight:400;font-size:12.5px;color:var(--ink-mute)}
 .fm-herr-enc .btn-link{font-size:12.5px}
 .fm-enlace{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--paper-2);font-size:13px;word-break:break-all}
+/* Catálogo de prompts: un bloque por clase, en el orden del programa */
+.sk-grupo{display:flex;align-items:baseline;gap:8px;margin:22px 0 10px;font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--ink)}
+.sk-grupo:first-of-type{margin-top:6px}
+.sk-grupo span{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--pc-blue)}

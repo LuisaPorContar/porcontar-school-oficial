@@ -1763,9 +1763,29 @@ function skillsHtml(){
         : 'Vuelve cuando el equipo publique los prompts de esta área.'}</p>
     </div>`;
 
-  return cabecera + `<div class="sk-grid">${lista.map(s => `
+  // En «Todas las áreas», primero los prompts de cada clase, en el orden del programa; después el resto
+  const clases = [...SESSIONS, ...OTRAS_SESIONES];
+  const posClase = s => s.sesionId ? clases.findIndex(x => x.id === s.sesionId) : -1;
+  if (skillArea === 'todas' && lista.some(s => posClase(s) >= 0)){
+    const conClase = lista.filter(s => posClase(s) >= 0)
+      .sort((a, b) => posClase(a) - posClase(b) || skills.indexOf(a) - skills.indexOf(b));
+    const grupos = [];
+    conClase.forEach(s => { const c = clases[posClase(s)]; const g = grupos.find(x => x.c === c); g ? g.xs.push(s) : grupos.push({ c, xs:[s] }); });
+    const resto = lista.filter(s => posClase(s) < 0);
+    let n = 0;   // aquí el número sigue el orden del programa: 01, 02, 03…
+    const tarjeta = s => skillCardHtml(s, String(++n).padStart(2, '0'));
+    return cabecera + grupos.map(g => `
+      <h3 class="sk-grupo"><span>${escapeHtml(g.c.short)}</span> ${escapeHtml(g.c.name)}</h3>
+      <div class="sk-grid">${g.xs.map(tarjeta).join('')}</div>`).join('')
+      + (resto.length ? `<h3 class="sk-grupo">Más prompts</h3><div class="sk-grid">${resto.map(tarjeta).join('')}</div>` : '');
+  }
+  return cabecera + `<div class="sk-grid">${lista.map(s => skillCardHtml(s)).join('')}</div>`;
+}
+
+function skillCardHtml(s, num = skillNum(s)){
+  return `
     <article class="sk-card${s.visible === false ? ' is-off' : ''}" data-skill="${s.id}">
-      <span class="sk-num">${skillNum(s)}</span>
+      <span class="sk-num">${num}</span>
       ${IS_ADMIN ? `<button class="sk-switch" data-sk-visible="${s.id}"
           title="${s.visible === false ? 'Oculta para los estudiantes: clic para mostrarla' : 'Visible: clic para ocultarla'}">
         <svg class="ico"><use href="#${s.visible === false ? 'i-eye-off' : 'i-eye'}"/></svg>
@@ -1780,7 +1800,7 @@ function skillsHtml(){
         </div>
         ${audTagHtml(s)}
       </div>
-    </article>`).join('')}</div>`;
+    </article>`;
 }
 
 const tagList = t => (t || '').split(',').map(x => x.trim()).filter(Boolean);
