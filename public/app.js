@@ -644,20 +644,26 @@ function cloudStore(){
       if (error) throw error;
       return data;
     },
+    /** La estadística de los quizzes: en el espacio de una empresa, solo sus personas (supabase-quiz-por-grupo.sql). */
     async quizStats(){
-      const { data, error } = await sb.rpc(rpcQzStats);
-      if (error) throw error;
-      return data || [];
+      const { data, error } = await sb.rpc(rpcQzStats, { p_grupo:vistaComo || null });
+      if (!error){ statsSinGrupo = false; return data || []; }
+      // Sin el SQL nuevo todavía: la de antes, con todas las empresas juntas (y se avisa)
+      if (!/p_grupo|quiz_stats|schema cache|function/i.test(error.message || '')) throw error;
+      const viejo = await sb.rpc(rpcQzStats);
+      if (viejo.error) throw viejo.error;
+      statsSinGrupo = !!vistaComo;
+      return viejo.data || [];
     },
-    /** Borra los intentos de una persona en un quiz (para limpiar pruebas). */
+    /** Borra los intentos de una persona en un quiz; en el espacio de una empresa, solo ahí. */
     async borrarPersonaQuiz(quizId, persona){
-      const { error } = await sb.rpc(rpcQzBorrarP, { p_quiz_id:quizId, p_persona:persona });
-      if (error) throw error;
+      const { error } = await sb.rpc(rpcQzBorrarP, { p_quiz_id:quizId, p_persona:persona, p_grupo:vistaComo || null });
+      if (error) throw /p_grupo|schema cache|function/i.test(error.message || '') ? new Error('Falta correr supabase-quiz-por-grupo.sql en Supabase.') : error;
     },
-    /** Borra todos los intentos de un quiz. Las preguntas quedan intactas. */
+    /** Borra los intentos de un quiz (en el espacio de una empresa, solo los suyos). Las preguntas quedan. */
     async borrarIntentosQuiz(quizId){
-      const { error } = await sb.rpc(rpcQzBorrarT, { p_quiz_id:quizId });
-      if (error) throw error;
+      const { error } = await sb.rpc(rpcQzBorrarT, { p_quiz_id:quizId, p_grupo:vistaComo || null });
+      if (error) throw /p_grupo|schema cache|function/i.test(error.message || '') ? new Error('Falta correr supabase-quiz-por-grupo.sql en Supabase.') : error;
     },
 
     /* ---------- Catálogo de skills ---------- */
@@ -910,6 +916,7 @@ let skills      = [];      // catálogo de skills
    solo para el admin, la estadística y el editor.                       */
 let quizzes       = [];
 let estadisticas  = [];          // solo admin
+let statsSinGrupo = false;       // la base todavía no separa la estadística por empresa
 let quizFalla     = '';          // por qué no cargaron (p. ej. falta correr el SQL)
 let quizAbierto   = null;        // el quiz que se está respondiendo
 let quizElegidas  = [];          // opción marcada en cada pregunta
@@ -2189,6 +2196,13 @@ function quizListaHtml(){
   return `${resumen}<div class="quiz-grid">${tarjetas}</div>`;
 }
 
+/** De quién son los resultados que se ven: la empresa del espacio o todas. */
+function statsDeQuien(){
+  const g = grupoPorId(vistaComo);
+  if (statsSinGrupo) return `<p class="quiz-nota is-aviso">Se ven las respuestas de todas las empresas juntas: falta correr supabase-quiz-por-grupo.sql en Supabase.</p>`;
+  return `<p class="quiz-nota">${g ? `Respuestas de <b>${escapeHtml(g.nombre)}</b>.` : 'Respuestas de todas las empresas. Para ver las de una sola, elige su espacio de trabajo.'}</p>`;
+}
+
 /** Resumen de todos los quizzes, arriba de la lista del admin. */
 function statsResumenHtml(){
   const conDatos = estadisticas.filter(s => s.personas);
@@ -2199,6 +2213,7 @@ function statsResumenHtml(){
   return `
     <div class="card quiz-resumen">
       <h3>Cómo va el grupo</h3>
+      ${statsDeQuien()}
       ${respondidas ? `
         <div class="quiz-cifras">
           <div><b>${pct(aciertos, respondidas)}%</b><span>de aciertos en total</span></div>
@@ -2304,7 +2319,7 @@ function quizStatsHtml(){
           ? `<small class="celda-sub">${escapeHtml(i.persona)}</small>` : ''}</td><td>${i.puntaje} de ${i.total}</td>
         <td>${pct(i.puntaje, i.total)}%</td><td>${timeAgo(new Date(i.fecha).getTime())}</td>
         <td class="quiz-borrar-celda">
-          <button class="icon-btn" data-quiz-borrar-persona="${escapeHtml(i.persona || i.nombre)}"
+          <button class="icon-btn" data-quiz-borrar-persona="${escapeHtml(i.email || i.persona || i.nombre)}"
                   title="Quitar a ${escapeHtml(i.nombre)} de la estadística"
                   aria-label="Quitar a ${escapeHtml(i.nombre)}">
             <svg class="ico"><use href="#i-trash"/></svg>
@@ -2315,6 +2330,7 @@ function quizStatsHtml(){
     <div class="card quiz-responder">
       <button class="btn quiz-volver" data-quiz-volver>← ${String(quizDesde || '').startsWith('curso:') ? 'Volver al curso' : quizDesde ? 'Volver a la clase' : 'Volver a los quizzes'}</button>
       <h2 class="quiz-titulo">${escapeHtml(quiz.titulo || '')}</h2>
+      ${statsDeQuien()}
       ${stat.personas ? `
         <div class="quiz-cifras">
           <div><b>${pct(stat.aciertos, stat.respondidas)}%</b><span>de aciertos</span></div>
@@ -2328,7 +2344,7 @@ function quizStatsHtml(){
           <table><thead><tr><th>Nombre</th><th>Puntaje</th><th>%</th><th>Cuándo</th><th></th></tr></thead>
           <tbody>${intentos}</tbody></table>
         </div>
-        <button class="btn quiz-vaciar" data-quiz-vaciar>Borrar todas las respuestas de este quiz</button>
+        ${statsSinGrupo ? '' : `<button class="btn quiz-vaciar" data-quiz-vaciar>${grupoPorId(vistaComo) ? `Borrar las respuestas de ${escapeHtml(grupoPorId(vistaComo).nombre)}` : 'Borrar todas las respuestas de este quiz'}</button>`}
         <p class="quiz-nota">Solo borra las respuestas; las preguntas del quiz quedan como están.</p>`
         : `<p class="quiz-desc">Nadie ha respondido este quiz todavía.</p>`}
     </div>`;
@@ -3231,7 +3247,9 @@ $('#posts').addEventListener('click', async e => {
   }
 
   if (e.target.closest('[data-quiz-vaciar]')){
-    if (!(await confirmar({ titulo:'¿Borrar todas las respuestas?', texto:'Las preguntas del quiz quedan como están; solo se borran los intentos.', boton:'Borrar respuestas' }))) return;
+    const gv = grupoPorId(vistaComo);
+    if (!(await confirmar({ titulo:gv ? `¿Borrar las respuestas de ${gv.nombre}?` : '¿Borrar todas las respuestas, de todas las empresas?',
+                            texto:'Las preguntas del quiz quedan como están; solo se borran los intentos. No se puede deshacer.', boton:'Borrar respuestas' }))) return;
     try {
       await store.borrarIntentosQuiz(quizAbierto);
       estadisticas = await store.quizStats();
@@ -3516,6 +3534,7 @@ function cambiarEspacio(id){
   repartirSesiones(); pintarNav();
   if (view.type === 'session' && !SESSIONS.some(s => s.id === view.id)) view = { type:'inicio', id:null };
   toast(g ? `Estás en el espacio de ${g.nombre}` : 'Estás en el espacio Principal');
+  if (IS_ADMIN && CLOUD) store.quizStats().then(x => { estadisticas = x; if (view.type === 'quiz') render(); }).catch(err => console.warn(err));
   // En el panel se pasa al de ese grupo; en lo demás se redibuja con lo del espacio
   if (view.type === 'panel') setView('panel', vistaComo || null);
   else if (view.type === 'comunidad') setView('comunidad');
