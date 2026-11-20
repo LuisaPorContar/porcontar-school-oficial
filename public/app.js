@@ -1763,21 +1763,34 @@ function skillsHtml(){
         : 'Vuelve cuando el equipo publique los prompts de esta área.'}</p>
     </div>`;
 
-  // En «Todas las áreas», primero los prompts de cada clase, en el orden del programa; después el resto
-  const clases = [...SESSIONS, ...OTRAS_SESIONES];
-  const posClase = s => s.sesionId ? clases.findIndex(x => x.id === s.sesionId) : -1;
-  if (skillArea === 'todas' && lista.some(s => posClase(s) >= 0)){
-    const conClase = lista.filter(s => posClase(s) >= 0)
-      .sort((a, b) => posClase(a) - posClase(b) || skills.indexOf(a) - skills.indexOf(b));
-    const grupos = [];
-    conClase.forEach(s => { const c = clases[posClase(s)]; const g = grupos.find(x => x.c === c); g ? g.xs.push(s) : grupos.push({ c, xs:[s] }); });
-    const resto = lista.filter(s => posClase(s) < 0);
-    let n = 0;   // aquí el número sigue el orden del programa: 01, 02, 03…
+  // En «Todas las áreas» el catálogo va en tres partes:
+  // 1) los de cada clase, en el orden del programa; 2) los generales, por área; 3) los de la empresa
+  if (skillArea === 'todas'){
+    const clases = [...SESSIONS, ...OTRAS_SESIONES];
+    const posClase = s => s.sesionId ? clases.findIndex(x => x.id === s.sesionId) : -1;
+    // La empresa dueña de un prompt exclusivo: entre los grupos que se ven desde aquí
+    const misGrupos = IS_ADMIN ? GRUPOS : (PERFIL?.grupos || []);
+    const empresaDe = s => esExclusivo(s) ? (misGrupos.find(g => audDe(s).includes(g.id)) || null) : null;
+    const bloques = [];
+    const agregar = (clave, titulo, sub, x) => {
+      const b = bloques.find(y => y.clave === clave);
+      b ? b.xs.push(x) : bloques.push({ clave, titulo, sub, xs:[x] });
+    };
+    lista.filter(s => posClase(s) >= 0)
+      .sort((a, b) => posClase(a) - posClase(b) || skills.indexOf(a) - skills.indexOf(b))
+      .forEach(s => { const c = clases[posClase(s)]; agregar('c:' + c.id, c.name, c.short, s); });
+    const sinClase = lista.filter(s => posClase(s) < 0);
+    const generales = sinClase.filter(s => !empresaDe(s));
+    const areas = areasCatalogo();
+    [...generales].sort((a, b) => areas.indexOf(a.area) - areas.indexOf(b.area) || skills.indexOf(a) - skills.indexOf(b))
+      .forEach(s => agregar('a:' + s.area, s.area, 'Área', s));
+    sinClase.filter(s => empresaDe(s))
+      .forEach(s => { const g = empresaDe(s); agregar('e:' + g.id, g.nombre, g.tipo === 'b2c' ? 'Tu grupo' : 'Tu empresa', s); });
+    let n = 0;   // el número sigue el orden en que se ven: 01, 02, 03…
     const tarjeta = s => skillCardHtml(s, String(++n).padStart(2, '0'));
-    return cabecera + grupos.map(g => `
-      <h3 class="sk-grupo"><span>${escapeHtml(g.c.short)}</span> ${escapeHtml(g.c.name)}</h3>
-      <div class="sk-grid">${g.xs.map(tarjeta).join('')}</div>`).join('')
-      + (resto.length ? `<h3 class="sk-grupo">Más prompts</h3><div class="sk-grid">${resto.map(tarjeta).join('')}</div>` : '');
+    return cabecera + bloques.map(b => `
+      <h3 class="sk-grupo"><span>${escapeHtml(b.sub)}</span> ${escapeHtml(b.titulo)}</h3>
+      <div class="sk-grid">${b.xs.map(tarjeta).join('')}</div>`).join('');
   }
   return cabecera + `<div class="sk-grid">${lista.map(s => skillCardHtml(s)).join('')}</div>`;
 }
